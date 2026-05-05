@@ -15,6 +15,7 @@ import Signup from './components/auth/Signup';
 // Student Components
 import StudentDashboard from './components/student/StudentDashboard';
 import Results from './components/student/Results';
+import AcademicPage from './components/student/AcademicPage';
 
 // Admin Components
 import AdminDashboard from './components/admin/AdminDashboard';
@@ -81,6 +82,18 @@ const App = () => {
             <ProtectedRoute>
               <AuthenticatedLayout>
                 <DashboardRouter />
+              </AuthenticatedLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Academic Route */}
+        <Route
+          path="/academic"
+          element={
+            <ProtectedRoute>
+              <AuthenticatedLayout>
+                <AcademicPage />
               </AuthenticatedLayout>
             </ProtectedRoute>
           }

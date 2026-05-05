@@ -22,6 +22,8 @@ const Results = () => {
   const [expandedMonth, setExpandedMonth] = useState(0);
   const [activeTab, setActiveTab] = useState('home');
   const [selectedRoadmap, setSelectedRoadmap] = useState(null);
+  const [viewMode, setViewMode] = useState('skill'); // 'skill' or 'academic'
+
 
   const { analysis, role, userSkills: passedUserSkills } = location.state || {};
 
@@ -478,8 +480,31 @@ const Results = () => {
               </div>
             </div>
           </div>
-          
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center gap-2 ml-auto">
+            {/* Toggle Switch - right side, green active */}
+            <div className="hidden md:flex items-center bg-zinc-100/60 backdrop-blur-sm p-1 rounded-2xl border border-zinc-200/70 shadow-inner">
+              <button
+                onClick={() => setViewMode('skill')}
+                className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 ${
+                  viewMode === 'skill'
+                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/25'
+                    : 'text-zinc-400 hover:text-zinc-600'
+                }`}
+              >
+                Skill l
+              </button>
+              <button
+                onClick={() => navigate('/academic')}
+                className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 ${
+                  viewMode === 'academic'
+                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/25'
+                    : 'text-zinc-400 hover:text-zinc-600'
+                }`}
+              >
+                Academic SH
+              </button>
+            </div>
             <button onClick={() => navigate('/dashboard')} className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold rounded-lg shadow-sm transition">
               Update Skills
             </button>

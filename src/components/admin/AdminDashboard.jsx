@@ -20,6 +20,8 @@ const AdminDashboard = () => {
   const { userProfile, logout } = useAuth();
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState('skill'); // 'skill' or 'academic'
+
 
   useEffect(() => {
     fetchAnalytics();
@@ -68,8 +70,31 @@ const AdminDashboard = () => {
               <span className="text-xs text-zinc-500 ml-2 bg-zinc-100 px-2 py-0.5 rounded-full">Admin</span>
             </div>
           </div>
-          
-          <div className="flex items-center gap-4">
+
+          <div className="flex items-center gap-3 ml-auto">
+            {/* Toggle Switch - green active */}
+            <div className="hidden md:flex items-center bg-zinc-100/60 backdrop-blur-sm p-1 rounded-2xl border border-zinc-200/70 shadow-inner">
+              <button
+                onClick={() => setViewMode('skill')}
+                className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 ${
+                  viewMode === 'skill'
+                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/25'
+                    : 'text-zinc-400 hover:text-zinc-600'
+                }`}
+              >
+                Skill l
+              </button>
+              <button
+                onClick={() => setViewMode('academic')}
+                className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 ${
+                  viewMode === 'academic'
+                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/25'
+                    : 'text-zinc-400 hover:text-zinc-600'
+                }`}
+              >
+                Academic LH
+              </button>
+            </div>
             <button
               onClick={fetchAnalytics}
               className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-colors"

@@ -54,6 +54,16 @@ const StudentDashboard = () => {
   const [error, setError] = useState('');
   const [lastAnalysis, setLastAnalysis] = useState(null);
 
+  // Sync userProfile into local form state once it loads (fixes re-login showing empty form)
+  useEffect(() => {
+    if (userProfile) {
+      if (userProfile.branch) setBranch(userProfile.branch);
+      if (userProfile.year) setYear(String(userProfile.year));
+      if (userProfile.skills?.length > 0) setSelectedSkills(userProfile.skills);
+      if (userProfile.career_interest) setCareerInterest(userProfile.career_interest);
+    }
+  }, [userProfile?.uid]); // Only run when a new user profile loads (not on every profile update)
+
   // Job Market state
   const [jobListings, setJobListings] = useState([]);
   const [selectedJob, setSelectedJob] = useState(null);
@@ -282,7 +292,7 @@ const StudentDashboard = () => {
             <span className="font-bold text-zinc-900 text-lg">T7 Learning Hub</span>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 ml-auto">
             <div className="text-right hidden sm:block">
               <p className="text-sm font-semibold text-zinc-900">{userProfile?.name}</p>
               <p className="text-xs text-zinc-500">{userProfile?.email}</p>
