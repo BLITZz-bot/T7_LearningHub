@@ -21,8 +21,27 @@
     // Re-rate all visible cards
     rated.clear();
     ratingCache = {};
+    aiQueue.length = 0; // Clear the queue on settings change
     injectRatings();
   });
+
+  // --- Rate Limit Queue System (Max 15 Requests Per Minute) ---
+  const aiQueue = [];
+  let isProcessingQueue = false;
+
+  async function processQueue() {
+    if (isProcessingQueue) return;
+    isProcessingQueue = true;
+    while (aiQueue.length > 0) {
+      const task = aiQueue.shift();
+      try {
+        await task();
+      } catch (e) { }
+      // Wait 4.1 seconds between requests to guarantee we stay under 15 RPM
+      await new Promise(r => setTimeout(r, 4100));
+    }
+    isProcessingQueue = false;
+  }
 
   function init() {
     injectRatings();
@@ -76,11 +95,8 @@
     const badge = createBadgePlaceholder(title);
     injectBadgeIntoCard(card, badge);
 
-    // Compute relevance instantly (no API needed)
-    const relevance = calcRelevance(title, settings.goal);
-    const baseRating = estimateRating(views, published);
-
-    updateBadge(badge, baseRating, relevance, null);
+    // Don't show fake random numbers. Wait for the AI.
+    updateBadge(badge, 0, 0, "Analyzing...");
 
     // If we have an API key, get AI summary
     if (settings.geminiKey && videoId) {
@@ -89,12 +105,19 @@
         updateBadge(badge, ratingCache[cacheKey].rating, ratingCache[cacheKey].relevance, ratingCache[cacheKey].summary);
         return;
       }
-      generateAIInsight(title, channelName, views, settings.goal, settings.geminiKey)
-        .then(result => {
-          ratingCache[cacheKey] = result;
-          updateBadge(badge, result.rating, result.relevance, result.summary);
-        })
-        .catch(() => {});
+      aiQueue.push(() => {
+        return generateAIInsight(title, channelName, views, settings.goal, settings.geminiKey)
+          .then(result => {
+            ratingCache[cacheKey] = result;
+            updateBadge(badge, result.rating, result.relevance, result.summary);
+          })
+          .catch(() => {
+            updateBadge(badge, 0, 0, "AI Analysis Failed");
+          });
+      });
+      processQueue();
+    } else {
+      updateBadge(badge, 0, 0, "Configure API Key in Extension");
     }
   }
 
@@ -199,6 +222,8 @@ Title: "${title}"
 Channel: ${channel || 'Unknown'}
 Views: ${views ? fmtNum(views) : 'Unknown'}
 
+CRITICAL INSTRUCTION: If this video is clearly NOT an educational, tech, or tutorial video (e.g. if it is a music video, movie trailer, song, vlog, gameplay, entertainment, etc.), you MUST set "relevance" to 0 and "rating" to 0, and in the "summary" explain that this is not an educational video.
+
 Return ONLY valid JSON (no markdown):
 {
   "rating": 4.2,
@@ -206,8 +231,8 @@ Return ONLY valid JSON (no markdown):
   "summary": "One sentence describing what this video teaches and who it's for."
 }
 
-Rating (1-5): quality based on channel credibility and title clarity.
-Relevance (0-100): how relevant is this for someone learning ${goalLabel}.`;
+Rating (1-5): quality based on channel credibility and title clarity (0 if not educational).
+Relevance (0-100): how relevant is this for someone learning ${goalLabel} (MUST be 0 if it's a song/vlog/movie/etc).`;
 
     return new Promise((resolve, reject) => {
       chrome.runtime.sendMessage(
@@ -218,13 +243,17 @@ Relevance (0-100): how relevant is this for someone learning ${goalLabel}.`;
           try {
             const clean = res.text.replace(/```json|```/g, '').trim();
             const data = JSON.parse(clean);
+            
+            const r = parseFloat(data.rating);
+            const rel = parseInt(data.relevance);
+            
             resolve({
-              rating: Math.min(5, Math.max(1, parseFloat(data.rating) || 3.5)),
-              relevance: Math.min(100, Math.max(0, parseInt(data.relevance) || 50)),
-              summary: data.summary || ''
+              rating: isNaN(r) ? 0 : Math.min(5, Math.max(0, r)),
+              relevance: isNaN(rel) ? 0 : Math.min(100, Math.max(0, rel)),
+              summary: data.summary || 'Not relevant.'
             });
           } catch (e) {
-            resolve({ rating: 3.5, relevance: 50, summary: '' });
+            resolve({ rating: 0, relevance: 0, summary: 'Failed to analyze.' });
           }
         }
       );
@@ -233,26 +262,18 @@ Relevance (0-100): how relevant is this for someone learning ${goalLabel}.`;
 
   // ── Helpers ──
   function calcRelevance(title, goal) {
-    if (!goal || goal === 'general') return 55 + Math.random() * 30;
+    if (!goal || goal === 'general') return 0;
     const topics = GOALS[goal]?.topics || [];
     const titleLower = title.toLowerCase();
-    let score = 20;
+    let score = 0;
     for (const t of topics) {
-      if (titleLower.includes(t)) score += 15;
+      if (titleLower.includes(t)) score += 40;
     }
-    return Math.min(97, score + Math.random() * 10);
+    return Math.min(100, score);
   }
 
   function estimateRating(views, published) {
-    let r = 3.0;
-    if (views > 5000000) r += 1.0;
-    else if (views > 1000000) r += 0.7;
-    else if (views > 200000) r += 0.4;
-    else if (views > 50000) r += 0.2;
-    if (published) {
-      if (published.includes('day') || published.includes('week')) r += 0.1;
-    }
-    return Math.min(5, Math.max(1, r + (Math.random() * 0.6 - 0.3)));
+    return 0;
   }
 
   function parseViews(metaText) {

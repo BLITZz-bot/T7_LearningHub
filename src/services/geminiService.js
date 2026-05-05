@@ -78,11 +78,12 @@ ROADMAP MUST INCLUDE (THIS IS CRITICAL):
    - Open source contribution guide
 
 9. ATS RESUME REVIEW:
-   - Score the uploaded resume for ATS-friendliness from 0-100 if a resume is provided
-   - Highlight missing keywords relevant to the selected role
-   - Identify formatting or structure issues that hurt ATS parsing
-   - Suggest bullet rewrites or section improvements for the resume
-   - If no resume is provided, return null for ats_analysis
+   - First, strictly verify if the uploaded file is actually a resume. If it is clearly NOT a resume (e.g., class notes, random text, assignments), you MUST set the ATS score to 0 and state in the summary: "The uploaded document does not appear to be a valid resume."
+   - If it IS a resume, score it for ATS-friendliness from 0-100.
+   - Highlight missing keywords relevant to the selected role.
+   - Identify formatting or structure issues that hurt ATS parsing.
+   - Suggest bullet rewrites or section improvements.
+   - If no resume is provided, return null for ats_analysis.
 
 OUTPUT FORMAT (Valid JSON only, no markdown):
 {
@@ -223,10 +224,17 @@ const fileToGenerativePart = (file) =>
         return;
       }
 
+      let mimeType = file.type;
+      if (file.name.toLowerCase().endsWith('.pdf')) {
+        mimeType = 'application/pdf';
+      } else if (!mimeType) {
+        mimeType = 'application/octet-stream';
+      }
+
       resolve({
         inlineData: {
           data: base64,
-          mimeType: file.type || 'application/octet-stream'
+          mimeType: mimeType
         }
       });
     };
@@ -355,7 +363,8 @@ export const analyzeT7LearningHub = async (studentSkills, selectedRole, allRoles
         : null
     };
   } catch (error) {
-    console.error('Gemini API error:', error);
+    console.error('Gemini API COMPLETE ERROR TRACE:', error);
+    if (error.response) console.error('Response Error Data:', error.response);
     
     // Fallback: Generate basic analysis locally if API fails
     return generateFallbackAnalysis(studentSkills, selectedRole, resumeFile);
@@ -373,6 +382,8 @@ export const analyzeResumeOnly = async (resumeFile, selectedRole, apiKey) => {
   
   const prompt = `Analyze this resume against the "${selectedRole.role_name}" role.
   Role Skills: ${selectedRole.required_skills.map(s => s.name).join(', ')}
+
+  CRITICAL INSTRUCTION: First, strictly verify if the uploaded file is actually a resume. If the document is clearly NOT a resume (e.g., study notes, random text, code, homework), you MUST return a score of 0, set all section_scores to 0, and make the 'summary' explicitly say: "The uploaded document does not appear to be a valid resume."
 
   Return ONLY a valid JSON object EXACTLY like this (no markdown, no other text):
   {
@@ -430,7 +441,22 @@ export const analyzeResumeOnly = async (resumeFile, selectedRole, apiKey) => {
       jsonText = text.replace(/```\n?/g, '');
     }
 
-    const parsedResult = JSON.parse(jsonText.trim());
+    let parsedResult;
+    try {
+      parsedResult = JSON.parse(jsonText.trim());
+    } catch (parseErr) {
+      console.warn("JSON Parse Error. AI Output was:", text);
+      parsedResult = {
+        score: 0,
+        summary: "The uploaded document does not appear to be a valid resume or the AI rejected it.",
+        strengths: [],
+        issues: ["Could not extract structured data."],
+        keyword_gaps: [],
+        suggested_keywords: [],
+        section_scores: { formatting: 0, keyword_match: 0, content_strength: 0, impact: 0 },
+        rewrite_suggestions: []
+      };
+    }
     
     return {
       ats_analysis: parsedResult,
