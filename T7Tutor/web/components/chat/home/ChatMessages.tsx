@@ -806,33 +806,22 @@ export const ChatMessageList = memo(function ChatMessageList({
               onConfirmOutline={onConfirmOutline}
               onAnswerNow={handleTraceAnswerNow}
             />
-            {(showActions || costSummary) && (
+            {showActions && (
               <div className="mt-2 flex items-center">
-                {showActions && (
-                  <div className="flex gap-2">
+                <div className="flex gap-2">
+                  <RoughActionButton
+                    icon={Copy}
+                    label={t("Copy")}
+                    onClick={() => void onCopyAssistantMessage(msg.content)}
+                  />
+                  {showRegenerate && (
                     <RoughActionButton
-                      icon={Copy}
-                      label={t("Copy")}
-                      onClick={() => void onCopyAssistantMessage(msg.content)}
+                      icon={RefreshCcw}
+                      label={t("Regenerate")}
+                      onClick={() => onRegenerateMessage()}
                     />
-                    {showRegenerate && (
-                      <RoughActionButton
-                        icon={RefreshCcw}
-                        label={t("Regenerate")}
-                        onClick={() => onRegenerateMessage()}
-                      />
-                    )}
-                  </div>
-                )}
-                {costSummary && (
-                  <div className="ml-auto">
-                    <CostFooter
-                      cost={costSummary.total_cost_usd ?? 0}
-                      tokens={costSummary.total_tokens ?? 0}
-                      calls={costSummary.total_calls ?? 0}
-                    />
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
           </div>

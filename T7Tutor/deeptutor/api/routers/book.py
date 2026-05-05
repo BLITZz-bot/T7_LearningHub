@@ -41,6 +41,7 @@ class CreateBookRequest(BaseModel):
     chat_selections: list[dict[str, Any]] = Field(default_factory=list)
     notebook_refs: list[dict[str, Any]] = Field(default_factory=list)
     knowledge_bases: list[str] = Field(default_factory=list)
+    library_refs: list[str] = Field(default_factory=list)
     question_categories: list[int] = Field(default_factory=list)
     question_entries: list[int] = Field(default_factory=list)
     language: str = Field(default="en")

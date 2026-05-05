@@ -1,8 +1,8 @@
 const FENCE = "```";
 
-export const CO_WRITER_SAMPLE_TEMPLATE = `# DeepTutor Co-Writer
+export const CO_WRITER_SAMPLE_TEMPLATE = `# T7 Tutor Co-Writer
 
-> DeepTutor's built-in writing canvas for notes, reports, tutorials, and AI-assisted drafts.
+> T7 Tutor's built-in writing canvas for notes, reports, tutorials, and AI-assisted drafts.
 
 ### Features
 
@@ -10,7 +10,7 @@ export const CO_WRITER_SAMPLE_TEMPLATE = `# DeepTutor Co-Writer
 - Real-time preview for headings, tables, code, math, flowchart, and sequence diagrams
 - AI editing workflows for rewrite, shorten, and expand
 - HTML tag decoding for tags like <sub>, <sup>, <abbr>, and <mark>
-- A practical starter draft for DeepTutor product docs and learning content
+- A practical starter draft for T7 Tutor product docs and learning content
 
 ## Table of Contents
 
@@ -18,23 +18,23 @@ export const CO_WRITER_SAMPLE_TEMPLATE = `# DeepTutor Co-Writer
 
 [TOC]
 
-#DeepTutor Mission
-##DeepTutor Product Surface
-###DeepTutor Learning Experience
-####DeepTutor Co-Writer
-#####DeepTutor Knowledge Layer
-######DeepTutor Agent Runtime
+#T7 Tutor Mission
+##T7 Tutor Product Surface
+###T7 Tutor Learning Experience
+####T7 Tutor Co-Writer
+#####T7 Tutor Knowledge Layer
+######T7 Tutor Agent Runtime
 
-#DeepTutor Docs [Project Overview](#deeptutor-mission "Jump to project overview")
-##DeepTutor Authoring [Co-Writer Section](#deeptutor-co-writer "Jump to co-writer section")
-###DeepTutor Research [Learning Note](#deeptutor-learning-note "Jump to learning note")
+#T7 Tutor Docs [Project Overview](#t7-tutor-mission "Jump to project overview")
+##T7 Tutor Authoring [Co-Writer Section](#t7-tutor-co-writer "Jump to co-writer section")
+###T7 Tutor Research [Learning Note](#t7-tutor-learning-note "Jump to learning note")
 
 ## Headers (Underline)
 
-DeepTutor Learning Note
+T7 Tutor Learning Note
 =============
 
-DeepTutor Study Outline
+T7 Tutor Study Outline
 -------------
 
 ### Characters
@@ -50,43 +50,43 @@ Superscript: X<sub>2</sub>, Subscript: O<sup>2</sup>
 
 **Abbreviation(link HTML abbr tag)**
 
-The <abbr title="Large Language Model">LLM</abbr> layer powers DeepTutor while the <abbr title="Retrieval Augmented Generation">RAG</abbr> layer provides grounded knowledge support.
+The <abbr title="Large Language Model">LLM</abbr> layer powers T7 Tutor while the <abbr title="Retrieval Augmented Generation">RAG</abbr> layer provides grounded knowledge support.
 
 ### Blockquotes
 
-> DeepTutor helps students turn questions into structured understanding.
+> T7 Tutor helps students turn questions into structured understanding.
 >
-> "Learn deeply, write clearly.", [DeepTutor](#deeptutor-co-writer)
+> "Learn deeply, write clearly.", [T7 Tutor](#t7-tutor-co-writer)
 
 ### Links
 
-[DeepTutor Overview](#deeptutor-mission)
+[T7 Tutor Overview](#t7-tutor-mission)
 
-[DeepTutor Co-Writer](#deeptutor-co-writer "co-writer section")
+[T7 Tutor Co-Writer](#t7-tutor-co-writer "co-writer section")
 
-[DeepTutor Runtime](#deeptutor-agent-runtime)
+[T7 Tutor Runtime](#t7-tutor-agent-runtime)
 
-[Reference link][deeptutor-doc]
+[Reference link][t7tutor-doc]
 
-[deeptutor-doc]: #deeptutor-learning-note
+[t7tutor-doc]: #t7-tutor-learning-note
 
 ### Code Blocks
 
 #### Inline code
 
-\`deeptutor chat --once "Summarize this section"\`
+\`t7tutor chat --once "Summarize this section"\`
 
 #### Code Blocks (Indented style)
 
-    from deeptutor.runtime.orchestrator import ChatOrchestrator
+    from t7tutor.runtime.orchestrator import ChatOrchestrator
     orchestrator = ChatOrchestrator()
-    print("DeepTutor is ready.")
+    print("T7 Tutor is ready.")
 
 #### Python
 
 ${FENCE}python
-from deeptutor.runtime.orchestrator import ChatOrchestrator
-from deeptutor.core.context import UnifiedContext
+from t7tutor.runtime.orchestrator import ChatOrchestrator
+from t7tutor.core.context import UnifiedContext
 
 
 async def run_demo() -> str:
@@ -103,7 +103,7 @@ ${FENCE}
 
 ${FENCE}json
 {
-  "app_name": "DeepTutor",
+  "app_name": "T7 Tutor",
   "default_capability": "chat",
   "enabled_tools": ["rag", "web_search", "code_execution", "reason"],
   "ui": {
@@ -115,8 +115,8 @@ ${FENCE}
 #### HTML code
 
 ${FENCE}html
-<section class="deeptutor-card">
-  <h1>DeepTutor</h1>
+<section class="t7tutor-card">
+  <h1>T7 Tutor</h1>
   <p>Write, revise, and organize learning content with AI.</p>
 </section>
 ${FENCE}
@@ -125,13 +125,13 @@ ${FENCE}
 
 ![](/logo-ver2.png)
 
-> DeepTutor brand mark used inside the co-writer template.
+> T7 Tutor brand mark used inside the co-writer template.
 
 ### Lists
 
-- DeepTutor Chat
-- DeepTutor Co-Writer
-- DeepTutor Research
+- T7 Tutor Chat
+- T7 Tutor Co-Writer
+- T7 Tutor Research
 
 1. Draft a concept note
 2. Ask AI to refine it
@@ -153,7 +153,7 @@ Research      | Build structured multi-step reports
 
 ### Markdown extras
 
-- [x] Draft a DeepTutor product note
+- [x] Draft a T7 Tutor product note
 - [x] Add references and structure
 - [ ] Polish the final explanation
   - [ ] Check headings
@@ -173,7 +173,7 @@ $$ \sin(\alpha)^{\theta}=\sum_{i=0}^{n}(x^i + \cos(f))$$
 
 ${FENCE}flow
 st=>start: Student asks a question
-op=>operation: DeepTutor analyzes intent
+op=>operation: T7 Tutor analyzes intent
 cond=>condition: Need deep workflow?
 chat=>operation: Answer with chat capability
 solve=>operation: Route to deep solve
@@ -189,11 +189,11 @@ ${FENCE}
 ### Sequence Diagram
 
 ${FENCE}seq
-Student->DeepTutor: Ask for help
-DeepTutor->KnowledgeBase: Load context
-Note right of DeepTutor: Collect memory\nand relevant knowledge
-DeepTutor-->Student: Return guided response
-Student->>DeepTutor: Request rewrite in co-writer
+Student->T7 Tutor: Ask for help
+T7 Tutor->KnowledgeBase: Load context
+Note right of T7 Tutor: Collect memory\nand relevant knowledge
+T7 Tutor-->Student: Return guided response
+Student->>T7 Tutor: Request rewrite in co-writer
 ${FENCE}
 
 ### End

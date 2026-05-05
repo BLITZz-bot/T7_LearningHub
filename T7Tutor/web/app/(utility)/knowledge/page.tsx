@@ -1,10 +1,13 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { Loader2 } from "lucide-react";
-import KnowledgePage from "@/components/knowledge/KnowledgePage";
+import T7UploadScreen, { SessionData } from "@/components/knowledge/T7UploadScreen";
+import T7LearningDashboard from "@/components/knowledge/T7LearningDashboard";
 
 export default function Page() {
+  const [session, setSession] = useState<SessionData | null>(null);
+
   return (
     <Suspense
       fallback={
@@ -13,7 +16,14 @@ export default function Page() {
         </div>
       }
     >
-      <KnowledgePage />
+      {!session ? (
+        <T7UploadScreen onSessionCreated={setSession} />
+      ) : (
+        <T7LearningDashboard 
+            session={session} 
+            onReset={() => setSession(null)} 
+        />
+      )}
     </Suspense>
   );
 }

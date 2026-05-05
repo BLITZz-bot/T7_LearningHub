@@ -30,7 +30,7 @@ class ChatAgent(BaseAgent):
     """
 
     # Default token limit for conversation history
-    DEFAULT_MAX_HISTORY_TOKENS = 4000
+    DEFAULT_MAX_HISTORY_TOKENS = 1500
 
     def __init__(
         self,
@@ -174,6 +174,11 @@ class ChatAgent(BaseAgent):
         Returns:
             Tuple of (context_string, sources_dict)
         """
+        # Cap individual context parts to prevent blowing up the prompt
+        # We'll use a rough character limit based on 4 chars per token
+        # 1500 tokens * 4 = 6000 characters
+        MAX_CONTEXT_CHARS = 6000
+
         context_parts = []
         sources = {"rag": [], "web": []}
 
@@ -189,6 +194,10 @@ class ChatAgent(BaseAgent):
                 )
                 rag_answer = rag_result.content
                 if rag_answer:
+                    if len(rag_answer) > MAX_CONTEXT_CHARS:
+                        self.logger.info(f"Truncating RAG answer from {len(rag_answer)} to {MAX_CONTEXT_CHARS} chars")
+                        rag_answer = rag_answer[:MAX_CONTEXT_CHARS] + "..."
+                    
                     context_parts.append(f"[Knowledge Base: {kb_name}]\n{rag_answer}")
                     sources["rag"].append(
                         {
@@ -215,6 +224,10 @@ class ChatAgent(BaseAgent):
                 web_citations = web_result.sources
 
                 if web_answer:
+                    if len(web_answer) > MAX_CONTEXT_CHARS:
+                        self.logger.info(f"Truncating Web search answer from {len(web_answer)} to {MAX_CONTEXT_CHARS} chars")
+                        web_answer = web_answer[:MAX_CONTEXT_CHARS] + "..."
+
                     context_parts.append(f"[Web Search Results]\n{web_answer}")
                     sources["web"] = web_citations[:5]
                     self.logger.info(

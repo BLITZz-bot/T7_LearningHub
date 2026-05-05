@@ -136,7 +136,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="DeepTutor API",
+    title="T7 Academy API",
     version="1.0.0",
     lifespan=lifespan,
     # Disable automatic trailing slash redirects to prevent protocol downgrade issues
@@ -215,6 +215,7 @@ from deeptutor.api.routers import (
     skills,
     solve,
     system,
+    t7_hub,
     tutorbot,
     unified_ws,
     vision_solver,
@@ -242,6 +243,7 @@ app.include_router(agent_config.router, prefix="/api/v1/agent-config", tags=["ag
 app.include_router(vision_solver.router, prefix="/api/v1", tags=["vision-solver"])
 app.include_router(tutorbot.router, prefix="/api/v1/tutorbot", tags=["tutorbot"])
 app.include_router(attachments.router, prefix="/api/attachments", tags=["attachments"])
+app.include_router(t7_hub.router, prefix="/api/t7", tags=["t7-hub"])
 
 # Unified WebSocket endpoint
 app.include_router(unified_ws.router, prefix="/api/v1", tags=["unified-ws"])

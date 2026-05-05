@@ -10,7 +10,7 @@ interface ModalProps {
   titleIcon?: React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
-  width?: "sm" | "md" | "lg" | "xl";
+  width?: "sm" | "md" | "lg" | "xl" | "2xl";
   closeOnBackdrop?: boolean;
   closeOnEscape?: boolean;
   showCloseButton?: boolean;
@@ -21,6 +21,7 @@ const widthClasses = {
   md: "w-[500px]",
   lg: "w-[600px]",
   xl: "w-[800px]",
+  "2xl": "w-[1100px]",
 };
 
 /**

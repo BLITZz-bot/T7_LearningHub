@@ -4,6 +4,7 @@ import "./globals.css";
 import ThemeScript from "@/components/ThemeScript";
 import { AppShellProvider } from "@/context/AppShellContext";
 import { I18nClientBridge } from "@/i18n/I18nClientBridge";
+import { Toaster } from "sonner";
 
 const fontSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -18,7 +19,7 @@ const fontSerif = Lora({
 });
 
 export const metadata: Metadata = {
-  title: "DeepTutor",
+  title: "T7 Academy",
   description: "Agent-native intelligent learning companion",
   icons: {
     icon: [
@@ -47,6 +48,7 @@ export default function RootLayout({
       <body className="font-sans bg-[var(--background)] text-[var(--foreground)]">
         <AppShellProvider>
           <I18nClientBridge>{children}</I18nClientBridge>
+          <Toaster position="top-center" richColors />
         </AppShellProvider>
       </body>
     </html>

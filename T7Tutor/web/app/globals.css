@@ -567,3 +567,14 @@
     padding-right: min(560px, 92vw);
   }
 }
+
+/* Force hide Next.js dev indicators */
+nextjs-portal, 
+[data-nextjs-toast], 
+[data-nextjs-dialog-overlay], 
+#__next-dev-indicator {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    opacity: 0 !important;
+}

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode } from "react";
 import { useAppShell } from "@/context/AppShellContext";
 import {
+  Book,
   BookOpen,
   Bot,
   Github,
@@ -22,7 +23,6 @@ import {
 import { useTranslation } from "react-i18next";
 import SessionList from "@/components/SessionList";
 import { TutorBotRecent } from "@/components/sidebar/TutorBotRecent";
-import { VersionBadge } from "@/components/sidebar/VersionBadge";
 import type { SessionSummary } from "@/lib/session-api";
 
 interface NavEntry {
@@ -37,7 +37,7 @@ const PRIMARY_NAV: NavEntry[] = [
   { href: "/co-writer", label: "Co-Writer", icon: PenLine },
   { href: "/book", label: "Book", icon: Library },
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },
-  { href: "/space", label: "Space", icon: LayoutGrid },
+  // { href: "/space", label: "Space", icon: LayoutGrid },
 ];
 
 const SECONDARY_NAV: NavEntry[] = [
@@ -93,12 +93,12 @@ export function SidebarShell({
         <div className="relative mb-2 flex h-9 w-9 items-center justify-center">
           <Link
             href="/"
-            aria-label="DeepTutor"
+            aria-label="T7 Academy"
             className="flex items-center justify-center transition-opacity duration-150 group-hover/sb:opacity-0"
           >
             <Image
               src="/logo-ver2.png"
-              alt="DeepTutor"
+              alt="T7 Academy"
               width={22}
               height={22}
               className="h-[22px] w-[22px] rounded-md"
@@ -176,17 +176,6 @@ export function SidebarShell({
             );
           })}
           {footerSlot}
-          <a
-            href={GITHUB_REPO_URL}
-            target="_blank"
-            rel="noreferrer noopener"
-            title="GitHub"
-            aria-label="GitHub"
-            className="mt-1 flex h-9 w-9 items-center justify-center rounded-xl text-[var(--muted-foreground)]/70 transition-colors hover:bg-[var(--background)]/50 hover:text-[var(--foreground)]"
-          >
-            <Github size={15} strokeWidth={1.6} />
-          </a>
-          <VersionBadge collapsed />
         </div>
       </aside>
     );
@@ -200,13 +189,13 @@ export function SidebarShell({
         <Link href="/" className="group flex items-center gap-2">
           <Image
             src="/logo-ver2.png"
-            alt="DeepTutor"
+            alt="T7 Academy"
             width={22}
             height={22}
             className="h-[22px] w-[22px] transition-transform duration-200 group-hover:scale-105"
           />
           <span className="text-[16px] font-semibold leading-none tracking-[-0.02em] text-[var(--foreground)]">
-            DeepTutor
+            T7 Academy
           </span>
         </Link>
         <button
@@ -297,19 +286,6 @@ export function SidebarShell({
           );
         })}
         {footerSlot}
-        <div className="mt-0.5 flex items-center gap-0.5">
-          <VersionBadge />
-          <a
-            href={GITHUB_REPO_URL}
-            target="_blank"
-            rel="noreferrer noopener"
-            title="GitHub"
-            aria-label="GitHub"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--muted-foreground)]/55 transition-colors hover:bg-[var(--background)]/50 hover:text-[var(--muted-foreground)]"
-          >
-            <Github size={13} strokeWidth={1.7} />
-          </a>
-        </div>
       </div>
     </aside>
   );

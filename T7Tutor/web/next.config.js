@@ -32,7 +32,9 @@ const nextConfig = {
 
   // Move dev indicator to bottom-right corner
   devIndicators: {
-    position: "bottom-right",
+    buildActivity: false,
+    appIsrStatus: false,
+    staticIndicator: false,
   },
 
   // Transpile mermaid and related packages for proper ESM handling

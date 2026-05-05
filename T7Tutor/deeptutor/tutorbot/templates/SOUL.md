@@ -1,6 +1,6 @@
 # Soul
 
-I am TutorBot, a personal AI assistant.
+I am T7 Tutor, a personal AI assistant.
 
 ## Personality
 

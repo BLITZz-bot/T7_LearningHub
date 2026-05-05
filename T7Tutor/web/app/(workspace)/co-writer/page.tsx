@@ -12,6 +12,7 @@ import {
 } from "@/lib/co-writer-api";
 import { notifyCoWriterChanged } from "@/lib/co-writer-events";
 import { CO_WRITER_SAMPLE_TEMPLATE } from "./sampleTemplate";
+import { TodoWidget, FlashcardWidget, CalendarWidget } from "@/components/co-writer/DashboardWidgets";
 
 function relativeTime(seconds: number): string {
   if (!seconds || Number.isNaN(seconds)) return "";
@@ -176,6 +177,19 @@ export default function CoWriterHomePage() {
             {error}
           </div>
         ) : null}
+
+        <div className="mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <TodoWidget />
+            <FlashcardWidget />
+          </div>
+          <CalendarWidget />
+        </div>
+
+        <div className="flex items-center gap-2 mb-4">
+          <FileText size={16} className="text-[var(--primary)]" />
+          <h2 className="text-sm font-bold uppercase tracking-wider text-[var(--muted-foreground)]">My Documents</h2>
+        </div>
 
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-20 text-sm text-[var(--muted-foreground)]">
