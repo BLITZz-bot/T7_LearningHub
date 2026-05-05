@@ -190,6 +190,14 @@ function extractVideoData() {
   const channelEl = document.querySelector('#channel-name a, ytd-channel-name a');
   const viewsEl = document.querySelector('.view-count, #count .view-count');
   const likesEl = document.querySelector('.like-button-renderer-like-button yt-formatted-string, #top-level-buttons-computed ytd-toggle-button-renderer:first-child yt-formatted-string');
+  
+  // Extract description and comments for better analysis
+  const descEl = document.querySelector('#description-inline-expander yt-attributed-string, #description .content, ytd-text-inline-expander');
+  const description = descEl ? descEl.textContent.trim().substring(0, 800) : '';
+  
+  const commentEls = document.querySelectorAll('#comments #content-text');
+  const comments = Array.from(commentEls).slice(0, 5).map(el => el.textContent.trim()).join(' | ').substring(0, 500);
+
   const videoId = new URLSearchParams(window.location.search).get('v');
   const thumbUrl = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : null;
 
@@ -198,6 +206,8 @@ function extractVideoData() {
     channel: channelEl?.textContent?.trim() || 'Unknown Channel',
     views: viewsEl?.textContent?.trim() || '–',
     likes: likesEl?.textContent?.trim() || '–',
+    description,
+    comments,
     videoId,
     thumbUrl,
     url: window.location.href
@@ -278,9 +288,13 @@ ${langInstruction}
 VIDEO TITLE: ${state.currentVideo.title}
 CHANNEL: ${state.currentVideo.channel}
 VIEWS: ${state.currentVideo.views}
+DESCRIPTION EXCERPT: ${state.currentVideo.description || 'N/A'}
+COMMENTS EXCERPT: ${state.currentVideo.comments || 'N/A'}
 
 TRANSCRIPT (first portion):
 ${transcriptText}
+
+CRITICAL INSTRUCTION: If this video is clearly NOT an educational, tech, or tutorial video (e.g. if it is a music video, movie trailer, song, vlog, gameplay, etc.), you MUST set "relevance" to 0, and in the "summary" explain that this is not an educational video.
 
 Return ONLY valid JSON (no markdown, no extra text):
 {
@@ -291,17 +305,14 @@ Return ONLY valid JSON (no markdown, no extra text):
   "highlights": [
     {"time": "0:30", "text": "Topic or insight described here"},
     {"time": "3:45", "text": "Another key moment"},
-    {"time": "8:00", "text": "Important concept introduced"},
-    {"time": "15:20", "text": "Key technique demonstrated"},
-    {"time": "22:00", "text": "Best practice highlighted"},
-    {"time": "30:00", "text": "Final takeaway or conclusion"}
+    {"time": "8:00", "text": "Important concept introduced"}
   ]
 }
 
-rating: 1-5 quality score based on content depth and clarity
-relevance: 0-100 relevance to ${goalLabel}
-skills: up to 5 specific technical skills or topics taught in this video (e.g. "Python", "React", "Machine Learning", "CSS Flexbox", "REST APIs")
-highlights: 6 key moments with timestamps spread through the video`;
+rating: 1-5 quality score based on content depth (0 if not educational)
+relevance: 0-100 relevance to ${goalLabel} (MUST be 0 if it's a song or movie)
+skills: up to 5 specific technical skills or topics taught (empty if none)
+highlights: up to 6 key moments with timestamps (empty if none)`;
 
   return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage(

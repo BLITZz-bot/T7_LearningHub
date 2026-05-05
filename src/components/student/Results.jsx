@@ -87,7 +87,7 @@ const Results = () => {
       setLocalResumeMeta(result.resume_meta);
     } catch (err) {
       console.error('Standalone ATS Error', err);
-      setResumeError('Failed to analyze resume. Please try again.');
+      setResumeError(`Analysis failed: ${err.message}`);
     } finally {
       setIsParsingResume(false);
       e.target.value = '';
