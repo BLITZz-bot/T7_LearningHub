@@ -23,7 +23,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 async function saveToDashboard({ accountId, analysis, videoId, title }) {
   if (!accountId) throw new Error('Account ID is required');
 
-  const projectId = 't7skillup';
+  const projectId = 't7-learning-hub';
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${accountId}/videoLearning`;
 
   // Use skills from Gemini analysis (or fallback to empty)

@@ -1,11 +1,11 @@
-# T7skillup Chrome Extension: Detailed Abstract & Architecture
+# T7 Learning Hub Chrome Extension: Detailed Abstract & Architecture
 
-This document provides a comprehensive breakdown of the T7skillup Chrome Extension. It explains the purpose, features, integration hooks, and technical architecture of each component.
+This document provides a comprehensive breakdown of the T7 Learning Hub Chrome Extension. It explains the purpose, features, integration hooks, and technical architecture of each component.
 
 ---
 
 ## 1. Core Purpose
-The T7skillup Chrome Extension is designed to turn unstructured time spent on YouTube into measurable, professional progress. It targets engineering students preparing for placements by analyzing educational videos, extracting hard skills, and synchronizing that learning data directly to their central T7skillup platform portfolio.
+The T7 Learning Hub Chrome Extension is designed to turn unstructured time spent on YouTube into measurable, professional progress. It targets engineering students preparing for placements by analyzing educational videos, extracting hard skills, and synchronizing that learning data directly to their central T7 Learning Hub platform portfolio.
 
 ---
 
@@ -16,11 +16,11 @@ The T7skillup Chrome Extension is designed to turn unstructured time spent on Yo
 - **Output:** It generates a concise summary, extracts key moments/timestamps, and most importantly, identifies specific professional skills (e.g., "Node.js", "Docker", "Machine Learning") taught in the video.
 
 ### B. Automated Skill Synchronization
-- **What it does:** Allows students to securely push the skills they just learned from a video straight to the T7skillup database.
+- **What it does:** Allows students to securely push the skills they just learned from a video straight to the T7 Learning Hub database.
 - **How it works:** 
   - The student enters their unique `T7 Account ID` (found on their dashboard) into the extension's settings.
   - When they click "Sync", the extension sends the video title, URL, and the AI-extracted skills to Firebase Firestore under their specific account record.
-  - The T7skillup Dashboard and Results pages immediately reflect these new skills in the user's portfolio and skill gap analysis.
+  - The T7 Learning Hub Dashboard and Results pages immediately reflect these new skills in the user's portfolio and skill gap analysis.
 
 ### C. Smart "Junk" Filtering
 - **What it does:** Prevents generic or non-professional terms from cluttering the student's portfolio.
@@ -46,7 +46,7 @@ The extension is built using standard web technologies (HTML, CSS, JS) and Manif
 - Loads the content scripts, background service worker, and the popup UI.
 
 ### `popup.html` & `popup.css` (UI Layer)
-- **Design:** Uses a modern, dark-mode aesthetic consistent with the T7skillup platform.
+- **Design:** Uses a modern, dark-mode aesthetic consistent with the T7 Learning Hub platform.
 - **Tabs:** 
   - **Analyze:** The main view showing the video summary, rating, and "Analyze" / "Sync" buttons.
   - **Highlights / Transcript:** Displays specific timestamps from the video.
@@ -79,9 +79,9 @@ The extension is built using standard web technologies (HTML, CSS, JS) and Manif
 ---
 
 ## 5. Typical User Workflow
-1. Student registers on T7skillup and copies their `T7-UUID`.
+1. Student registers on T7 Learning Hub and copies their `T7-UUID`.
 2. Student pastes the ID and their Gemini API key into the extension settings.
 3. Student watches a React tutorial on YouTube.
 4. Student clicks the extension, hits "Analyze", reviews the AI-extracted skill breakdown.
 5. Student clicks "Sync".
-6. The T7skillup platform instantly shows "React" has been learned via video, increasing their placement readiness score.
+6. The T7 Learning Hub platform instantly shows "React" has been learned via video, increasing their placement readiness score.

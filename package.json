@@ -1,8 +1,8 @@
 {
-  "name": "T7skillup",
+  "name": "t7-learning-hub",
   "version": "1.0.0",
   "type": "module",
-  "description": "AI-powered Skill Upscaler for Campus Placements",
+  "description": "T7 Learning Hub - AI-powered Career Readiness Platform for Campus Placements",
   "private": true,
   "scripts": {
     "dev": "vite",

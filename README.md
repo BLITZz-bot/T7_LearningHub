@@ -1,4 +1,4 @@
-# 🚀 T7skillup
+# 🚀 T7 Learning Hub
 
 ### The Intelligent Career Orchestration Engine
 
@@ -42,7 +42,7 @@ Traditional learning platforms provide:
 ❌ No industry verification
 ❌ No measurable skill readiness
 
-**T7skillup transforms career preparation into an intelligent AI-guided ecosystem.**
+**T7 Learning Hub transforms career preparation into an intelligent AI-guided ecosystem.**
 
 Students no longer follow random tutorials — they follow an **Autonomous Career Roadmap aligned with real industry demand.**
 
@@ -66,7 +66,7 @@ Colleges only realize **skill gaps during placements**, when it is already too l
 
 # 🚀 Our Solution
 
-**T7skillup combines AI career intelligence with learning guardrails to create a guided career system.**
+**T7 Learning Hub combines AI career intelligence with learning guardrails to create a guided career system.**
 
 ### 🧠 AI Skill Intelligence
 
@@ -311,7 +311,7 @@ ScholarshipSystem --> StudentAchievements
 ## Clone Repository
 
 ```bash
-git clone https://github.com/your-username/T7skillup.git
+git clone https://github.com/your-username/T7-Learning-Hub.git
 ```
 
 ---

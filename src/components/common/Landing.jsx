@@ -26,7 +26,7 @@ const Landing = () => {
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
               <Rocket className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-blue-900 text-xl">T7skillup</span>
+            <span className="font-bold text-blue-900 text-xl">T7 Learning Hub</span>
           </div>
           
           <div className="flex items-center gap-3">
@@ -397,7 +397,7 @@ const Landing = () => {
             <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-zinc-900">T7skillup</span>
+            <span className="font-bold text-zinc-900">T7 Learning Hub</span>
           </div>
         </div>
       </footer>

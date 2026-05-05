@@ -1,5 +1,5 @@
 /**
- * Consolidated API Service for T7skillup
+ * Consolidated API Service for T7 Learning Hub
  * Combines Firestore Database operations and Gemini AI Analysis
  */
 
@@ -81,7 +81,7 @@ const fileToGenerativePart = async (file) => {
   };
 };
 
-export const analyzeT7skillup = async (studentSkills, selectedRole, allRoles, resumeFile = null) => {
+export const analyzeT7LearningHub = async (studentSkills, selectedRole, allRoles, resumeFile = null) => {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
@@ -247,7 +247,7 @@ export const getCampusAnalytics = async () => {
 };
 
 export default {
-  analyzeT7skillup,
+  analyzeT7LearningHub,
   saveAnalysis,
   getLatestAnalysis,
   getUserLearningActivity,

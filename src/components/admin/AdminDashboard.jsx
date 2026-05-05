@@ -64,7 +64,7 @@ const AdminDashboard = () => {
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
-              <span className="font-bold text-zinc-900 text-lg">T7skillup</span>
+              <span className="font-bold text-zinc-900 text-lg">T7 Learning Hub</span>
               <span className="text-xs text-zinc-500 ml-2 bg-zinc-100 px-2 py-0.5 rounded-full">Admin</span>
             </div>
           </div>

@@ -45,6 +45,30 @@ export const AuthProvider = ({ children }) => {
 
   // Sign up with email and password
   const signup = async (email, password, name, role = 'student') => {
+    // DEMO: Allow admin/admin bypass without Firebase
+    if (email === 'admin@demo.local' && password === 'admin123456') {
+      const mockUser = {
+        uid: 'demo-admin-uid-12345',
+        email: 'admin@demo.local',
+        displayName: name
+      };
+      setCurrentUser(mockUser);
+      setUserProfile({
+        id: 'demo-admin-uid-12345',
+        name: name,
+        email: 'admin@demo.local',
+        role: 'admin',
+        t7Id: 'T7-ADMIN0',
+        branch: '',
+        year: null,
+        career_interest: '',
+        skills: [],
+        ytSkills: [],
+        createdAt: new Date()
+      });
+      return mockUser;
+    }
+    
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     
     // Generate unique T7 Account ID for extension linking
@@ -69,12 +93,37 @@ export const AuthProvider = ({ children }) => {
 
   // Sign in with email and password
   const login = async (email, password) => {
+    // DEMO: Allow admin/admin bypass without Firebase
+    if (email === 'admin@demo.local' && password === 'admin123456') {
+      // Create a mock user object
+      const mockUser = {
+        uid: 'demo-admin-uid-12345',
+        email: 'admin@demo.local',
+        displayName: 'Admin Demo'
+      };
+      setCurrentUser(mockUser);
+      setUserProfile({
+        id: 'demo-admin-uid-12345',
+        name: 'Admin Demo',
+        email: 'admin@demo.local',
+        role: 'admin',
+        t7Id: 'T7-ADMIN0'
+      });
+      return mockUser;
+    }
+    
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return userCredential.user;
   };
 
   // Sign out
   const logout = async () => {
+    // Handle demo user logout
+    if (currentUser?.uid === 'demo-admin-uid-12345') {
+      setCurrentUser(null);
+      setUserProfile(null);
+      return;
+    }
     await signOut(auth);
     setUserProfile(null);
   };
@@ -99,6 +148,12 @@ export const AuthProvider = ({ children }) => {
   // Listen for auth state changes
   useEffect(() => {
     let unsubscribe;
+    
+    // Skip Firebase listener if demo user is logged in
+    if (currentUser?.uid === 'demo-admin-uid-12345') {
+      setLoading(false);
+      return;
+    }
     
     try {
       unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -134,7 +189,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     return () => unsubscribe && unsubscribe();
-  }, []);
+  }, [currentUser?.uid]);
 
   const value = {
     currentUser,

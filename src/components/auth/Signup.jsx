@@ -39,6 +39,25 @@ const Signup = () => {
     e.preventDefault();
     setError('');
     
+    // DEMO: Allow admin/admin as a dummy admin account
+    if (formData.email.toLowerCase() === 'admin' && formData.password === 'admin') {
+      setLoading(true);
+      try {
+        await signup('admin@demo.local', 'admin123456', 'Admin Demo', 'admin');
+        navigate('/dashboard');
+      } catch (err) {
+        if (err.code === 'auth/email-already-in-use') {
+          // Already created, just redirect
+          navigate('/login');
+        } else {
+          setError('Failed to create demo admin account.');
+        }
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+    
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters');
       return;
@@ -73,7 +92,7 @@ const Signup = () => {
             <div className="w-12 h-12 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
-            <span className="text-2xl font-bold text-white">T7skillup</span>
+            <span className="text-2xl font-bold text-white">T7 Learning Hub</span>
           </div>
           
           <h1 className="text-4xl xl:text-5xl font-black text-white leading-tight mb-6">
@@ -118,7 +137,7 @@ const Signup = () => {
             <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-zinc-900">T7skillup</span>
+            <span className="text-xl font-bold text-zinc-900">T7 Learning Hub</span>
           </div>
 
           <div className="mb-8">
@@ -163,7 +182,7 @@ const Signup = () => {
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
                 <input
-                  type="email"
+                  type="text"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}

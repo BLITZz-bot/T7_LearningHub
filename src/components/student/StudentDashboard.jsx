@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { analyzeT7skillup } from '../../services/geminiService';
+import { analyzeT7LearningHub } from '../../services/geminiService';
 import { saveAnalysis, getLatestAnalysis, getVideoLearning, getVideoLearningSkills } from '../../services/firestoreService';
 import { industryRoles, allSkills, branches, years } from '../../data/industrySkills';
 import { getJobsForRole } from '../../data/jobListings';
@@ -212,7 +212,7 @@ const StudentDashboard = () => {
 
       const selectedRole = industryRoles.find(r => r.id === careerInterest);
       
-      const analysisResult = await analyzeT7skillup(
+      const analysisResult = await analyzeT7LearningHub(
         selectedSkills,
         selectedRole,
         industryRoles,
@@ -279,7 +279,7 @@ const StudentDashboard = () => {
             <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-zinc-900 text-lg">T7skillup</span>
+            <span className="font-bold text-zinc-900 text-lg">T7 Learning Hub</span>
           </div>
           
           <div className="flex items-center gap-4">

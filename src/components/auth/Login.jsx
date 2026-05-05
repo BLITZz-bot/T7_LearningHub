@@ -29,7 +29,12 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await login(email, password);
+      // DEMO: Allow admin/admin as a shortcut to admin account
+      if (email.toLowerCase() === 'admin' && password === 'admin') {
+        await login('admin@demo.local', 'admin123456');
+      } else {
+        await login(email, password);
+      }
       navigate('/dashboard');
     } catch (err) {
       setError('Invalid email or password. Please try again.');
@@ -51,7 +56,7 @@ const Login = () => {
             <div className="w-12 h-12 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
-            <span className="text-2xl font-bold text-white">T7skillup</span>
+            <span className="text-2xl font-bold text-white">T7 Learning Hub</span>
           </div>
           
           <h1 className="text-4xl xl:text-5xl font-black text-white leading-tight mb-6">
@@ -100,7 +105,7 @@ const Login = () => {
             <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-zinc-900">T7skillup</span>
+            <span className="text-xl font-bold text-zinc-900">T7 Learning Hub</span>
           </div>
 
           <div className="mb-8">
@@ -127,7 +132,7 @@ const Login = () => {
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
                 <input
-                  type="email"
+                  type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-12 pr-4 py-3.5 bg-zinc-50 border-2 border-zinc-200 rounded-xl focus:bg-white focus:border-zinc-900 outline-none transition-all text-zinc-900 font-medium placeholder:text-zinc-400"

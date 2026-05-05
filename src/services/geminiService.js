@@ -251,7 +251,7 @@ const normalizeSectionScores = (scores = {}) => ({
  * @param {File|null} resumeFile - Optional uploaded resume file
  * @returns {Promise<object>} - Analysis result object
  */
-export const analyzeT7skillup = async (studentSkills, selectedRole, allRoles, resumeFile = null) => {
+export const analyzeT7LearningHub = async (studentSkills, selectedRole, allRoles, resumeFile = null) => {
   try {
     // Build the prompt with actual data
     const prompt = SKILL_GAP_PROMPT
@@ -567,4 +567,4 @@ const generateFallbackAnalysis = (studentSkills, selectedRole, resumeFile = null
   };
 };
 
-export default analyzeT7skillup;
+export default analyzeT7LearningHub;
