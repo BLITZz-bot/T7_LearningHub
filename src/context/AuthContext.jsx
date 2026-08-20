@@ -5,11 +5,10 @@
  * Handles Firebase Auth and user role management.
  */
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
@@ -34,6 +33,26 @@ const generateT7Id = () => {
   return id;
 };
 
+const createProfile = async (uid, data) => {
+  const t7Id = generateT7Id();
+  const newProfile = {
+    name: data.name || 'Student',
+    email: data.email || '',
+    phone: data.phone || '',
+    college: data.college || '',
+    branch: data.branch || '',
+    role: 'student',
+    t7Id,
+    year: null,
+    career_interest: '',
+    skills: [],
+    ytSkills: [],
+    createdAt: serverTimestamp()
+  };
+  await setDoc(doc(db, 'users', uid), newProfile);
+  return { id: uid, ...newProfile };
+};
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -46,124 +65,49 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Tracks if we need to redirect to signup after Google redirect (new user on login page)
+  const [pendingRedirectSignup, setPendingRedirectSignup] = useState(null);
+  const redirectHandled = useRef(false);
 
   // Sign up with email and password
   const signup = async (email, password, { name, college = '', branch = '', phone = '', role = 'student' }) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    
-    // Generate unique T7 Account ID for extension linking
-    const t7Id = generateT7Id();
-
-    // Create user profile in Firestore
-    const newProfile = {
-      name: name || 'Student',
-      email,
-      phone: phone || '',
-      college: college || '',
-      branch: branch || '',
-      role,
-      t7Id,
-      year: null,
-      career_interest: '',
-      skills: [],
-      ytSkills: [],
-      createdAt: serverTimestamp()
-    };
-
-    await setDoc(doc(db, 'users', userCredential.user.uid), newProfile);
-    setUserProfile({ id: userCredential.user.uid, ...newProfile });
+    const profile = await createProfile(userCredential.user.uid, { name, email, college, branch, phone });
+    setUserProfile({ ...profile, role });
     return userCredential.user;
   };
 
-  // Sign in with email and password
+  // Sign in with email and password (existing users only)
   const login = async (email, password) => {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    // Check if profile exists
+    const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+    if (!userDoc.exists()) {
+      await signOut(auth);
+      const error = new Error('No account found with this email. Please sign up first.');
+      error.code = 'auth/user-not-found';
+      throw error;
+    }
     return userCredential.user;
   };
 
-  // Sign in with Google (Login page — only allows EXISTING users)
+  // Sign in with Google — uses full-page redirect (works even when popups are blocked)
+  // intent: 'login' (existing users only) | 'signup' (new users, needs extra info)
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
-    try {
-      const userCredential = await signInWithPopup(auth, provider);
-      const user = userCredential.user;
-
-      // Check if user profile exists in Firestore
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      if (!userDoc.exists()) {
-        // User is not registered — sign out and prompt to sign up with their details
-        await signOut(auth);
-        const error = new Error('No account found with this Google email. Please sign up first.');
-        error.code = 'auth/user-not-found';
-        throw error;
-      }
-      
-      return user;
-    } catch (popupError) {
-      if (popupError.code === 'auth/popup-blocked') {
-        sessionStorage.setItem('t7_auth_intent', 'login');
-        await signInWithRedirect(auth, provider);
-        return null;
-      }
-      throw popupError;
-    }
+    sessionStorage.setItem('t7_auth_intent', 'login');
+    await signInWithRedirect(auth, provider);
+    // Page will redirect away — nothing runs after this
   };
 
-  // Sign up with Google (Signup page — creates NEW user profile with extra details)
   const signupWithGoogle = async ({ college = '', branch = '', phone = '', name = '' } = {}) => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
-    try {
-      const userCredential = await signInWithPopup(auth, provider);
-      const user = userCredential.user;
-
-      // Check if user profile already exists
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      if (userDoc.exists()) {
-        const existing = { id: userDoc.id, ...userDoc.data() };
-        const updates = {};
-        if (college && !existing.college) updates.college = college;
-        if (branch && !existing.branch) updates.branch = branch;
-        if (phone && !existing.phone) updates.phone = phone;
-        if (Object.keys(updates).length > 0) {
-          await setDoc(doc(db, 'users', user.uid), updates, { merge: true });
-          existing.college = updates.college || existing.college;
-          existing.branch = updates.branch || existing.branch;
-          existing.phone = updates.phone || existing.phone;
-        }
-        setUserProfile(existing);
-        return user;
-      }
-
-      // New user — create their Firestore profile with unique T7 ID
-      const t7Id = generateT7Id();
-      const newProfile = {
-        name: name || user.displayName || 'Student',
-        email: user.email,
-        phone: phone || '',
-        college: college || '',
-        branch: branch || '',
-        role: 'student',
-        t7Id,
-        year: null,
-        career_interest: '',
-        skills: [],
-        ytSkills: [],
-        createdAt: serverTimestamp()
-      };
-      await setDoc(doc(db, 'users', user.uid), newProfile);
-      setUserProfile({ id: user.uid, ...newProfile });
-      return user;
-    } catch (popupError) {
-      if (popupError.code === 'auth/popup-blocked') {
-        sessionStorage.setItem('t7_auth_intent', 'signup');
-        sessionStorage.setItem('pending_google_signup', JSON.stringify({ college, branch, phone, name }));
-        await signInWithRedirect(auth, provider);
-        return null;
-      }
-      throw popupError;
-    }
+    sessionStorage.setItem('t7_auth_intent', 'signup');
+    sessionStorage.setItem('pending_google_signup', JSON.stringify({ college, branch, phone, name }));
+    await signInWithRedirect(auth, provider);
+    // Page will redirect away — nothing runs after this
   };
 
   // Sign out
@@ -193,44 +137,60 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     let unsubscribe;
     try {
-      // Process any redirect results if popup was blocked
-      getRedirectResult(auth).then(async (result) => {
-        if (result && result.user) {
-          const user = result.user;
-          const intent = sessionStorage.getItem('t7_auth_intent');
-          const pendingDataStr = sessionStorage.getItem('pending_google_signup');
-          sessionStorage.removeItem('t7_auth_intent');
-          sessionStorage.removeItem('pending_google_signup');
+      // Handle redirect result when page loads back from Google
+      if (!redirectHandled.current) {
+        redirectHandled.current = true;
+        getRedirectResult(auth).then(async (result) => {
+          if (result && result.user) {
+            const user = result.user;
+            const intent = sessionStorage.getItem('t7_auth_intent') || 'login';
+            const pendingDataStr = sessionStorage.getItem('pending_google_signup');
+            sessionStorage.removeItem('t7_auth_intent');
+            sessionStorage.removeItem('pending_google_signup');
 
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (!userDoc.exists()) {
-            if (intent === 'signup' && pendingDataStr) {
-              const pendingData = JSON.parse(pendingDataStr);
-              const t7Id = generateT7Id();
-              const newProfile = {
-                name: pendingData.name || user.displayName || 'Student',
-                email: user.email,
-                phone: pendingData.phone || '',
-                college: pendingData.college || '',
-                branch: pendingData.branch || '',
-                role: 'student',
-                t7Id,
-                year: null,
-                career_interest: '',
-                skills: [],
-                ytSkills: [],
-                createdAt: serverTimestamp()
-              };
-              await setDoc(doc(db, 'users', user.uid), newProfile);
-              setUserProfile({ id: user.uid, ...newProfile });
-            } else {
-              await signOut(auth);
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+
+            if (intent === 'login') {
+              if (!userDoc.exists()) {
+                // New user tried to log in → sign them out and show signup prompt
+                await signOut(auth);
+                setPendingRedirectSignup({ email: user.email, name: user.displayName || '' });
+              }
+              // If exists → onAuthStateChanged fires and ProtectedRoute routes them to /dashboard
+            } else if (intent === 'signup') {
+              if (userDoc.exists()) {
+                // Already registered → just update empty fields and proceed
+                const existing = { id: userDoc.id, ...userDoc.data() };
+                if (pendingDataStr) {
+                  const pd = JSON.parse(pendingDataStr);
+                  const updates = {};
+                  if (pd.college && !existing.college) updates.college = pd.college;
+                  if (pd.branch && !existing.branch) updates.branch = pd.branch;
+                  if (pd.phone && !existing.phone) updates.phone = pd.phone;
+                  if (Object.keys(updates).length > 0) {
+                    await setDoc(doc(db, 'users', user.uid), updates, { merge: true });
+                  }
+                }
+                setUserProfile(existing);
+              } else {
+                // New signup → create profile with their details
+                const pd = pendingDataStr ? JSON.parse(pendingDataStr) : {};
+                const profile = await createProfile(user.uid, {
+                  name: pd.name || user.displayName || 'Student',
+                  email: user.email,
+                  college: pd.college || '',
+                  branch: pd.branch || '',
+                  phone: pd.phone || ''
+                });
+                setUserProfile(profile);
+              }
+              // onAuthStateChanged + ProtectedRoute routes them to /dashboard
             }
           }
-        }
-      }).catch((err) => {
-        console.error('Redirect sign-in error:', err);
-      });
+        }).catch((err) => {
+          console.error('Redirect sign-in error:', err);
+        });
+      }
 
       unsubscribe = onAuthStateChanged(auth, async (user) => {
         setCurrentUser(user);
@@ -271,6 +231,8 @@ export const AuthProvider = ({ children }) => {
     currentUser,
     userProfile,
     loading,
+    pendingRedirectSignup,
+    clearPendingRedirectSignup: () => setPendingRedirectSignup(null),
     signup,
     login,
     loginWithGoogle,
