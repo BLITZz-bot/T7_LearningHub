@@ -97,21 +97,21 @@ const Signup = () => {
 
     setGoogleLoading(true);
     try {
+      // signupWithGoogle uses full-page redirect — page will navigate away to Google.
+      // On return, getRedirectResult in AuthContext creates the profile and
+      // onAuthStateChanged + ProtectedRoute route them to /dashboard automatically.
       await signupWithGoogle({
         name: formData.name.trim(),
         college: formData.college.trim(),
         branch: formData.branch,
         phone: formData.phone.trim()
       });
-      navigate('/dashboard');
     } catch (err) {
       console.error('Google sign up error:', err);
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setError('Failed to sign in with Google. Please try again.');
-      }
-    } finally {
+      setError('Failed to start Google Sign-In. Please try again.');
       setGoogleLoading(false);
     }
+    // Note: setGoogleLoading(false) NOT called on success — page is redirecting away
   };
 
   return (

@@ -2,7 +2,7 @@
  * Login Page - Sleek Black & Grey Theme
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { 
@@ -21,8 +21,16 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, pendingRedirectSignup, clearPendingRedirectSignup } = useAuth();
   const navigate = useNavigate();
+
+  // If a new user tried to log in via Google, redirect them to signup with a message
+  useEffect(() => {
+    if (pendingRedirectSignup) {
+      clearPendingRedirectSignup();
+      setError(`No account found for ${pendingRedirectSignup.email}. Please sign up first.`);
+    }
+  }, [pendingRedirectSignup, clearPendingRedirectSignup]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,18 +51,15 @@ const Login = () => {
     setError('');
     setGoogleLoading(true);
     try {
+      // loginWithGoogle uses full-page redirect — page will navigate away to Google.
+      // On return, getRedirectResult in AuthContext handles routing automatically.
       await loginWithGoogle();
-      navigate('/dashboard');
     } catch (err) {
       console.error('Google sign in error:', err);
-      if (err.code === 'auth/user-not-found') {
-        setError('No account found for this Google email. Please click "Sign up for free" above to create an account.');
-      } else if (err.code !== 'auth/popup-closed-by-user') {
-        setError('Failed to sign in with Google. Please try again.');
-      }
-    } finally {
+      setError('Could not start Google Sign-In. Please try again.');
       setGoogleLoading(false);
     }
+    // Note: setGoogleLoading(false) NOT called on success — page is redirecting away
   };
 
   return (
