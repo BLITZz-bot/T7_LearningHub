@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { branches } from '../../data/industrySkills';
 import { 
@@ -33,8 +33,13 @@ const Signup = () => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   
-  const { signup, signupWithGoogle } = useAuth();
+  const { signup, signupWithGoogle, currentUser, userProfile } = useAuth();
   const navigate = useNavigate();
+
+  // Auto-redirect if already logged in (catches Google redirect return on signup page)
+  if (currentUser && userProfile) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

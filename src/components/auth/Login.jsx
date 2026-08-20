@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { 
   Mail, 
@@ -21,16 +21,21 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   
-  const { login, loginWithGoogle, pendingRedirectSignup, clearPendingRedirectSignup } = useAuth();
+  const { login, loginWithGoogle, currentUser, userProfile, pendingRedirectSignup, clearPendingRedirectSignup } = useAuth();
   const navigate = useNavigate();
 
-  // If a new user tried to log in via Google, redirect them to signup with a message
-  useEffect(() => {
-    if (pendingRedirectSignup) {
-      clearPendingRedirectSignup();
-      setError(`No account found for ${pendingRedirectSignup.email}. Please sign up first.`);
-    }
-  }, [pendingRedirectSignup, clearPendingRedirectSignup]);
+  // Auto-redirect if already logged in (catches Google redirect return)
+  if (currentUser && userProfile) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // If a new user tried to log in via Google, show them the sign-up prompt
+  // (This state is set by AuthContext after redirect returns with no profile found)
+  const pendingError = pendingRedirectSignup
+    ? `No account found for ${pendingRedirectSignup.email}. Please sign up first.`
+    : null;
+
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -137,9 +142,14 @@ const Login = () => {
             </p>
           </div>
 
-          {error && (
+          {(error || pendingError) && (
             <div className="mb-6 p-4 bg-red-50 border-2 border-red-100 rounded-xl text-red-700 text-sm font-medium">
-              {error}
+              {pendingError || error}
+              {pendingError && (
+                <div className="mt-2">
+                  <Link to="/signup" className="text-red-800 font-bold underline">Click here to Sign up →</Link>
+                </div>
+              )}
             </div>
           )}
 
