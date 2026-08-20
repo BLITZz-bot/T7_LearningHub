@@ -47,7 +47,9 @@ const Login = () => {
       navigate('/dashboard');
     } catch (err) {
       console.error('Google sign in error:', err);
-      if (err.code !== 'auth/popup-closed-by-user') {
+      if (err.code === 'auth/user-not-found') {
+        setError('No account found for this Google email. Please click "Sign up for free" above to create an account.');
+      } else if (err.code !== 'auth/popup-closed-by-user') {
         setError('Failed to sign in with Google. Please try again.');
       }
     } finally {

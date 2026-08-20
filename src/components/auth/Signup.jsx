@@ -26,7 +26,7 @@ const Signup = () => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   
-  const { signup, loginWithGoogle } = useAuth();
+  const { signup, signupWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -62,7 +62,7 @@ const Signup = () => {
     setError('');
     setGoogleLoading(true);
     try {
-      await loginWithGoogle();
+      await signupWithGoogle();
       navigate('/dashboard');
     } catch (err) {
       console.error('Google sign up error:', err);
