@@ -72,11 +72,11 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const { user } = await signInWithEmailAndPassword(auth, email, password);
-    // Check Firestore profile exists
+    // Verify Firestore profile exists
     let profile = await fetchProfile(user.uid);
     if (!profile) {
       await signOut(auth);
-      const err = new Error('No account found. Please sign up first.');
+      const err = new Error('No account found for this email. Please sign up to create your profile.');
       err.code = 'auth/user-not-found';
       throw err;
     }
@@ -93,11 +93,12 @@ export const AuthProvider = ({ children }) => {
 
     let profile = await fetchProfile(user.uid);
     if (!profile) {
-      // Auto-create basic profile so new users logging in with Google aren't blocked
-      profile = await createProfile(user.uid, {
-        name: user.displayName || 'Student',
-        email: user.email || '',
-      });
+      // User is new and has not signed up yet
+      await signOut(auth);
+      const err = new Error(`No account found for "${user.email}". Please create an account to get started.`);
+      err.code = 'auth/user-not-found';
+      err.userEmail = user.email;
+      throw err;
     } else if (!profile.t7Id) {
       const t7Id = generateT7Id();
       await setDoc(doc(db, 'users', user.uid), { t7Id }, { merge: true });
@@ -189,6 +190,7 @@ export const AuthProvider = ({ children }) => {
     userProfile,
     loading,
     newUserEmail,
+    setNewUserEmail,
     clearNewUserEmail: () => setNewUserEmail(null),
     signup,
     login,
