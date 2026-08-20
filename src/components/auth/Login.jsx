@@ -1,13 +1,13 @@
 /**
  * Login Page — Professional Sign In
  * - Existing users: email+password or Google → dashboard
- * - New users trying Google: friendly message + sign-up link
+ * - New/unregistered users: clear, professional "Account not found" prompt with quick sign-up
  */
 
 import { useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Mail, Lock, Loader2, Sparkles, ArrowRight, UserPlus } from 'lucide-react';
+import { Mail, Lock, Loader2, Sparkles, ArrowRight, UserPlus, AlertCircle, ShieldAlert } from 'lucide-react';
 
 const GOOGLE_ICON = (
   <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
@@ -19,18 +19,15 @@ const GOOGLE_ICON = (
 );
 
 const Login = () => {
-  const [email,         setEmail]         = useState('');
-  const [password,      setPassword]      = useState('');
-  const [error,         setError]         = useState('');
-  const [emailLoading,  setEmailLoading]  = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const navigate = useNavigate();
+  const [email,             setEmail]             = useState('');
+  const [password,          setPassword]          = useState('');
+  const [error,             setError]             = useState('');
+  const [notFoundInfo,      setNotFoundInfo]      = useState(null); // { email, message }
+  const [emailLoading,      setEmailLoading]      = useState(false);
+  const [googleLoading,     setGoogleLoading]     = useState(false);
 
-  const { login, loginWithGoogle, currentUser, userProfile, newUserEmail, clearNewUserEmail } = useAuth();
-
-  // ── Compute this BEFORE any early returns (avoids conditional-render issues)
-  const googleNewUserMsg = newUserEmail
-    ? `No account found for "${newUserEmail}". Please sign up first.`
-    : null;
+  const { login, loginWithGoogle, currentUser, userProfile } = useAuth();
 
   // ── If already logged in → go to dashboard (AuthProvider handles loading state)
   if (currentUser && userProfile) {
@@ -41,17 +38,24 @@ const Login = () => {
   const handleEmailLogin = async (e) => {
     e.preventDefault();
     setError('');
+    setNotFoundInfo(null);
     setEmailLoading(true);
+
     try {
       await login(email, password);
-      // onAuthStateChanged + Navigate above handles redirect
     } catch (err) {
       if (err.code === 'auth/user-not-found') {
-        setError('No account found with this email. Please sign up first.');
-      } else if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setError('Incorrect password. Please try again.');
+        setNotFoundInfo({
+          email: email.trim(),
+          title: 'Account Not Found',
+          message: `We couldn't find an active account for "${email.trim()}". Please register to create your profile.`,
+        });
+      } else if (err.code === 'auth/wrong-password') {
+        setError('Incorrect password. Please try again or reset your password.');
+      } else if (err.code === 'auth/invalid-credential') {
+        setError('Invalid email or password. If you are new to T7 Learning Hub, please sign up first.');
       } else {
-        setError('Failed to sign in. Please try again.');
+        setError(err.message || 'Failed to sign in. Please check your network and try again.');
       }
     } finally {
       setEmailLoading(false);
@@ -59,23 +63,34 @@ const Login = () => {
   };
 
   const handleGoogleLogin = async () => {
-    clearNewUserEmail();
     setError('');
+    setNotFoundInfo(null);
     setGoogleLoading(true);
+
     try {
       await loginWithGoogle();
     } catch (err) {
       console.error('Google login error:', err);
-      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+      if (err.code === 'auth/user-not-found') {
+        setNotFoundInfo({
+          email: err.userEmail || '',
+          title: 'Google Account Not Registered',
+          message: `No T7 Learning Hub account is registered with ${err.userEmail || 'this Google account'}. Please create your account first.`,
+        });
+      } else if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
         // User voluntarily closed popup
       } else if (err.code === 'auth/popup-blocked') {
-        setError('Popup was blocked by your browser. Please allow popups for this site.');
+        setError('Google sign-in popup was blocked by your browser. Please allow popups for this site.');
       } else {
         setError(err.message || 'Could not sign in with Google. Please try again.');
       }
     } finally {
       setGoogleLoading(false);
     }
+  };
+
+  const goToSignupWithEmail = (targetEmail) => {
+    navigate('/signup', { state: { email: targetEmail } });
   };
 
   return (
@@ -136,31 +151,47 @@ const Login = () => {
             </p>
           </div>
 
-          {/* ── New Google user warning ── */}
-          {googleNewUserMsg && (
-            <div className="mb-5 p-4 bg-amber-50 border-2 border-amber-200 rounded-xl text-sm">
-              <p className="font-semibold text-amber-800 mb-1">Account not found</p>
-              <p className="text-amber-700">{googleNewUserMsg}</p>
-              <Link
-                to="/signup"
-                onClick={clearNewUserEmail}
-                className="inline-flex items-center gap-1.5 mt-2 text-amber-800 font-bold underline hover:no-underline"
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                Create account →
-              </Link>
+          {/* ── Professional "Account Not Found" Card ── */}
+          {notFoundInfo && (
+            <div className="mb-6 p-5 bg-gradient-to-br from-amber-50 to-orange-50/50 border-2 border-amber-200/80 rounded-2xl shadow-sm animate-fade-in">
+              <div className="flex items-start gap-3.5">
+                <div className="w-9 h-9 bg-amber-500/15 rounded-xl flex items-center justify-center flex-shrink-0 text-amber-700 mt-0.5 border border-amber-300/40">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-amber-900 text-base">{notFoundInfo.title}</h4>
+                  <p className="text-amber-800/90 text-sm mt-1 leading-relaxed">
+                    {notFoundInfo.message}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => goToSignupWithEmail(notFoundInfo.email)}
+                    className="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-amber-900 hover:bg-amber-800 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-amber-900/15 hover:-translate-y-0.5"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>Create Free Account →</span>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* ── Error ── */}
+          {/* ── Standard Error ── */}
           {error && (
-            <div className="mb-5 p-4 bg-red-50 border-2 border-red-100 rounded-xl text-red-700 text-sm font-medium">
-              {error}
-              {(error.includes('sign up') || error.includes('No account')) && (
-                <span className="block mt-1">
-                  <Link to="/signup" className="font-bold underline">Sign up here →</Link>
-                </span>
-              )}
+            <div className="mb-5 p-4 bg-red-50 border-2 border-red-100 rounded-xl text-red-700 text-sm font-medium flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500 mt-0.5" />
+              <div>
+                <span>{error}</span>
+                {(error.includes('sign up') || error.includes('new to T7')) && (
+                  <button
+                    type="button"
+                    onClick={() => goToSignupWithEmail(email)}
+                    className="block mt-1.5 font-bold text-red-900 underline hover:no-underline"
+                  >
+                    Sign up for free here →
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -220,7 +251,7 @@ const Login = () => {
             <button
               id="login-submit-btn"
               type="submit"
-              disabled={emailLoading}
+              disabled={emailLoading || googleLoading}
               className="w-full py-3.5 bg-zinc-900 text-white font-bold rounded-xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-900/20 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2"
             >
               {emailLoading ? (

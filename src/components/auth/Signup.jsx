@@ -5,8 +5,8 @@
  * - Existing users via Google: updates empty fields and goes to dashboard
  */
 
-import { useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { branches } from '../../data/industrySkills';
 import {
@@ -42,12 +42,24 @@ const InputField = ({ id, label, icon: Icon, type = 'text', value, onChange, pla
 );
 
 const Signup = () => {
+  const location = useLocation();
   const [form, setForm] = useState({
-    name: '', college: '', branch: '', phone: '', email: '', password: '',
+    name: '',
+    college: '',
+    branch: '',
+    phone: '',
+    email: location.state?.email || '',
+    password: '',
   });
   const [error,         setError]         = useState('');
   const [loading,       setLoading]       = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  useEffect(() => {
+    if (location.state?.email) {
+      setForm(prev => ({ ...prev, email: location.state.email }));
+    }
+  }, [location.state?.email]);
 
   const { signup, signupWithGoogle, currentUser, userProfile } = useAuth();
 
