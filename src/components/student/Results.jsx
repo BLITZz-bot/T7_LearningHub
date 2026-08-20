@@ -492,7 +492,7 @@ const Results = () => {
                     : 'text-zinc-400 hover:text-zinc-600'
                 }`}
               >
-                Skill l
+                Skill Lab
               </button>
               <button
                 onClick={() => navigate('/academic')}

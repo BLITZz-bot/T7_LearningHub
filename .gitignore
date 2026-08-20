@@ -1,8 +1,34 @@
 node_modules
 dist
+
+# Environment variables — never commit your .env
 .env
 .env.local
 .env.*.local
+
+# Logs
 *.log
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Firebase
 .firebase
+
+# Debug / test scripts with hardcoded keys (should not be committed)
+check-api*.js
+log-models*.js
+test-flash.js
+test-models.js
+test_gemini_api.js
+
+# Debug output text files
+*.txt
+available_models.txt
+full_models_list*.txt
+models_output.txt
+models_structure.txt
+
+# Build artifacts
+dist/

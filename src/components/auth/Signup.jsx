@@ -12,10 +12,7 @@ import {
   Loader2, 
   Sparkles,
   ArrowRight,
-  Rocket,
-  GraduationCap,
-  Building2,
-  CheckCircle
+  Rocket
 } from 'lucide-react';
 
 const Signup = () => {
@@ -23,7 +20,7 @@ const Signup = () => {
     name: '',
     email: '',
     password: '',
-    role: 'student'
+    role: 'student'  // role is always student on self-signup; admins are assigned manually
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,25 +35,6 @@ const Signup = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
-    // DEMO: Allow admin/admin as a dummy admin account
-    if (formData.email.toLowerCase() === 'admin' && formData.password === 'admin') {
-      setLoading(true);
-      try {
-        await signup('admin@demo.local', 'admin123456', 'Admin Demo', 'admin');
-        navigate('/dashboard');
-      } catch (err) {
-        if (err.code === 'auth/email-already-in-use') {
-          // Already created, just redirect
-          navigate('/login');
-        } else {
-          setError('Failed to create demo admin account.');
-        }
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
     
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters');
@@ -182,7 +160,7 @@ const Signup = () => {
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
                 <input
-                  type="text"
+                  type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
@@ -211,71 +189,7 @@ const Signup = () => {
               </div>
             </div>
 
-            {/* Role Selection */}
-            <div>
-              <label className="block text-sm font-semibold text-zinc-700 mb-3">
-                I am a...
-              </label>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: 'student' })}
-                  className={`relative p-4 rounded-xl border-2 transition-all text-left ${
-                    formData.role === 'student'
-                      ? 'border-zinc-900 bg-zinc-50 shadow-lg'
-                      : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      formData.role === 'student' ? 'bg-zinc-900' : 'bg-zinc-100'
-                    }`}>
-                      <GraduationCap className={`w-5 h-5 ${
-                        formData.role === 'student' ? 'text-white' : 'text-zinc-500'
-                      }`} />
-                    </div>
-                    <div>
-                      <p className={`font-bold ${
-                        formData.role === 'student' ? 'text-zinc-900' : 'text-zinc-700'
-                      }`}>Student</p>
-                      <p className="text-xs text-zinc-500">Analyze my skills</p>
-                    </div>
-                  </div>
-                  {formData.role === 'student' && (
-                    <CheckCircle className="absolute top-2 right-2 w-5 h-5 text-zinc-900" />
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: 'admin' })}
-                  className={`relative p-4 rounded-xl border-2 transition-all text-left ${
-                    formData.role === 'admin'
-                      ? 'border-zinc-900 bg-zinc-50 shadow-lg'
-                      : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      formData.role === 'admin' ? 'bg-zinc-900' : 'bg-zinc-100'
-                    }`}>
-                      <Building2 className={`w-5 h-5 ${
-                        formData.role === 'admin' ? 'text-white' : 'text-zinc-500'
-                      }`} />
-                    </div>
-                    <div>
-                      <p className={`font-bold ${
-                        formData.role === 'admin' ? 'text-zinc-900' : 'text-zinc-700'
-                      }`}>Admin</p>
-                      <p className="text-xs text-zinc-500">Placement cell</p>
-                    </div>
-                  </div>
-                  {formData.role === 'admin' && (
-                    <CheckCircle className="absolute top-2 right-2 w-5 h-5 text-zinc-900" />
-                  )}
-                </button>
-              </div>
-            </div>
+            {/* Role is always student — admins are assigned manually via Firestore/Firebase Admin SDK */}
 
             <button
               type="submit"

@@ -33,6 +33,7 @@ What would you like to know about your progress or career path today?`,
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const greetingUpdatedRef = useRef(false);
   
   const formatTime = (date) => date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
@@ -46,16 +47,22 @@ What would you like to know about your progress or career path today?`,
 
   // Update initial message when userProfile name becomes available
   useEffect(() => {
-    if (userProfile?.name && messages.length === 1 && messages[0].content.startsWith('Hey there!')) {
+    if (userProfile?.name && !greetingUpdatedRef.current) {
+      greetingUpdatedRef.current = true;
       const firstName = userProfile.name.split(' ')[0];
-      setMessages([{
-        ...messages[0],
-        content: `Hey ${firstName}! 👋 I'm T7 SKILL_BOT. I'm here to help you get placement-ready.
+      setMessages((prev) => {
+        if (prev.length === 1 && prev[0].content.startsWith('Hey there!')) {
+          return [{
+            ...prev[0],
+            content: `Hey ${firstName}! 👋 I'm T7 SKILL_BOT. I'm here to help you get placement-ready.
       
 What would you like to know about your progress or career path today?`
-      }]);
+          }];
+        }
+        return prev;
+      });
     }
-  }, [userProfile, messages]);
+  }, [userProfile?.name]);
 
   const sendMessage = async (text) => {
     if (!text.trim() || isLoading) return;

@@ -20,28 +20,46 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
-async function saveToDashboard({ accountId, analysis, videoId, title }) {
+async function saveToDashboard({ accountId, analysis, videoId, title, projectId }) {
   if (!accountId) throw new Error('Account ID is required');
 
-  const projectId = 't7-learning-hub';
-  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${accountId}/videoLearning`;
+  const pId = projectId || 't7-learning-hub';
+  const url = `https://firestore.googleapis.com/v1/projects/${pId}/databases/(default)/documents/users/${accountId}/videoLearning`;
 
-  // Use skills from Gemini analysis (or fallback to empty)
-  const topSkills = Array.isArray(analysis.skills) 
-    ? analysis.skills.filter(s => typeof s === 'string' && s.length > 1).slice(0, 5)
+  // Skills — up to 10 strings
+  const topSkills = Array.isArray(analysis.skills)
+    ? analysis.skills.filter(s => typeof s === 'string' && s.length > 1).slice(0, 10)
+    : [];
+
+  // Highlights — up to 10 {time, text} objects
+  const highlights = Array.isArray(analysis.highlights)
+    ? analysis.highlights.filter(h => h && h.time && h.text).slice(0, 10)
     : [];
 
   const body = {
     fields: {
-      videoId: { stringValue: videoId },
-      title: { stringValue: title },
-      date: { timestampValue: new Date().toISOString() },
-      rating: { doubleValue: parseFloat(analysis.rating) || 0 },
-      relevance: { doubleValue: parseFloat(analysis.relevance) || 0 },
-      summary: { stringValue: analysis.summary || '' },
+      videoId:          { stringValue: videoId || '' },
+      title:            { stringValue: title || '' },
+      date:             { timestampValue: new Date().toISOString() },
+      rating:           { doubleValue: parseFloat(analysis.rating) || 0 },
+      relevance:        { doubleValue: parseFloat(analysis.relevance) || 0 },
+      summary:          { stringValue: analysis.summary || '' },
+      durationSeconds:  { integerValue: parseInt(analysis.durationSeconds) || 0 },
       topSkills: {
         arrayValue: {
           values: topSkills.map(s => ({ stringValue: s }))
+        }
+      },
+      highlights: {
+        arrayValue: {
+          values: highlights.map(h => ({
+            mapValue: {
+              fields: {
+                time: { stringValue: h.time },
+                text: { stringValue: h.text }
+              }
+            }
+          }))
         }
       }
     }
@@ -61,51 +79,113 @@ async function saveToDashboard({ accountId, analysis, videoId, title }) {
   return { success: true };
 }
 
+
 async function callGemini({ prompt, key, systemPrompt }) {
-  const body = {
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
-  };
-  if (systemPrompt) {
-    body.system_instruction = { parts: [{ text: systemPrompt }] };
+  if (!key) throw new Error('Gemini API key is required');
+
+  const targetModels = [
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-pro'
+  ];
+
+  let lastError = null;
+
+  for (const model of targetModels) {
+    try {
+      const body = {
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 4096 }
+      };
+      if (systemPrompt) {
+        body.system_instruction = { parts: [{ text: systemPrompt }] };
+      }
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        return { text };
+      }
+      const err = await res.json().catch(() => ({}));
+      lastError = new Error(err?.error?.message || `API error ${res.status} on model ${model}`);
+    } catch (e) {
+      lastError = e;
+    }
   }
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-  );
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `API error ${res.status}`);
-  }
-  const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  return { text };
+
+  throw lastError || new Error('All Gemini models failed');
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  TRANSCRIPT FETCHER — Full extraction, no segment cap, multi-language fallback
+// ─────────────────────────────────────────────────────────────────────────────
 async function getYouTubeTranscript(videoId) {
-  // Fetch timedtext from YouTube
   try {
+    // Step 1: Fetch the list of available caption tracks
     const listUrl = `https://www.youtube.com/api/timedtext?type=list&v=${videoId}`;
     const listRes = await fetch(listUrl);
     const listText = await listRes.text();
-    // Parse available transcript languages
-    const langMatch = listText.match(/lang_code="([^"]+)"/);
-    const lang = langMatch ? langMatch[1] : 'en';
-    const transcriptUrl = `https://www.youtube.com/api/timedtext?lang=${lang}&v=${videoId}&fmt=json3`;
-    const tRes = await fetch(transcriptUrl);
-    const tData = await tRes.json();
-    if (tData.events) {
-      const segments = tData.events
-        .filter(e => e.segs)
-        .map(e => ({
-          start: e.tStartMs / 1000,
-          text: e.segs.map(s => s.utf8).join('').replace(/\n/g, ' ').trim()
-        }))
-        .filter(s => s.text && s.text !== ' ');
-      return { segments };
+
+    // Step 2: Build a priority fallback chain of languages to try
+    // Order: any detected manual lang → English → English-US → auto-generated (asr)
+    const detectedLangs = [...listText.matchAll(/lang_code="([^"]+)"/g)].map(m => m[1]);
+    const isAsr = listText.includes('kind="asr"') || listText.includes('v:kind="asr"');
+
+    // Build fallback chain: manual langs first, then en/en-US, then asr
+    const langChain = [...new Set([...detectedLangs, 'en', 'en-US'])];
+    const fetchAttempts = langChain.map(lang => ({ lang, asr: false }));
+    if (isAsr || detectedLangs.length === 0) {
+      fetchAttempts.push({ lang: 'en', asr: true });
     }
-    return { segments: [] };
+
+    // Step 3: Try each language until we get transcript events
+    for (const attempt of fetchAttempts) {
+      const url = attempt.asr
+        ? `https://www.youtube.com/api/timedtext?lang=${attempt.lang}&v=${videoId}&fmt=json3&kind=asr`
+        : `https://www.youtube.com/api/timedtext?lang=${attempt.lang}&v=${videoId}&fmt=json3`;
+
+      try {
+        const tRes = await fetch(url);
+        if (!tRes.ok) continue;
+        const tData = await tRes.json();
+
+        if (tData.events && tData.events.length > 0) {
+          // Extract ALL segments — no slice cap
+          const segments = tData.events
+            .filter(e => e.segs && e.tStartMs !== undefined)
+            .map(e => ({
+              start: Math.round(e.tStartMs / 100) / 10, // seconds, 1 decimal
+              dur: e.dDurationMs ? Math.round(e.dDurationMs / 100) / 10 : 0,
+              text: e.segs.map(s => s.utf8 || '').join('').replace(/\n/g, ' ').trim()
+            }))
+            .filter(s => s.text && s.text.length > 1);
+
+          // Calculate total duration from last segment
+          const lastSeg = segments[segments.length - 1];
+          const durationSeconds = lastSeg ? Math.round(lastSeg.start + lastSeg.dur) : 0;
+
+          return {
+            segments,
+            totalSegments: segments.length,
+            durationSeconds,
+            lang: attempt.lang,
+            isAsr: attempt.asr
+          };
+        }
+      } catch (_) {
+        // Try next language in chain
+        continue;
+      }
+    }
+
+    // No captions found at all
+    return { segments: [], totalSegments: 0, durationSeconds: 0, lang: null, isAsr: false };
   } catch (e) {
-    return { segments: [] };
+    return { segments: [], totalSegments: 0, durationSeconds: 0, lang: null, isAsr: false };
   }
 }
+

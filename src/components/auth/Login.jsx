@@ -29,12 +29,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // DEMO: Allow admin/admin as a shortcut to admin account
-      if (email.toLowerCase() === 'admin' && password === 'admin') {
-        await login('admin@demo.local', 'admin123456');
-      } else {
-        await login(email, password);
-      }
+      await login(email, password);
       navigate('/dashboard');
     } catch (err) {
       setError('Invalid email or password. Please try again.');
@@ -132,7 +127,7 @@ const Login = () => {
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
                 <input
-                  type="text"
+                  type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-12 pr-4 py-3.5 bg-zinc-50 border-2 border-zinc-200 rounded-xl focus:bg-white focus:border-zinc-900 outline-none transition-all text-zinc-900 font-medium placeholder:text-zinc-400"

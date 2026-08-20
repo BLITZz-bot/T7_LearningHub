@@ -37,6 +37,19 @@ import {
   Compass
 } from 'lucide-react';
 
+// Branch → relevant career roles mapping
+const BRANCH_CAREER_MAP = {
+  'Computer Science': ['frontend-developer', 'backend-developer', 'fullstack-developer', 'data-analyst', 'ai-ml-engineer', 'devops-engineer', 'mobile-developer', 'cloud-engineer'],
+  'Information Technology': ['frontend-developer', 'backend-developer', 'fullstack-developer', 'data-analyst', 'devops-engineer', 'mobile-developer', 'cloud-engineer', 'iot-architect'],
+  'Electronics & Communication': ['embedded-systems-engineer', 'vlsi-design-engineer', 'telecom-engineer', 'iot-architect', 'robotics-engineer', 'ai-ml-engineer', 'fullstack-developer', 'data-analyst'],
+  'Electrical Engineering': ['power-systems-engineer', 'control-systems-engineer', 'instrumentation-engineer', 'renewable-energy-engineer', 'embedded-systems-engineer', 'robotics-engineer', 'ai-ml-engineer', 'data-analyst'],
+  'Mechanical Engineering': ['mechanical-design-engineer', 'automotive-engineer', 'hvac-engineer', 'manufacturing-engineer', 'quality-engineer', 'robotics-engineer', 'data-analyst', 'ai-ml-engineer'],
+  'Civil Engineering': ['structural-engineer', 'construction-manager', 'environmental-engineer', 'transportation-engineer', 'data-analyst', 'fullstack-developer'],
+  'Chemical Engineering': ['process-engineer', 'chemical-rd-scientist', 'environmental-health-safety', 'quality-engineer', 'data-analyst', 'ai-ml-engineer'],
+  'Biotechnology': ['biotech-research', 'biomedical-engineer', 'clinical-research', 'pharma-production', 'data-analyst', 'ai-ml-engineer', 'process-engineer'],
+  'Other': industryRoles.map(r => r.id)
+};
+
 const StudentDashboard = () => {
   const { currentUser, userProfile, updateUserProfile, logout } = useAuth();
   const navigate = useNavigate();
@@ -95,56 +108,27 @@ const StudentDashboard = () => {
     loadLastAnalysis();
   }, [currentUser]);
 
-  // Fetch YouTube learning data and auto-merge skills
-  // Uses t7Id because extension syncs to users/{t7Id}/videoLearning
-  useEffect(() => {
-    const loadVideoLearning = async () => {
-      if (!userProfile?.t7Id) return;
-      setLoadingVideos(true);
-      try {
-        const videos = await getVideoLearning(userProfile.t7Id);
-        setVideoLearning(videos);
-
-        const skills = await getVideoLearningSkills(userProfile.t7Id);
-        setYtSkills(skills);
-
-        // Auto-merge YouTube skills into selected skills (no duplicates)
-        if (skills.length > 0) {
-          setSelectedSkills(prev => {
-            const combined = [...prev];
-            skills.forEach(skill => {
-              if (!combined.some(s => s.toLowerCase() === skill.toLowerCase())) {
-                combined.push(skill);
-              }
-            });
-            return combined;
-          });
-        }
-      } catch (err) {
-        console.error('Error loading video learning:', err);
-      } finally {
-        setLoadingVideos(false);
-      }
-    };
-    loadVideoLearning();
-  }, [userProfile?.t7Id]);
-
-  const copyT7Id = () => {
-    if (userProfile?.t7Id) {
-      navigator.clipboard.writeText(userProfile.t7Id);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  const refreshVideoLearning = async () => {
-    if (!userProfile?.t7Id) return;
+  // Fetch YouTube learning data and auto-merge skills (supports both Auth UID & T7 ID)
+  const loadVideoLearningData = async () => {
+    if (!currentUser?.uid) return;
     setLoadingVideos(true);
     try {
-      const videos = await getVideoLearning(userProfile.t7Id);
+      let videos = await getVideoLearning(currentUser.uid);
+      let skills = await getVideoLearningSkills(currentUser.uid);
+
+      // If no videos under UID, also check if extension synced under T7 ID
+      if (videos.length === 0 && userProfile?.t7Id) {
+        const t7Videos = await getVideoLearning(userProfile.t7Id);
+        if (t7Videos.length > 0) {
+          videos = t7Videos;
+          skills = await getVideoLearningSkills(userProfile.t7Id);
+        }
+      }
+
       setVideoLearning(videos);
-      const skills = await getVideoLearningSkills(userProfile.t7Id);
       setYtSkills(skills);
+
+      // Auto-merge YouTube skills into selected skills (no duplicates)
       if (skills.length > 0) {
         setSelectedSkills(prev => {
           const combined = [...prev];
@@ -157,10 +141,26 @@ const StudentDashboard = () => {
         });
       }
     } catch (err) {
-      console.error('Error refreshing video learning:', err);
+      console.error('Error loading video learning:', err);
     } finally {
       setLoadingVideos(false);
     }
+  };
+
+  useEffect(() => {
+    loadVideoLearningData();
+  }, [currentUser?.uid, userProfile?.t7Id]);
+
+  const copyT7Id = () => {
+    if (userProfile?.t7Id) {
+      navigator.clipboard.writeText(userProfile.t7Id);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const refreshVideoLearning = () => {
+    loadVideoLearningData();
   };
 
   const filteredSkills = allSkills.filter(skill =>
@@ -175,27 +175,14 @@ const StudentDashboard = () => {
     );
   };
 
-  // Branch → relevant career roles mapping
-  const branchCareerMap = {
-    'Computer Science': ['frontend-developer', 'backend-developer', 'fullstack-developer', 'data-analyst', 'ai-ml-engineer', 'devops-engineer', 'mobile-developer', 'cloud-engineer'],
-    'Information Technology': ['frontend-developer', 'backend-developer', 'fullstack-developer', 'data-analyst', 'devops-engineer', 'mobile-developer', 'cloud-engineer', 'iot-architect'],
-    'Electronics & Communication': ['embedded-systems-engineer', 'vlsi-design-engineer', 'telecom-engineer', 'iot-architect', 'robotics-engineer', 'ai-ml-engineer', 'fullstack-developer', 'data-analyst'],
-    'Electrical Engineering': ['power-systems-engineer', 'control-systems-engineer', 'instrumentation-engineer', 'renewable-energy-engineer', 'embedded-systems-engineer', 'robotics-engineer', 'ai-ml-engineer', 'data-analyst'],
-    'Mechanical Engineering': ['mechanical-design-engineer', 'automotive-engineer', 'hvac-engineer', 'manufacturing-engineer', 'quality-engineer', 'robotics-engineer', 'data-analyst', 'ai-ml-engineer'],
-    'Civil Engineering': ['structural-engineer', 'construction-manager', 'environmental-engineer', 'transportation-engineer', 'data-analyst', 'fullstack-developer'],
-    'Chemical Engineering': ['process-engineer', 'chemical-rd-scientist', 'environmental-health-safety', 'quality-engineer', 'data-analyst', 'ai-ml-engineer'],
-    'Biotechnology': ['biotech-research', 'biomedical-engineer', 'clinical-research', 'pharma-production', 'data-analyst', 'ai-ml-engineer', 'process-engineer'],
-    'Other': industryRoles.map(r => r.id)
-  };
-
   const filteredRoles = branch
-    ? industryRoles.filter(role => (branchCareerMap[branch] || []).includes(role.id))
+    ? industryRoles.filter(role => (BRANCH_CAREER_MAP[branch] || []).includes(role.id))
     : industryRoles;
 
   // Reset career interest when branch changes and role is no longer relevant
   useEffect(() => {
     if (branch && careerInterest) {
-      const allowedIds = branchCareerMap[branch] || [];
+      const allowedIds = BRANCH_CAREER_MAP[branch] || [];
       if (!allowedIds.includes(careerInterest)) {
         setCareerInterest('');
       }

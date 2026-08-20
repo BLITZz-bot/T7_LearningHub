@@ -24,7 +24,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
-const DEEPTUTOR_URL = 'http://localhost:3782';
+const DEEPTUTOR_URL = import.meta.env.VITE_DEEPTUTOR_URL || 'http://localhost:3782';
 
 const quickLinks = [
   { label: 'Chat', path: '/', icon: MessageSquare, color: 'text-violet-600 bg-violet-50 border-violet-200' },

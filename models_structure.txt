@@ -1,7 +1,0 @@
-ERROR: genAI.listModels is not a function
-TypeError: genAI.listModels is not a function
-    at listModels (file:///C:/Skill_Flow_AI/T7skillup-main/log-models-v2.js:9:32)
-    at file:///C:/Skill_Flow_AI/T7skillup-main/log-models-v2.js:27:1
-    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)
-    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
-    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)

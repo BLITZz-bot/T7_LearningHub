@@ -45,7 +45,7 @@ const AcademicPage = () => {
                 onClick={goBackToResults}
                 className="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider text-zinc-400 hover:text-zinc-600"
               >
-                SKILL L
+                SKILL LAB
               </button>
               <button
                 type="button"

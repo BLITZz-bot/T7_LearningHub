@@ -15,6 +15,7 @@ let state = {
   autoRate: true,
   summaryLang: 'English',
   accountId: '',
+  projectId: 't7-learning-hub',
   currentVideo: null,
   transcript: [],
   analysisData: null,
@@ -107,6 +108,10 @@ function bindAllEventListeners() {
   const accInput = document.getElementById('account-id-input');
   if (accInput) accInput.addEventListener('input', () => { state.accountId = accInput.value.trim(); });
 
+  // Project ID input
+  const projInput = document.getElementById('project-id-input');
+  if (projInput) projInput.addEventListener('input', () => { state.projectId = projInput.value.trim(); });
+
   // Event delegation for dynamically created elements (highlight timestamps, etc.)
   document.addEventListener('click', (e) => {
     const hlTime = e.target.closest('.hl-time');
@@ -124,15 +129,22 @@ function bindAllEventListeners() {
 
 async function loadSettings() {
   return new Promise(resolve => {
-    chrome.storage.local.get(['geminiKey','goal','autoRate','summaryLang','accountId'], data => {
+    chrome.storage.local.get(['geminiKey','goal','autoRate','summaryLang','accountId','projectId'], data => {
       if (data.geminiKey) {
         state.geminiKey = data.geminiKey;
-        document.getElementById('api-key-input').value = data.geminiKey;
+        const apiEl = document.getElementById('api-key-input');
+        if (apiEl) apiEl.value = data.geminiKey;
         updateKeyStatus();
       }
       if (data.accountId) {
         state.accountId = data.accountId;
-        document.getElementById('account-id-input').value = data.accountId;
+        const accEl = document.getElementById('account-id-input');
+        if (accEl) accEl.value = data.accountId;
+      }
+      if (data.projectId) {
+        state.projectId = data.projectId;
+        const projEl = document.getElementById('project-id-input');
+        if (projEl) projEl.value = data.projectId;
       }
       if (data.goal) {
         state.goal = data.goal;
@@ -142,11 +154,13 @@ async function loadSettings() {
       }
       if (data.autoRate !== undefined) {
         state.autoRate = data.autoRate;
-        document.getElementById('auto-rate-toggle').checked = data.autoRate;
+        const autoEl = document.getElementById('auto-rate-toggle');
+        if (autoEl) autoEl.checked = data.autoRate;
       }
       if (data.summaryLang) {
         state.summaryLang = data.summaryLang;
-        document.getElementById('summary-lang').value = data.summaryLang;
+        const langEl = document.getElementById('summary-lang');
+        if (langEl) langEl.value = data.summaryLang;
       }
       resolve();
     });
@@ -156,32 +170,49 @@ async function loadSettings() {
 async function detectCurrentVideo() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.url?.includes('youtube.com/watch')) {
-      // Try to get video ID from URL directly if scripting fails later
-      const urlParams = new URLSearchParams(new URL(tab.url).search);
-      const vidId = urlParams.get('v');
-      if (vidId) {
-        state.currentVideo = { videoId: vidId, title: tab.title.replace(' - YouTube', ''), channel: 'YouTube Video', views: '–', url: tab.url };
-        displayVideoInfo(state.currentVideo);
-      } else {
-        document.getElementById('video-title').textContent = 'Open a YouTube video to analyze it';
-        document.getElementById('video-channel').textContent = 'Navigate to a YouTube video page';
+    if (!tab?.url) return;
+
+    if (tab.url.includes('youtube.com/watch') || tab.url.includes('youtube.com/shorts/')) {
+      let vidId = null;
+      if (tab.url.includes('youtube.com/watch')) {
+        const urlParams = new URLSearchParams(new URL(tab.url).search);
+        vidId = urlParams.get('v');
+      } else if (tab.url.includes('youtube.com/shorts/')) {
+        const match = tab.url.match(/shorts\/([a-zA-Z0-9_-]+)/);
+        vidId = match ? match[1] : null;
       }
-      return;
-    }
-    // Inject script to extract video data
-    const results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: extractVideoData
-    });
-    const video = results?.[0]?.result;
-    if (video) {
-      state.currentVideo = video;
-      displayVideoInfo(video);
+
+      // Inject script to extract video data
+      try {
+        const results = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: extractVideoData
+        });
+        const video = results?.[0]?.result;
+        if (video) {
+          state.currentVideo = video;
+          displayVideoInfo(video);
+          return;
+        }
+      } catch (e) {}
+
+      if (vidId) {
+        state.currentVideo = {
+          videoId: vidId,
+          title: tab.title ? tab.title.replace(' - YouTube', '') : 'YouTube Video',
+          channel: 'YouTube Video',
+          views: '–',
+          url: tab.url,
+          thumbUrl: `https://img.youtube.com/vi/${vidId}/mqdefault.jpg`
+        };
+        displayVideoInfo(state.currentVideo);
+      }
+    } else {
+      document.getElementById('video-title').textContent = 'Open a YouTube video to analyze it';
+      document.getElementById('video-channel').textContent = 'Navigate to a YouTube video page';
     }
   } catch (e) {
     console.error('detectCurrentVideo:', e);
-    // Silent fail for detection, analyze button will handle errors
   }
 }
 
@@ -231,45 +262,82 @@ function displayVideoInfo(video) {
 }
 
 // ────────────────────────────────────────
-//  ANALYZE
+//  ANALYZE — Smart router: single-pass or chunked based on video length
 // ────────────────────────────────────────
+
+// Thresholds (seconds)
+const SHORT_MEDIUM_THRESHOLD = 2 * 60 * 60; // ≤ 2 hrs → single full-transcript pass
+const MAX_CHUNKS             = 20;           // Never more than 20 chunk calls, any length
+const MIN_CHUNK_SECS         = 10 * 60;      // Minimum chunk: 10 minutes
+const CHUNK_DELAY_MS         = 4500;         // 4.5s between calls → safe under 15 RPM free tier
+
+/**
+ * Returns the optimal chunk size in seconds so total chunks ≤ MAX_CHUNKS.
+ * No upper cap — scales to any video length:
+ *   2-hr  → 10-min chunks (~12 chunks)
+ *   6-hr  → 18-min chunks (~20 chunks)
+ *   10-hr → 30-min chunks (~20 chunks)
+ *   20-hr → 60-min chunks (~20 chunks)
+ *   100-hr → 300-min chunks (~20 chunks) — theoretically unlimited
+ */
+function calcChunkDuration(durationSecs) {
+  const ideal = Math.ceil(durationSecs / MAX_CHUNKS);
+  return Math.max(MIN_CHUNK_SECS, ideal); // Always at least 10 min per chunk
+}
+
+
+
 async function analyzeCurrentVideo() {
   if (!state.currentVideo) { showToast('Open a YouTube video first', 'amber'); return; }
 
-  const btn = document.getElementById('analyze-btn');
-  const spinner = document.getElementById('analyze-spinner');
-  const btnText = document.getElementById('analyze-btn-text');
+  const btn      = document.getElementById('analyze-btn');
+  const spinner  = document.getElementById('analyze-spinner');
+  const btnText  = document.getElementById('analyze-btn-text');
 
   btn.disabled = true;
   spinner.style.display = 'inline-block';
   btnText.textContent = 'Analyzing…';
 
   try {
-    // 1. Get transcript
-    showToast('Fetching transcript…', 'accent');
+    // ── Step 1: Fetch FULL transcript ──────────────────────────────────
+    setAnalysisStatus('Fetching full transcript…');
     const transcriptData = await getTranscript(state.currentVideo.videoId);
     state.transcript = transcriptData.segments || [];
 
-    const transcriptText = state.transcript.length > 0
-      ? state.transcript.slice(0, 150).map(s => `[${fmtTime(s.start)}] ${s.text}`).join('\n')
-      : `Video: ${state.currentVideo.title} by ${state.currentVideo.channel}`;
+    const totalSegs     = transcriptData.totalSegments || state.transcript.length;
+    const durationSecs  = transcriptData.durationSeconds || estimateDuration(state.transcript);
+    const durationLabel = fmtDuration(durationSecs);
 
-    // 2. Generate AI analysis
-    showToast('Generating AI analysis…', 'accent');
+    if (totalSegs > 0) {
+      setAnalysisStatus(`Transcript loaded — ${totalSegs} segments · ${durationLabel}${transcriptData.isAsr ? ' (auto-captions)' : ''}`);
+    } else {
+      setAnalysisStatus('No captions found — analyzing from title & metadata');
+    }
+
+    // ── Step 2: Route to single-pass or chunked analysis ───────────────
     if (state.geminiKey) {
-      await generateFullAnalysis(transcriptText);
+      if (durationSecs === 0 || durationSecs <= SHORT_MEDIUM_THRESHOLD) {
+        // SHORT / MEDIUM: send full transcript in one Gemini call
+        await generateFullAnalysis(state.transcript, durationSecs, totalSegs);
+      } else {
+        // LONG (>90 min): chunk → summarize each → synthesize
+        await generateChunkedAnalysis(state.transcript, durationSecs);
+      }
     } else {
       generateDemoAnalysis();
       showToast('Demo mode: Add Gemini key for real AI', 'amber');
     }
 
-    // 3. Render transcript
+    // ── Step 3: Render transcript viewer ───────────────────────────────
     renderTranscript();
-    showToast('Analysis complete!', 'green');
+    showToast(`✅ Analysis complete — ${durationLabel} covered`, 'green');
+    setAnalysisStatus(null); // clear status bar
+
   } catch (e) {
-    console.error(e);
+    console.error('analyzeCurrentVideo:', e);
     generateDemoAnalysis();
     showToast('Analysis ready (demo mode)', 'amber');
+    setAnalysisStatus(null);
   }
 
   btn.disabled = false;
@@ -277,43 +345,217 @@ async function analyzeCurrentVideo() {
   btnText.textContent = '⚡ Re-analyze';
 }
 
-async function generateFullAnalysis(transcriptText) {
-  const goalLabel = state.goal ? GOALS[state.goal]?.label : 'General Learning';
-  const langInstruction = state.summaryLang !== 'English'
-    ? `Respond in ${state.summaryLang}.` : '';
+// ── STATUS BAR helper ──────────────────────────────────────────────────────
+function setAnalysisStatus(msg) {
+  let el = document.getElementById('analysis-status');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'analysis-status';
+    el.style.cssText = 'font-size:11px;color:var(--text3);text-align:center;padding:4px 8px;transition:opacity .3s;';
+    const analyzeBtn = document.getElementById('analyze-btn');
+    if (analyzeBtn?.parentNode) analyzeBtn.parentNode.insertBefore(el, analyzeBtn.nextSibling);
+  }
+  if (msg) {
+    el.textContent = msg;
+    el.style.opacity = '1';
+  } else {
+    el.style.opacity = '0';
+    setTimeout(() => { el.textContent = ''; }, 400);
+  }
+}
 
-  const prompt = `Analyze this YouTube video for a learner focused on "${goalLabel}".
+// ── FULL-TRANSCRIPT SINGLE PASS (< 90 min) ────────────────────────────────
+async function generateFullAnalysis(segments, durationSecs, totalSegs) {
+  const goalLabel       = state.goal ? GOALS[state.goal]?.label : 'General Learning';
+  const langInstruction = state.summaryLang !== 'English' ? `Respond in ${state.summaryLang}.` : '';
+  const noCaption       = segments.length === 0;
+
+  // Build the full transcript text — ALL segments, no slice cap
+  const transcriptText = noCaption
+    ? `[No captions available — base analysis on title, channel, and description only]`
+    : segments.map(s => `[${fmtTime(s.start)}] ${s.text}`).join('\n');
+
+  const durationLabel = fmtDuration(durationSecs);
+  const segCount      = totalSegs || segments.length;
+
+  setAnalysisStatus(`Sending ${segCount} segments to Gemini AI…`);
+
+  const prompt = buildFullPrompt({
+    goalLabel,
+    langInstruction,
+    video: state.currentVideo,
+    transcriptText,
+    durationLabel,
+    maxHighlights: 10,
+    maxSkills: 10
+  });
+
+  return sendGeminiAndApply(prompt);
+}
+
+// ── CHUNKED ANALYSIS for videos > 2 hours ──────────────────────────────
+async function generateChunkedAnalysis(segments, durationSecs) {
+  const goalLabel   = state.goal ? GOALS[state.goal]?.label : 'General Learning';
+  const chunkSecs   = calcChunkDuration(durationSecs); // adaptive: 10–30 min per chunk
+
+  // Split segments into adaptive time-based chunks
+  const chunks = [];
+  let currentChunk = [];
+  let chunkStartTime = 0;
+
+  for (const seg of segments) {
+    if (seg.start >= chunkStartTime + chunkSecs && currentChunk.length > 0) {
+      chunks.push(currentChunk);
+      currentChunk = [];
+      chunkStartTime = seg.start;
+    }
+    currentChunk.push(seg);
+  }
+  if (currentChunk.length > 0) chunks.push(currentChunk);
+
+  const totalChunks   = chunks.length;
+  const chunkSummaries = [];
+  const etaTotalSecs  = Math.round(totalChunks * (CHUNK_DELAY_MS / 1000 + 3)); // approx 3s per Gemini call
+
+  // ── Pass 1: Summarize each chunk ────────────────────────────────────
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    const startLabel = fmtTime(chunk[0].start);
+    const endLabel   = fmtTime(chunk[chunk.length - 1].start);
+    const remaining  = Math.round((totalChunks - i) * (CHUNK_DELAY_MS / 1000 + 3));
+
+    setAnalysisStatus(
+      `Analyzing Part ${i + 1}/${totalChunks} (${startLabel}–${endLabel}) · ~${fmtDuration(remaining)} remaining`
+    );
+
+    const chunkText = chunk.map(s => `[${fmtTime(s.start)}] ${s.text}`).join('\n');
+    const prompt    = buildChunkPrompt(chunkText, i + 1, totalChunks, startLabel, endLabel, goalLabel);
+
+    try {
+      const res = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(
+          { type: 'GEMINI_REQUEST', payload: { prompt, key: state.geminiKey } },
+          (r) => {
+            if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+            if (r?.error) return reject(new Error(r.error));
+            resolve(r);
+          }
+        );
+      });
+      chunkSummaries.push({ part: i + 1, startLabel, endLabel, summary: res.text });
+    } catch (e) {
+      // If a chunk fails, note it and continue — don't abort the whole analysis
+      chunkSummaries.push({ part: i + 1, startLabel, endLabel, summary: `[Part ${i + 1} could not be analyzed]` });
+    }
+
+    // Rate-limit safety gap between chunk calls (4.1s = safe under 15 RPM)
+    if (i < chunks.length - 1) {
+      await new Promise(r => setTimeout(r, CHUNK_DELAY_MS));
+    }
+  }
+
+  // ── Pass 2: Synthesize all chunk summaries into final analysis ───────
+  setAnalysisStatus(`Synthesizing full ${fmtDuration(durationSecs)} video…`);
+
+  const synthesisPrompt = buildSynthesisPrompt(chunkSummaries, state.currentVideo, goalLabel, durationSecs);
+  return sendGeminiAndApply(synthesisPrompt);
+}
+
+
+// ── PROMPT BUILDERS ───────────────────────────────────────────────────────
+
+function buildFullPrompt({ goalLabel, langInstruction, video, transcriptText, durationLabel, maxHighlights, maxSkills }) {
+  return `Analyze this YouTube video for a learner focused on "${goalLabel}".
 ${langInstruction}
 
-VIDEO TITLE: ${state.currentVideo.title}
-CHANNEL: ${state.currentVideo.channel}
-VIEWS: ${state.currentVideo.views}
-DESCRIPTION EXCERPT: ${state.currentVideo.description || 'N/A'}
-COMMENTS EXCERPT: ${state.currentVideo.comments || 'N/A'}
+VIDEO TITLE: ${video.title}
+CHANNEL: ${video.channel}
+VIEWS: ${video.views}
+DURATION: ${durationLabel}
+DESCRIPTION EXCERPT: ${video.description || 'N/A'}
+COMMENTS EXCERPT: ${video.comments || 'N/A'}
 
-TRANSCRIPT (first portion):
+FULL TRANSCRIPT (all ${durationLabel} of content):
 ${transcriptText}
 
-CRITICAL INSTRUCTION: If this video is clearly NOT an educational, tech, or tutorial video (e.g. if it is a music video, movie trailer, song, vlog, gameplay, etc.), you MUST set "relevance" to 0, and in the "summary" explain that this is not an educational video.
+CRITICAL INSTRUCTION: If this video is clearly NOT educational or technical (e.g., music video, movie trailer, song, vlog, gameplay), set "relevance" to 0 and explain in the summary.
 
 Return ONLY valid JSON (no markdown, no extra text):
 {
   "rating": 4.3,
   "relevance": 87,
-  "summary": "2-3 sentence summary of what this video covers and who it's best for.",
-  "skills": ["Skill 1", "Skill 2", "Skill 3", "Skill 4", "Skill 5"],
+  "summary": "3-4 sentences covering what the full video teaches, key topics covered across all sections, and who it is best for.",
+  "skills": ["Skill 1", "Skill 2", "Skill 3", "Skill 4", "Skill 5", "Skill 6", "Skill 7", "Skill 8", "Skill 9", "Skill 10"],
   "highlights": [
-    {"time": "0:30", "text": "Topic or insight described here"},
-    {"time": "3:45", "text": "Another key moment"},
-    {"time": "8:00", "text": "Important concept introduced"}
+    {"time": "0:30",  "text": "Introduction: what the video covers"},
+    {"time": "5:00",  "text": "Key concept from early section"},
+    {"time": "15:00", "text": "Mid-point important topic"},
+    {"time": "30:00", "text": "Advanced concept covered"}
   ]
 }
 
-rating: 1-5 quality score based on content depth (0 if not educational)
-relevance: 0-100 relevance to ${goalLabel} (MUST be 0 if it's a song or movie)
-skills: up to 5 specific technical skills or topics taught (empty if none)
-highlights: up to 6 key moments with timestamps (empty if none)`;
+Rules:
+- rating: 1-5 content quality (0 if not educational)
+- relevance: 0-100 match to "${goalLabel}" goal (0 if music/movie/song)
+- skills: up to ${maxSkills} specific technical skills/topics taught — draw from the ENTIRE video
+- highlights: up to ${maxHighlights} key moments distributed across the FULL video duration — use real timestamps from the transcript`;
+}
 
+function buildChunkPrompt(chunkText, partNum, totalParts, startLabel, endLabel, goalLabel) {
+  return `You are analyzing Part ${partNum} of ${totalParts} of a YouTube tutorial video for a learner focused on "${goalLabel}".
+
+This chunk covers timestamp ${startLabel} to ${endLabel}.
+
+TRANSCRIPT SEGMENT:
+${chunkText}
+
+Write a concise summary of what was taught in this specific section. List the key skills/concepts introduced. Be specific and factual — only reference what was actually in this transcript.
+
+Return plain text (no JSON needed). Format:
+SECTION SUMMARY: [2-3 sentences describing what was taught]
+KEY TOPICS: [comma-separated list of topics/skills introduced in this section]
+NOTABLE MOMENT: [timestamp] — [one-sentence description of the most important insight in this chunk]`;
+}
+
+function buildSynthesisPrompt(chunkSummaries, video, goalLabel, durationSecs) {
+  const summaryText = chunkSummaries.map(c =>
+    `--- Part ${c.part} (${c.startLabel}–${c.endLabel}) ---\n${c.summary}`
+  ).join('\n\n');
+
+  const durationLabel = fmtDuration(durationSecs);
+  const langInstruction = state.summaryLang !== 'English' ? `Respond in ${state.summaryLang}.` : '';
+
+  return `You have analyzed a ${durationLabel} YouTube video in ${chunkSummaries.length} parts. Now synthesize a final comprehensive analysis for a learner focused on "${goalLabel}".
+${langInstruction}
+
+VIDEO: ${video.title}
+CHANNEL: ${video.channel}
+TOTAL DURATION: ${durationLabel}
+
+PART-BY-PART ANALYSIS:
+${summaryText}
+
+Based on ALL parts above, return ONLY valid JSON:
+{
+  "rating": 4.5,
+  "relevance": 91,
+  "summary": "4-5 sentences covering the complete video: what the full course/tutorial teaches from start to finish, major sections covered, depth level, and who this is best for.",
+  "skills": ["Skill 1", "Skill 2", "Skill 3", "Skill 4", "Skill 5", "Skill 6", "Skill 7", "Skill 8", "Skill 9", "Skill 10"],
+  "highlights": [
+    {"time": "0:00",  "text": "Opening section topic"},
+    {"time": "15:00", "text": "Second major topic"},
+    {"time": "45:00", "text": "Third major section"}
+  ]
+}
+
+Rules:
+- highlights: pick up to 10 key moments SPANNING the full ${durationLabel} — use the NOTABLE MOMENT timestamps from each part summary
+- skills: up to 10 specific technical skills drawn from ALL parts of the video
+- summary: must reflect the complete video, not just the beginning`;
+}
+
+// ── GEMINI MESSAGE + APPLY ────────────────────────────────────────────────
+function sendGeminiAndApply(prompt) {
   return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage(
       { type: 'GEMINI_REQUEST', payload: { prompt, key: state.geminiKey } },
@@ -321,21 +563,22 @@ highlights: up to 6 key moments with timestamps (empty if none)`;
         if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
         if (res?.error) return reject(new Error(res.error));
         try {
-          const clean = res.text.replace(/```json|```/g,'').trim();
-          const data = JSON.parse(clean);
+          const clean = res.text.replace(/```json|```/g, '').trim();
+          const data  = JSON.parse(clean);
           state.analysisData = data;
           applyAnalysis(data);
           resolve(data);
-        } catch(e) { reject(e); }
+        } catch (e) { reject(e); }
       }
     );
   });
 }
 
+// ── DEMO ANALYSIS (no API key or fallback) ────────────────────────────────
 function generateDemoAnalysis() {
-  const title = state.currentVideo?.title || '';
+  const title    = state.currentVideo?.title || '';
   const viewsNum = parseViewsNum(state.currentVideo?.views || '0');
-  const rating = estimateRating(viewsNum);
+  const rating   = estimateRating(viewsNum);
   const relevance = calcRelevance(title, state.goal);
 
   const data = {
@@ -343,8 +586,8 @@ function generateDemoAnalysis() {
     relevance,
     summary: `This video by ${state.currentVideo?.channel || 'the creator'} covers "${title}". It provides a comprehensive walkthrough with practical examples suited for learners wanting to build real skills. The instructor uses clear explanations with hands-on demonstrations throughout.`,
     highlights: [
-      { time: '0:00', text: 'Introduction and course overview — what you will learn' },
-      { time: '5:30', text: 'Core concepts explained with visual examples' },
+      { time: '0:00',  text: 'Introduction and course overview — what you will learn' },
+      { time: '5:30',  text: 'Core concepts explained with visual examples' },
       { time: '12:00', text: 'First practical exercise and hands-on coding' },
       { time: '25:00', text: 'Deep dive into advanced features and patterns' },
       { time: '38:00', text: 'Common mistakes and debugging strategies' },
@@ -355,8 +598,9 @@ function generateDemoAnalysis() {
   applyAnalysis(data);
 }
 
+// ── APPLY ANALYSIS RESULTS TO UI ─────────────────────────────────────────
 function applyAnalysis(data) {
-  // Update ratings
+  // Update rating/relevance display
   updateRatingDisplay(data.rating, data.relevance, state.currentVideo?.views);
 
   // Summary
@@ -376,6 +620,25 @@ function applyAnalysis(data) {
   // Show Sync button
   document.getElementById('sync-btn').style.display = 'block';
 }
+
+// ── DURATION HELPERS ──────────────────────────────────────────────────────
+function fmtDuration(totalSecs) {
+  if (!totalSecs || totalSecs === 0) return 'unknown duration';
+  const h = Math.floor(totalSecs / 3600);
+  const m = Math.floor((totalSecs % 3600) / 60);
+  const s = Math.floor(totalSecs % 60);
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+function estimateDuration(segments) {
+  if (!segments || segments.length === 0) return 0;
+  const last = segments[segments.length - 1];
+  return Math.round(last.start + (last.dur || 0));
+}
+
+
 
 async function syncToDashboard() {
   if (!state.accountId) {
@@ -398,9 +661,15 @@ async function syncToDashboard() {
         type: 'SAVE_TO_DASHBOARD',
         payload: {
           accountId: state.accountId,
-          analysis: state.analysisData,
-          videoId: state.currentVideo.videoId,
-          title: state.currentVideo.title
+          analysis: {
+            ...state.analysisData,
+            durationSeconds: state.transcript.length > 0
+              ? estimateDuration(state.transcript)
+              : 0
+          },
+          videoId:   state.currentVideo.videoId,
+          title:     state.currentVideo.title,
+          projectId: state.projectId || 't7-learning-hub'
         }
       }, (r) => {
         if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
@@ -740,18 +1009,20 @@ function updateKeyStatus() {
 }
 
 async function saveSettings() {
-  const key = document.getElementById('api-key-input').value.trim();
-  const accId = document.getElementById('account-id-input').value.trim();
-  const autoRate = document.getElementById('auto-rate-toggle').checked;
-  const summaryLang = document.getElementById('summary-lang').value;
+  const key = document.getElementById('api-key-input')?.value.trim() || '';
+  const accId = document.getElementById('account-id-input')?.value.trim() || '';
+  const projId = document.getElementById('project-id-input')?.value.trim() || 't7-learning-hub';
+  const autoRate = document.getElementById('auto-rate-toggle')?.checked ?? true;
+  const summaryLang = document.getElementById('summary-lang')?.value || 'English';
   const goal = selectedGoal || state.goal;
 
   await new Promise(resolve => {
-    chrome.storage.local.set({ geminiKey: key, accountId: accId, goal, autoRate, summaryLang }, resolve);
+    chrome.storage.local.set({ geminiKey: key, accountId: accId, projectId: projId, goal, autoRate, summaryLang }, resolve);
   });
 
   state.geminiKey = key;
   state.accountId = accId;
+  state.projectId = projId;
   state.goal = goal;
   state.autoRate = autoRate;
   state.summaryLang = summaryLang;

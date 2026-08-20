@@ -6,10 +6,10 @@ AI-powered summaries, transcripts, highlights, and personalized ratings for YouT
 
 ## 🚀 Installation (Developer Mode)
 
-1. **Download** and unzip the `vidmind-extension` folder
+1. **Download** and unzip the `T7-extension` folder
 2. Open Chrome → go to `chrome://extensions/`
 3. Enable **Developer Mode** (top-right toggle)
-4. Click **"Load unpacked"** → select the `vidmind-extension` folder
+4. Click **"Load unpacked"** → select the `T7-extension` folder
 5. The T7 icon will appear in your Chrome toolbar
 
 ---
@@ -71,7 +71,7 @@ Same learner sees a SQL tutorial → shows **12% match** (low bar)
 ## 📁 File Structure
 
 ```
-vidmind-extension/
+T7-extension/
 ├── manifest.json       — Extension config (Manifest V3)
 ├── background.js       — Service worker (Gemini API calls, transcript fetch)
 ├── content.js          — Injected into YouTube (adds rating badges)
