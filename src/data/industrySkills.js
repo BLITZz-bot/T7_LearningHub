@@ -788,15 +788,41 @@ export const allSkills = [
  * Branch options for students
  */
 export const branches = [
-  'Computer Science',
+  // Core Engineering
+  'Computer Science Engineering',
   'Information Technology',
-  'Electronics & Communication',
+  'Electronics & Communication Engineering',
   'Electrical Engineering',
+  'Electrical & Electronics Engineering',
   'Mechanical Engineering',
   'Civil Engineering',
   'Chemical Engineering',
+  // Specialised Tech
+  'Artificial Intelligence & Machine Learning',
+  'Data Science',
+  'Cyber Security',
+  'Cloud Computing',
+  'Internet of Things (IoT)',
+  'Robotics & Automation',
+  // Other Engineering
+  'Aerospace Engineering',
+  'Automobile Engineering',
+  'Biomedical Engineering',
   'Biotechnology',
-  'Other'
+  'Environmental Engineering',
+  'Industrial Engineering',
+  'Instrumentation Engineering',
+  'Marine Engineering',
+  'Mining Engineering',
+  'Petroleum Engineering',
+  'Production Engineering',
+  'Textile Engineering',
+  // Non-Engineering / Other
+  'Mathematics & Computing',
+  'Physics',
+  'MCA (Computer Applications)',
+  'BCA (Computer Applications)',
+  'Other',
 ];
 
 /**
