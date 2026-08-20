@@ -1,15 +1,14 @@
 /**
  * Authentication Context
  * Handles Firebase Auth and Firestore user profile management.
- * Google auth uses signInWithRedirect (no popups - works on all browsers/devices).
+ * Google auth uses signInWithPopup for fast, reliable, pop-up sign-in without page redirects.
  */
 
-import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged
@@ -36,9 +35,7 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser]   = useState(null);
   const [userProfile, setUserProfile]   = useState(null);
   const [loading,     setLoading]       = useState(true);
-  // For new-user-tried-login-with-google case
   const [newUserEmail, setNewUserEmail] = useState(null);
-  const redirectHandled = useRef(false);
 
   /* ─── helpers ─── */
   const fetchProfile = async (uid) => {
@@ -76,30 +73,74 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const { user } = await signInWithEmailAndPassword(auth, email, password);
     // Check Firestore profile exists
-    const profile = await fetchProfile(user.uid);
+    let profile = await fetchProfile(user.uid);
     if (!profile) {
       await signOut(auth);
       const err = new Error('No account found. Please sign up first.');
       err.code = 'auth/user-not-found';
       throw err;
     }
+    setUserProfile(profile);
     return user;
   };
 
-  /* ─── Google (full-page redirect — works even when popups are blocked) ─── */
+  /* ─── Google Sign-In with Popup ─── */
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
-    sessionStorage.setItem('t7_auth_intent', 'login');
-    await signInWithRedirect(auth, provider);
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+
+    let profile = await fetchProfile(user.uid);
+    if (!profile) {
+      // Auto-create basic profile so new users logging in with Google aren't blocked
+      profile = await createProfile(user.uid, {
+        name: user.displayName || 'Student',
+        email: user.email || '',
+      });
+    } else if (!profile.t7Id) {
+      const t7Id = generateT7Id();
+      await setDoc(doc(db, 'users', user.uid), { t7Id }, { merge: true });
+      profile.t7Id = t7Id;
+    }
+
+    setCurrentUser(user);
+    setUserProfile(profile);
+    return user;
   };
 
   const signupWithGoogle = async ({ college = '', branch = '', phone = '', name = '' } = {}) => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
-    sessionStorage.setItem('t7_auth_intent', 'signup');
-    sessionStorage.setItem('t7_signup_data', JSON.stringify({ college, branch, phone, name }));
-    await signInWithRedirect(auth, provider);
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+
+    let profile = await fetchProfile(user.uid);
+    if (!profile) {
+      profile = await createProfile(user.uid, {
+        name: name || user.displayName || 'Student',
+        email: user.email || '',
+        college,
+        branch,
+        phone,
+      });
+    } else {
+      const updates = {};
+      if (college && !profile.college) updates.college = college;
+      if (branch && !profile.branch) updates.branch = branch;
+      if (phone && !profile.phone) updates.phone = phone;
+      if (name && (!profile.name || profile.name === 'Student')) updates.name = name;
+      if (!profile.t7Id) updates.t7Id = generateT7Id();
+
+      if (Object.keys(updates).length > 0) {
+        await setDoc(doc(db, 'users', user.uid), updates, { merge: true });
+        profile = { ...profile, ...updates };
+      }
+    }
+
+    setCurrentUser(user);
+    setUserProfile(profile);
+    return user;
   };
 
   const logout = async () => {
@@ -117,104 +158,37 @@ export const AuthProvider = ({ children }) => {
 
   /* ─── Core auth listener ─── */
   useEffect(() => {
-    let unsubscribe;
-
-    const init = async () => {
-      // Process redirect result FIRST (before onAuthStateChanged settles)
-      if (!redirectHandled.current) {
-        redirectHandled.current = true;
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
+      if (user) {
         try {
-          const result = await getRedirectResult(auth);
-          if (result?.user) {
-            const user   = result.user;
-            const intent = sessionStorage.getItem('t7_auth_intent') || 'login';
-            const rawData = sessionStorage.getItem('t7_signup_data');
-            sessionStorage.removeItem('t7_auth_intent');
-            sessionStorage.removeItem('t7_signup_data');
-
-            let profile = await fetchProfile(user.uid);
-
-            if (!profile) {
-              if (intent === 'signup' && rawData) {
-                const pd = JSON.parse(rawData);
-                profile = await createProfile(user.uid, {
-                  name:    pd.name    || user.displayName || '',
-                  email:   user.email,
-                  college: pd.college,
-                  branch:  pd.branch,
-                  phone:   pd.phone,
-                });
-              } else {
-                // Login intent but no profile → sign out, prompt signup
-                await signOut(auth);
-                setNewUserEmail(user.email);
-                setLoading(false);
-                return;
-              }
-            } else if (intent === 'signup' && rawData) {
-              // Already registered — update empty fields
-              const pd = JSON.parse(rawData);
-              const updates = {};
-              if (pd.college && !profile.college) updates.college = pd.college;
-              if (pd.branch  && !profile.branch)  updates.branch  = pd.branch;
-              if (pd.phone   && !profile.phone)   updates.phone   = pd.phone;
-              if (Object.keys(updates).length > 0) {
-                await setDoc(doc(db, 'users', user.uid), updates, { merge: true });
-                profile = { ...profile, ...updates };
-              }
-            }
-
-            // Migrate: ensure t7Id exists
-            if (profile && !profile.t7Id) {
-              const t7Id = generateT7Id();
-              await setDoc(doc(db, 'users', user.uid), { t7Id }, { merge: true });
-              profile.t7Id = t7Id;
-            }
-
-            setCurrentUser(user);
-            setUserProfile(profile);
-            setLoading(false);
-            return; // Don't fall through to onAuthStateChanged for this render
+          let profile = await fetchProfile(user.uid);
+          if (profile && !profile.t7Id) {
+            const t7Id = generateT7Id();
+            await setDoc(doc(db, 'users', user.uid), { t7Id }, { merge: true });
+            profile = { ...profile, t7Id };
           }
+          setUserProfile(profile);
         } catch (err) {
-          console.error('getRedirectResult error:', err);
+          console.error('Profile fetch error:', err);
         }
+      } else {
+        setUserProfile(null);
       }
+      setLoading(false);
+    }, (err) => {
+      console.error('Auth state error:', err);
+      setLoading(false);
+    });
 
-      // Normal page load — use onAuthStateChanged
-      unsubscribe = onAuthStateChanged(auth, async (user) => {
-        setCurrentUser(user);
-        if (user) {
-          try {
-            let profile = await fetchProfile(user.uid);
-            if (profile && !profile.t7Id) {
-              const t7Id = generateT7Id();
-              await setDoc(doc(db, 'users', user.uid), { t7Id }, { merge: true });
-              profile = { ...profile, t7Id };
-            }
-            setUserProfile(profile);
-          } catch (err) {
-            console.error('Profile fetch error:', err);
-          }
-        } else {
-          setUserProfile(null);
-        }
-        setLoading(false);
-      }, (err) => {
-        console.error('Auth state error:', err);
-        setLoading(false);
-      });
-    };
-
-    init();
-    return () => unsubscribe?.();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => unsubscribe();
+  }, []);
 
   const value = {
     currentUser,
     userProfile,
     loading,
-    newUserEmail,      // set when a new user tried to login via Google
+    newUserEmail,
     clearNewUserEmail: () => setNewUserEmail(null),
     signup,
     login,

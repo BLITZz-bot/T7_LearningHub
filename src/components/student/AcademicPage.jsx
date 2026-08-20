@@ -32,8 +32,8 @@ const AcademicPage = () => {
                 <Trophy className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="font-bold text-zinc-900 text-lg">Your Career Development Roadmap</p>
-                <p className="text-sm text-zinc-500">Academic SH</p>
+                <p className="font-bold text-zinc-900 text-lg">T7 Tutor</p>
+                <p className="text-sm text-zinc-500">AI Academic Mentor & DeepTutor</p>
               </div>
             </div>
           </div>
@@ -49,9 +49,9 @@ const AcademicPage = () => {
               </button>
               <button
                 type="button"
-                className="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider bg-emerald-600 text-white shadow-lg shadow-emerald-600/25"
+                className="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider bg-violet-600 text-white shadow-lg shadow-violet-600/25"
               >
-                ACADEMIC SH
+                🎓 T7 TUTOR
               </button>
             </div>
           </div>
