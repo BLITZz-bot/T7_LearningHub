@@ -498,11 +498,11 @@ const Results = () => {
                 onClick={() => navigate('/academic')}
                 className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 ${
                   viewMode === 'academic'
-                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/25'
-                    : 'text-zinc-400 hover:text-zinc-600'
+                    ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/25'
+                    : 'text-zinc-500 hover:text-violet-600'
                 }`}
               >
-                Academic SH
+                🎓 T7 Tutor
               </button>
             </div>
             <button onClick={() => navigate('/dashboard')} className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold rounded-lg shadow-sm transition">

@@ -99,10 +99,16 @@ const Signup = () => {
         name: form.name.trim(), college: form.college.trim(),
         branch: form.branch,   phone: form.phone.trim(),
       });
-      // Page navigates away to Google — nothing runs after this
     } catch (err) {
       console.error('Google signup error:', err);
-      setError('Failed to start Google Sign-In. Please try again.');
+      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+        // User closed popup
+      } else if (err.code === 'auth/popup-blocked') {
+        setError('Popup was blocked by your browser. Please allow popups for this site.');
+      } else {
+        setError(err.message || 'Failed to sign up with Google. Please try again.');
+      }
+    } finally {
       setGoogleLoading(false);
     }
   };
@@ -266,7 +272,7 @@ const Signup = () => {
             className="w-full py-3.5 px-4 bg-white border-2 border-zinc-200 hover:border-zinc-800 rounded-xl font-semibold text-zinc-800 hover:bg-zinc-50 transition-all flex items-center justify-center gap-3 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {googleLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : GOOGLE_ICON}
-            <span>{googleLoading ? 'Redirecting to Google...' : 'Sign up with Google'}</span>
+            <span>{googleLoading ? 'Connecting with Google...' : 'Sign up with Google'}</span>
           </button>
 
           <div className="mt-6 text-center">

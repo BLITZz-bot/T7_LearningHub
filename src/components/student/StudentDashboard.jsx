@@ -283,6 +283,17 @@ const StudentDashboard = () => {
           </div>
           
           <div className="flex items-center gap-3 ml-auto">
+            {/* T7 Tutor Quick Action */}
+            <button
+              onClick={() => navigate('/academic')}
+              className="flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl font-bold text-xs transition-all shadow-md shadow-violet-600/20 hover:-translate-y-0.5"
+              title="Open T7 Tutor — AI Academic Mentor"
+            >
+              <GraduationCap className="w-4 h-4 text-violet-200" />
+              <span>T7 Tutor</span>
+              <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">AI</span>
+            </button>
+
             <div className="text-right hidden sm:block">
               <p className="text-sm font-semibold text-zinc-900">{userProfile?.name}</p>
               <p className="text-xs text-zinc-500">{userProfile?.email}</p>
@@ -323,6 +334,42 @@ const StudentDashboard = () => {
                 <span className="text-xs font-semibold uppercase">Ready</span>
               </div>
               <p className="text-2xl font-black text-zinc-900">{lastAnalysis?.readiness_score || '—'}%</p>
+            </div>
+          </div>
+        </div>
+
+        {/* T7 Tutor Feature Banner */}
+        <div className="mb-6 p-6 bg-gradient-to-r from-violet-950 via-zinc-900 to-zinc-900 rounded-3xl shadow-xl border border-violet-800/40 relative overflow-hidden text-white">
+          <div className="absolute top-0 right-0 w-72 h-72 rounded-full bg-violet-600/15 -translate-y-1/2 translate-x-1/2 pointer-events-none blur-2xl" />
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div className="flex items-start sm:items-center gap-4">
+              <div className="w-14 h-14 bg-violet-500/20 rounded-2xl flex items-center justify-center border border-violet-400/30 flex-shrink-0 shadow-inner">
+                <GraduationCap className="w-8 h-8 text-violet-400" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-xl font-black text-white">T7 Tutor</h3>
+                  <span className="text-xs font-bold bg-violet-500/30 text-violet-200 px-2.5 py-0.5 rounded-full border border-violet-400/30">
+                    DeepTutor AI v1.3.7
+                  </span>
+                  <span className="text-xs font-semibold bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    Live Workspace
+                  </span>
+                </div>
+                <p className="text-zinc-300 text-sm mt-1 max-w-2xl">
+                  Personalized AI tutor with interactive TutorBot, Co-Writer for notes, Knowledge Base, and Coding Space.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <button
+                onClick={() => navigate('/academic')}
+                className="px-6 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-black rounded-xl text-sm transition-all shadow-lg shadow-violet-600/30 flex items-center gap-2 hover:-translate-y-0.5"
+              >
+                <span>Launch T7 Tutor</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>

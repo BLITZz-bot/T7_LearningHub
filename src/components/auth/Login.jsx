@@ -4,7 +4,7 @@
  * - New users trying Google: friendly message + sign-up link
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Mail, Lock, Loader2, Sparkles, ArrowRight, UserPlus } from 'lucide-react';
@@ -22,26 +22,26 @@ const Login = () => {
   const [email,         setEmail]         = useState('');
   const [password,      setPassword]      = useState('');
   const [error,         setError]         = useState('');
-  const [loading,       setLoading]       = useState(false);
+  const [emailLoading,  setEmailLoading]  = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const { login, loginWithGoogle, currentUser, userProfile, newUserEmail, clearNewUserEmail } = useAuth();
 
-  // ── If already logged in (including after Google redirect) → go to dashboard
-  if (currentUser && userProfile) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  // ── Show new-user-via-Google warning
+  // ── Compute this BEFORE any early returns (avoids conditional-render issues)
   const googleNewUserMsg = newUserEmail
     ? `No account found for "${newUserEmail}". Please sign up first.`
     : null;
+
+  // ── If already logged in → go to dashboard (AuthProvider handles loading state)
+  if (currentUser && userProfile) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   /* handlers */
   const handleEmailLogin = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
+    setEmailLoading(true);
     try {
       await login(email, password);
       // onAuthStateChanged + Navigate above handles redirect
@@ -54,7 +54,7 @@ const Login = () => {
         setError('Failed to sign in. Please try again.');
       }
     } finally {
-      setLoading(false);
+      setEmailLoading(false);
     }
   };
 
@@ -63,10 +63,17 @@ const Login = () => {
     setError('');
     setGoogleLoading(true);
     try {
-      await loginWithGoogle(); // Page navigates away — nothing runs after
+      await loginWithGoogle();
     } catch (err) {
       console.error('Google login error:', err);
-      setError('Could not start Google Sign-In. Please try again.');
+      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+        // User voluntarily closed popup
+      } else if (err.code === 'auth/popup-blocked') {
+        setError('Popup was blocked by your browser. Please allow popups for this site.');
+      } else {
+        setError(err.message || 'Could not sign in with Google. Please try again.');
+      }
+    } finally {
       setGoogleLoading(false);
     }
   };
@@ -162,11 +169,11 @@ const Login = () => {
             type="button"
             id="google-login-btn"
             onClick={handleGoogleLogin}
-            disabled={googleLoading || loading}
+            disabled={googleLoading || emailLoading}
             className="w-full py-3.5 px-4 bg-white border-2 border-zinc-200 hover:border-zinc-800 rounded-xl font-semibold text-zinc-800 hover:bg-zinc-50 transition-all flex items-center justify-center gap-3 mb-5 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {googleLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : GOOGLE_ICON}
-            <span>{googleLoading ? 'Redirecting to Google...' : 'Continue with Google'}</span>
+            <span>{googleLoading ? 'Connecting with Google...' : 'Continue with Google'}</span>
           </button>
 
           {/* ── Divider ── */}
@@ -213,10 +220,10 @@ const Login = () => {
             <button
               id="login-submit-btn"
               type="submit"
-              disabled={loading}
+              disabled={emailLoading}
               className="w-full py-3.5 bg-zinc-900 text-white font-bold rounded-xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-900/20 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2"
             >
-              {loading ? (
+              {emailLoading ? (
                 <><Loader2 className="w-5 h-5 animate-spin" /> Signing in...</>
               ) : (
                 <>Sign in <ArrowRight className="w-5 h-5" /></>
