@@ -9,6 +9,8 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
@@ -72,6 +74,36 @@ export const AuthProvider = ({ children }) => {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return userCredential.user;
   };
+
+  // Sign in / Sign up with Google
+  const loginWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const userCredential = await signInWithPopup(auth, provider);
+    const user = userCredential.user;
+
+    // Check if user profile already exists in Firestore
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    if (!userDoc.exists()) {
+      const t7Id = generateT7Id();
+      const newProfile = {
+        name: user.displayName || 'Student',
+        email: user.email,
+        role: 'student',
+        t7Id,
+        branch: '',
+        year: null,
+        career_interest: '',
+        skills: [],
+        ytSkills: [],
+        createdAt: serverTimestamp()
+      };
+      await setDoc(doc(db, 'users', user.uid), newProfile);
+      setUserProfile({ id: user.uid, ...newProfile });
+    }
+    return user;
+  };
+
 
   // Sign out
   const logout = async () => {
@@ -141,6 +173,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     signup,
     login,
+    loginWithGoogle,
     logout,
     updateUserProfile,
     isAdmin: userProfile?.role === 'admin',
