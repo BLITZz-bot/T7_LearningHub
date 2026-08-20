@@ -26,6 +26,7 @@ import { useTranslation } from "react-i18next";
 import { writeStoredLanguage } from "@/context/app-shell-storage";
 import { apiUrl } from "@/lib/api";
 import { setTheme as applyThemePreference } from "@/lib/theme";
+import { QwenManager } from "@/components/qwen-manager";
 
 type ServiceName = "llm" | "embedding" | "search";
 
@@ -1067,6 +1068,9 @@ function SettingsPageContent() {
             </button>
           </div>
         </div>
+
+        {/* ── Qwen 8B Dedicated Model Manager ── */}
+        <QwenManager />
 
         {/* ── Preferences ── */}
         <div className="mb-5 flex flex-wrap items-center gap-x-8 gap-y-3">

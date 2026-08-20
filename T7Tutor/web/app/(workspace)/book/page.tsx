@@ -105,7 +105,12 @@ function BookPageInner() {
     chapter_count: files.length,
     page_count: files.length,
     updated_at: Date.now() / 1000,
-  }));
+    proposal: "",
+    knowledge_bases: [],
+    language: "en",
+    created_at: Date.now() / 1000,
+    metadata: {},
+  })) as any;
 
   if (selectedSubject) {
     return (

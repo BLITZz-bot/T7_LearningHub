@@ -206,6 +206,7 @@ from deeptutor.api.routers import (
     dashboard,
     knowledge,
     memory,
+    model_manager,
     notebook,
     plugins_api,
     question,
@@ -224,6 +225,7 @@ from deeptutor.api.routers import (
 # Include routers
 app.include_router(solve.router, prefix="/api/v1", tags=["solve"])
 app.include_router(chat.router, prefix="/api/v1", tags=["chat"])
+app.include_router(model_manager.router, prefix="/api/v1/model-manager", tags=["model-manager"])
 app.include_router(question.router, prefix="/api/v1/question", tags=["question"])
 app.include_router(knowledge.router, prefix="/api/v1/knowledge", tags=["knowledge"])
 app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["dashboard"])

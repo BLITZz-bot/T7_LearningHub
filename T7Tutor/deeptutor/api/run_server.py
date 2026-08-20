@@ -70,6 +70,7 @@ def main() -> None:
         reload_excludes=reload_excludes,
         log_level="info",
         access_log=False,
+        h11_max_incomplete_event_size=131072,
     )
 
 
