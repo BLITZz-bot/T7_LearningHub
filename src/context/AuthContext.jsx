@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }) => {
     return userCredential.user;
   };
 
-  // Sign in with Google (Login page — logs in or automatically creates profile for new Google users)
+  // Sign in with Google (Login page — only allows EXISTING users)
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
@@ -89,23 +89,11 @@ export const AuthProvider = ({ children }) => {
     // Check if user profile exists in Firestore
     const userDoc = await getDoc(doc(db, 'users', user.uid));
     if (!userDoc.exists()) {
-      const t7Id = generateT7Id();
-      const newProfile = {
-        name: user.displayName || 'Student',
-        email: user.email,
-        phone: '',
-        college: '',
-        branch: '',
-        role: 'student',
-        t7Id,
-        year: null,
-        career_interest: '',
-        skills: [],
-        ytSkills: [],
-        createdAt: serverTimestamp()
-      };
-      await setDoc(doc(db, 'users', user.uid), newProfile);
-      setUserProfile({ id: user.uid, ...newProfile });
+      // User is not registered — sign out and prompt to sign up with their details
+      await signOut(auth);
+      const error = new Error('No account found with this Google email. Please sign up first.');
+      error.code = 'auth/user-not-found';
+      throw error;
     }
     
     return user;
