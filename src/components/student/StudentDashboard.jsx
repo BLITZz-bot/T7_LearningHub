@@ -36,8 +36,8 @@ import {
   XCircle,
   Compass,
   Phone,
-  User,
-  Mail
+  Mail,
+  Download
 } from 'lucide-react';
 
 // Branch → relevant career roles mapping
@@ -382,10 +382,19 @@ const StudentDashboard = () => {
                   <p className="text-2xl font-black text-white tracking-widest font-mono">{userProfile.t7Id}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
+                <a
+                  href="/t7-extension.zip"
+                  download="t7-extension.zip"
+                  className="px-4 py-2.5 font-bold rounded-xl transition-all flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white shadow-lg text-sm"
+                  title="Download Chrome Extension (.zip)"
+                >
+                  <Download className="w-4 h-4" />
+                  Download Extension (.zip)
+                </a>
                 <button
                   onClick={copyT7Id}
-                  className={`px-5 py-2.5 font-bold rounded-xl transition-all flex items-center gap-2 ${
+                  className={`px-4 py-2.5 font-bold rounded-xl transition-all flex items-center gap-2 text-sm ${
                     copied 
                       ? 'bg-emerald-500 text-white' 
                       : 'bg-white text-zinc-900 hover:bg-zinc-100'
@@ -460,8 +469,15 @@ const StudentDashboard = () => {
           ) : videoLearning.length === 0 ? (
             <div className="text-center py-8 bg-zinc-50 rounded-xl border-2 border-dashed border-zinc-200">
               <Youtube className="w-10 h-10 text-zinc-300 mx-auto mb-3" />
-              <p className="text-zinc-600 font-medium mb-1">No videos analyzed yet</p>
-              <p className="text-zinc-400 text-sm">Use the T7 extension on YouTube to analyze videos & sync skills here</p>
+              <p className="text-zinc-400 text-sm mb-3">Use the T7 extension on YouTube to analyze videos & sync skills here</p>
+              <a
+                href="/t7-extension.zip"
+                download="t7-extension.zip"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold transition-all shadow-md"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download Chrome Extension (.zip)
+              </a>
             </div>
           ) : (
             <>

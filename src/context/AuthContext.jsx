@@ -89,7 +89,7 @@ export const AuthProvider = ({ children }) => {
     // Check if user profile exists in Firestore
     const userDoc = await getDoc(doc(db, 'users', user.uid));
     if (!userDoc.exists()) {
-      // User is not registered — sign out and throw error
+      // User is not registered — sign out and prompt to sign up with their details
       await signOut(auth);
       const error = new Error('No account found with this Google email. Please sign up first.');
       error.code = 'auth/user-not-found';
