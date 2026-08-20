@@ -9,6 +9,8 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
@@ -44,26 +46,30 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   // Sign up with email and password
-  const signup = async (email, password, name, role = 'student') => {
+  const signup = async (email, password, { name, college = '', branch = '', phone = '', role = 'student' }) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     
     // Generate unique T7 Account ID for extension linking
     const t7Id = generateT7Id();
 
     // Create user profile in Firestore
-    await setDoc(doc(db, 'users', userCredential.user.uid), {
-      name,
+    const newProfile = {
+      name: name || 'Student',
       email,
+      phone: phone || '',
+      college: college || '',
+      branch: branch || '',
       role,
       t7Id,
-      branch: '',
       year: null,
       career_interest: '',
       skills: [],
       ytSkills: [],
       createdAt: serverTimestamp()
-    });
+    };
 
+    await setDoc(doc(db, 'users', userCredential.user.uid), newProfile);
+    setUserProfile({ id: userCredential.user.uid, ...newProfile });
     return userCredential.user;
   };
 
@@ -72,6 +78,76 @@ export const AuthProvider = ({ children }) => {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return userCredential.user;
   };
+
+  // Sign in with Google (Login page — only allows EXISTING users)
+  const loginWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const userCredential = await signInWithPopup(auth, provider);
+    const user = userCredential.user;
+
+    // Check if user profile exists in Firestore
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    if (!userDoc.exists()) {
+      // User is not registered — sign out and throw error
+      await signOut(auth);
+      const error = new Error('No account found with this Google email. Please sign up first.');
+      error.code = 'auth/user-not-found';
+      throw error;
+    }
+    
+    return user;
+  };
+
+  // Sign up with Google (Signup page — creates NEW user profile with extra details)
+  const signupWithGoogle = async ({ college = '', branch = '', phone = '', name = '' } = {}) => {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const userCredential = await signInWithPopup(auth, provider);
+    const user = userCredential.user;
+
+    // Check if user profile already exists
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    if (userDoc.exists()) {
+      // User already exists, fetch their profile and proceed
+      const existing = { id: userDoc.id, ...userDoc.data() };
+      // Update any newly provided info if previously empty
+      const updates = {};
+      if (college && !existing.college) updates.college = college;
+      if (branch && !existing.branch) updates.branch = branch;
+      if (phone && !existing.phone) updates.phone = phone;
+      if (Object.keys(updates).length > 0) {
+        await setDoc(doc(db, 'users', user.uid), updates, { merge: true });
+        existing.college = updates.college || existing.college;
+        existing.branch = updates.branch || existing.branch;
+        existing.phone = updates.phone || existing.phone;
+      }
+      setUserProfile(existing);
+      return user;
+    }
+
+    // New user — create their Firestore profile with unique T7 ID
+    const t7Id = generateT7Id();
+    const newProfile = {
+      name: name || user.displayName || 'Student',
+      email: user.email,
+      phone: phone || '',
+      college: college || '',
+      branch: branch || '',
+      role: 'student',
+      t7Id,
+      year: null,
+      career_interest: '',
+      skills: [],
+      ytSkills: [],
+      createdAt: serverTimestamp()
+    };
+    await setDoc(doc(db, 'users', user.uid), newProfile);
+    setUserProfile({ id: user.uid, ...newProfile });
+    return user;
+  };
+
+
 
   // Sign out
   const logout = async () => {
@@ -141,6 +217,8 @@ export const AuthProvider = ({ children }) => {
     loading,
     signup,
     login,
+    loginWithGoogle,
+    signupWithGoogle,
     logout,
     updateUserProfile,
     isAdmin: userProfile?.role === 'admin',

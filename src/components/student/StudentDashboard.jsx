@@ -34,7 +34,10 @@ import {
   Building2,
   CheckCircle2,
   XCircle,
-  Compass
+  Compass,
+  Phone,
+  User,
+  Mail
 } from 'lucide-react';
 
 // Branch → relevant career roles mapping
@@ -320,6 +323,48 @@ const StudentDashboard = () => {
                 <span className="text-xs font-semibold uppercase">Ready</span>
               </div>
               <p className="text-2xl font-black text-zinc-900">{lastAnalysis?.readiness_score || '—'}%</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Student Profile Info Card */}
+        <div className="mb-6 p-5 bg-white rounded-2xl border border-zinc-200 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-zinc-900 text-white rounded-xl flex items-center justify-center font-bold text-lg">
+                {userProfile?.name?.charAt(0)?.toUpperCase() || 'S'}
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-zinc-900 flex items-center gap-2">
+                  {userProfile?.name || 'Student Profile'}
+                </h2>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500 mt-1">
+                  {userProfile?.college && (
+                    <span className="flex items-center gap-1.5 font-medium text-zinc-700">
+                      <Building2 className="w-3.5 h-3.5 text-zinc-400" />
+                      {userProfile.college}
+                    </span>
+                  )}
+                  {userProfile?.branch && (
+                    <span className="flex items-center gap-1.5 font-medium text-zinc-700">
+                      <GraduationCap className="w-3.5 h-3.5 text-zinc-400" />
+                      {userProfile.branch}
+                    </span>
+                  )}
+                  {userProfile?.phone && (
+                    <span className="flex items-center gap-1.5 font-medium text-zinc-700">
+                      <Phone className="w-3.5 h-3.5 text-zinc-400" />
+                      {userProfile.phone}
+                    </span>
+                  )}
+                  {userProfile?.email && (
+                    <span className="flex items-center gap-1.5 text-zinc-500">
+                      <Mail className="w-3.5 h-3.5 text-zinc-400" />
+                      {userProfile.email}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
