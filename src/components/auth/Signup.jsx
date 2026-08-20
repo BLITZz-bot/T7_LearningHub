@@ -1,14 +1,18 @@
 /**
- * Signup Page - Sleek Black & Grey Theme
+ * Signup Page - Complete Student Profile Capture
  */
 
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { branches } from '../../data/industrySkills';
 import { 
   Mail, 
   Lock, 
   User, 
+  Building2,
+  GraduationCap,
+  Phone,
   Loader2, 
   Sparkles,
   ArrowRight,
@@ -18,9 +22,12 @@ import {
 const Signup = () => {
   const [formData, setFormData] = useState({
     name: '',
+    college: '',
+    branch: '',
+    phone: '',
     email: '',
     password: '',
-    role: 'student'  // role is always student on self-signup; admins are assigned manually
+    role: 'student'
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -37,6 +44,22 @@ const Signup = () => {
     e.preventDefault();
     setError('');
     
+    if (!formData.name.trim()) {
+      setError('Please enter your full name');
+      return;
+    }
+    if (!formData.college.trim()) {
+      setError('Please enter your college name');
+      return;
+    }
+    if (!formData.branch) {
+      setError('Please select your branch');
+      return;
+    }
+    if (!formData.phone.trim()) {
+      setError('Please enter your phone number');
+      return;
+    }
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters');
       return;
@@ -45,7 +68,13 @@ const Signup = () => {
     setLoading(true);
 
     try {
-      await signup(formData.email, formData.password, formData.name, formData.role);
+      await signup(formData.email, formData.password, {
+        name: formData.name.trim(),
+        college: formData.college.trim(),
+        branch: formData.branch,
+        phone: formData.phone.trim(),
+        role: formData.role
+      });
       navigate('/dashboard');
     } catch (err) {
       if (err.code === 'auth/email-already-in-use') {
@@ -60,9 +89,20 @@ const Signup = () => {
 
   const handleGoogleSignUp = async () => {
     setError('');
+    
+    if (!formData.college.trim() || !formData.branch || !formData.phone.trim()) {
+      setError('Please fill in your College, Branch, and Phone number above before continuing with Google.');
+      return;
+    }
+
     setGoogleLoading(true);
     try {
-      await signupWithGoogle();
+      await signupWithGoogle({
+        name: formData.name.trim(),
+        college: formData.college.trim(),
+        branch: formData.branch,
+        phone: formData.phone.trim()
+      });
       navigate('/dashboard');
     } catch (err) {
       console.error('Google sign up error:', err);
@@ -97,7 +137,7 @@ const Signup = () => {
           </h1>
           
           <p className="text-lg text-zinc-400 max-w-md mb-8">
-            Join 500+ students who are preparing smarter with AI-powered skill analysis.
+            Join students who are preparing smarter with AI-powered skill analysis and career roadmaps.
           </p>
 
           {/* Benefits */}
@@ -125,10 +165,10 @@ const Signup = () => {
       </div>
 
       {/* Right Panel - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white overflow-y-auto">
-        <div className="w-full max-w-md py-8">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-8 bg-white overflow-y-auto">
+        <div className="w-full max-w-md py-6">
           {/* Mobile logo */}
-          <div className="lg:hidden flex items-center gap-2 mb-8">
+          <div className="lg:hidden flex items-center gap-2 mb-6">
             <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
@@ -151,12 +191,159 @@ const Signup = () => {
             </div>
           )}
 
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Full Name */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
+                Full name
+              </label>
+              <div className="relative">
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="w-full pl-11 pr-4 py-3 bg-zinc-50 border-2 border-zinc-200 rounded-xl focus:bg-white focus:border-zinc-900 outline-none transition-all text-zinc-900 font-medium placeholder:text-zinc-400 text-sm"
+                  placeholder="John Doe"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* College Name */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
+                College / University
+              </label>
+              <div className="relative">
+                <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+                <input
+                  type="text"
+                  name="college"
+                  value={formData.college}
+                  onChange={handleChange}
+                  className="w-full pl-11 pr-4 py-3 bg-zinc-50 border-2 border-zinc-200 rounded-xl focus:bg-white focus:border-zinc-900 outline-none transition-all text-zinc-900 font-medium placeholder:text-zinc-400 text-sm"
+                  placeholder="e.g. IIT Bombay / Anna University"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Branch / Department & Phone Number Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
+                  Branch
+                </label>
+                <div className="relative">
+                  <GraduationCap className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 pointer-events-none" />
+                  <select
+                    name="branch"
+                    value={formData.branch}
+                    onChange={handleChange}
+                    className="w-full pl-11 pr-4 py-3 bg-zinc-50 border-2 border-zinc-200 rounded-xl focus:bg-white focus:border-zinc-900 outline-none transition-all text-zinc-900 font-medium text-sm appearance-none cursor-pointer"
+                    required
+                  >
+                    <option value="">Select branch</option>
+                    {branches.map((b) => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
+                  Phone number
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="w-full pl-11 pr-4 py-3 bg-zinc-50 border-2 border-zinc-200 rounded-xl focus:bg-white focus:border-zinc-900 outline-none transition-all text-zinc-900 font-medium placeholder:text-zinc-400 text-sm"
+                    placeholder="+91 98765 43210"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
+                Email address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full pl-11 pr-4 py-3 bg-zinc-50 border-2 border-zinc-200 rounded-xl focus:bg-white focus:border-zinc-900 outline-none transition-all text-zinc-900 font-medium placeholder:text-zinc-400 text-sm"
+                  placeholder="you@example.com"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full pl-11 pr-4 py-3 bg-zinc-50 border-2 border-zinc-200 rounded-xl focus:bg-white focus:border-zinc-900 outline-none transition-all text-zinc-900 font-medium placeholder:text-zinc-400 text-sm"
+                  placeholder="Min. 6 characters"
+                  required
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || googleLoading}
+              className="w-full py-3.5 bg-zinc-900 text-white font-bold rounded-xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-900/20 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2 mt-2"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Creating account...
+                </>
+              ) : (
+                <>
+                  Create Account with Email
+                  <ArrowRight className="w-5 h-5" />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="relative flex items-center justify-center my-5">
+            <div className="border-t border-zinc-200 w-full"></div>
+            <span className="bg-white px-3 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+              or sign up with
+            </span>
+            <div className="border-t border-zinc-200 w-full"></div>
+          </div>
+
           {/* Google Sign Up Button */}
           <button
             type="button"
             onClick={handleGoogleSignUp}
             disabled={googleLoading || loading}
-            className="w-full py-3.5 px-4 bg-white border-2 border-zinc-200 hover:border-zinc-900 rounded-xl font-semibold text-zinc-800 hover:bg-zinc-50 transition-all flex items-center justify-center gap-3 mb-6 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full py-3.5 px-4 bg-white border-2 border-zinc-200 hover:border-zinc-900 rounded-xl font-semibold text-zinc-800 hover:bg-zinc-50 transition-all flex items-center justify-center gap-3 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {googleLoading ? (
               <Loader2 className="w-5 h-5 animate-spin text-zinc-700" />
@@ -183,100 +370,14 @@ const Signup = () => {
             <span>Continue with Google</span>
           </button>
 
-          {/* Divider */}
-          <div className="relative flex items-center justify-center mb-6">
-            <div className="border-t border-zinc-200 w-full"></div>
-            <span className="bg-white px-3 text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-              or with email
-            </span>
-            <div className="border-t border-zinc-200 w-full"></div>
-          </div>
+          <p className="text-xs text-center text-zinc-500 mt-4">
+            By signing up, you agree to our Terms of Service and Privacy Policy
+          </p>
 
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-semibold text-zinc-700 mb-2">
-                Full name
-              </label>
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="w-full pl-12 pr-4 py-3.5 bg-zinc-50 border-2 border-zinc-200 rounded-xl focus:bg-white focus:border-zinc-900 outline-none transition-all text-zinc-900 font-medium placeholder:text-zinc-400"
-                  placeholder="John Doe"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-zinc-700 mb-2">
-                Email address
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full pl-12 pr-4 py-3.5 bg-zinc-50 border-2 border-zinc-200 rounded-xl focus:bg-white focus:border-zinc-900 outline-none transition-all text-zinc-900 font-medium placeholder:text-zinc-400"
-                  placeholder="you@example.com"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-zinc-700 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="w-full pl-12 pr-4 py-3.5 bg-zinc-50 border-2 border-zinc-200 rounded-xl focus:bg-white focus:border-zinc-900 outline-none transition-all text-zinc-900 font-medium placeholder:text-zinc-400"
-                  placeholder="Min. 6 characters"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Role is always student — admins are assigned manually via Firestore/Firebase Admin SDK */}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-4 bg-zinc-900 text-white font-bold rounded-xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-900/20 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Creating account...
-                </>
-              ) : (
-                <>
-                  Create account
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </button>
-
-            <p className="text-xs text-center text-zinc-500">
-              By signing up, you agree to our Terms of Service and Privacy Policy
-            </p>
-          </form>
-
-          <div className="mt-8 text-center">
+          <div className="mt-6 text-center">
             <Link 
               to="/" 
-              className="inline-flex items-center gap-2 text-zinc-500 hover:text-zinc-900 font-medium transition-colors"
+              className="inline-flex items-center gap-2 text-zinc-500 hover:text-zinc-900 font-medium transition-colors text-sm"
             >
               <Rocket className="w-4 h-4" />
               Back to home
