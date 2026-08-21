@@ -15,10 +15,10 @@ import {
   Copy, Check, Target, Briefcase, Award, Loader2, AlertCircle
 } from 'lucide-react';
 
-const StudentProfileModal = ({ isOpen, onClose, lastAnalysis }) => {
+const StudentProfileModal = ({ isOpen, onClose, lastAnalysis, initialEditMode = false }) => {
   const { currentUser, userProfile, updateUserProfile } = useAuth();
 
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(initialEditMode);
   const [formData, setFormData] = useState({
     name: '',
     college: '',
@@ -45,14 +45,18 @@ const StudentProfileModal = ({ isOpen, onClose, lastAnalysis }) => {
     }
   }, [userProfile, isOpen]);
 
-  // Reset states when modal is opened/closed
+  // Reset states and handle initial edit mode when modal is opened/closed
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      setIsEditing(initialEditMode);
+      setSaveSuccess(false);
+      setErrorMessage('');
+    } else {
       setIsEditing(false);
       setSaveSuccess(false);
       setErrorMessage('');
     }
-  }, [isOpen]);
+  }, [isOpen, initialEditMode]);
 
   if (!isOpen) return null;
 
@@ -365,9 +369,12 @@ const StudentProfileModal = ({ isOpen, onClose, lastAnalysis }) => {
             <div className="space-y-6">
               {/* Academic & Contact Details Grid */}
               <div>
-                <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-3">
-                  Academic & Registration Credentials
-                </h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest">
+                    Academic & Registration Credentials
+                  </h3>
+                  
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   {/* Full Name */}
                   <div className="p-4 bg-zinc-50 hover:bg-zinc-100/80 rounded-2xl border border-zinc-200/80 transition-colors">
