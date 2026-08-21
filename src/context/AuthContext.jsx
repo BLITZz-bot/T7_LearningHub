@@ -45,11 +45,12 @@ export const AuthProvider = ({ children }) => {
 
   const createProfile = async (uid, data) => {
     const profile = {
-      name:           data.name     || 'Student',
-      email:          data.email    || '',
-      phone:          data.phone    || '',
-      college:        data.college  || '',
-      branch:         data.branch   || '',
+      name:           data.name        || 'Student',
+      email:          data.email       || '',
+      phone:          data.phone       || '',
+      college:        data.college     || '',
+      branch:         data.branch      || '',
+      passoutYear:    data.passoutYear || '',
       role:           'student',
       t7Id:           generateT7Id(),
       year:           null,
@@ -63,9 +64,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   /* ─── email / password ─── */
-  const signup = async (email, password, { name, college, branch, phone }) => {
+  const signup = async (email, password, { name, college, branch, phone, passoutYear }) => {
     const { user } = await createUserWithEmailAndPassword(auth, email, password);
-    const profile  = await createProfile(user.uid, { name, email, college, branch, phone });
+    const profile  = await createProfile(user.uid, { name, email, college, branch, phone, passoutYear });
     setUserProfile(profile);
     return user;
   };
@@ -110,7 +111,7 @@ export const AuthProvider = ({ children }) => {
     return user;
   };
 
-  const signupWithGoogle = async ({ college = '', branch = '', phone = '', name = '' } = {}) => {
+  const signupWithGoogle = async ({ college = '', branch = '', phone = '', name = '', passoutYear = '' } = {}) => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
     const result = await signInWithPopup(auth, provider);
@@ -124,12 +125,14 @@ export const AuthProvider = ({ children }) => {
         college,
         branch,
         phone,
+        passoutYear,
       });
     } else {
       const updates = {};
       if (college && !profile.college) updates.college = college;
       if (branch && !profile.branch) updates.branch = branch;
       if (phone && !profile.phone) updates.phone = phone;
+      if (passoutYear && !profile.passoutYear) updates.passoutYear = passoutYear;
       if (name && (!profile.name || profile.name === 'Student')) updates.name = name;
       if (!profile.t7Id) updates.t7Id = generateT7Id();
 
