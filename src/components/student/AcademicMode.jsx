@@ -41,27 +41,63 @@ const AcademicMode = ({ userProfile }) => {
   const [iframeKey, setIframeKey] = useState(0);
   const [activePath, setActivePath] = useState('/');
   const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [isLaunching, setIsLaunching] = useState(false);
+  const [launchTimer, setLaunchTimer] = useState(0);
   const iframeRef = useRef(null);
 
   // Check if DeepTutor is reachable
-  useEffect(() => {
-    const check = async () => {
-      setStatus('checking');
-      try {
-        const res = await fetch(DEEPTUTOR_URL, { mode: 'no-cors', cache: 'no-store' });
-        setStatus('online');
-      } catch {
+  const checkStatus = async () => {
+    try {
+      await fetch(DEEPTUTOR_URL, { mode: 'no-cors', cache: 'no-store' });
+      setStatus('online');
+      setIsLaunching(false);
+      return true;
+    } catch {
+      if (!isLaunching) {
         setStatus('offline');
       }
-    };
-    check();
-    const interval = setInterval(check, 15000);
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    checkStatus();
+    const interval = setInterval(checkStatus, isLaunching ? 2000 : 15000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isLaunching]);
+
+  // Handle 1-Click Launch via Custom Protocol (t7tutor://launch)
+  const handleStartEngine = () => {
+    setIsLaunching(true);
+    setLaunchTimer(0);
+    
+    // Trigger Windows Custom Protocol Handler
+    try {
+      window.location.href = 't7tutor://launch';
+    } catch (e) {
+      console.warn('Protocol launch error:', e);
+    }
+
+    // Fast poll every 1.5 seconds for 60 seconds
+    let attempts = 0;
+    const poll = setInterval(async () => {
+      attempts++;
+      setLaunchTimer(attempts * 2);
+      const isUp = await checkStatus();
+      if (isUp || attempts > 30) {
+        clearInterval(poll);
+        setIsLaunching(false);
+        if (isUp) {
+          reload();
+        }
+      }
+    }, 2000);
+  };
 
   const reload = () => {
     setIframeLoaded(false);
     setIframeKey(k => k + 1);
+    checkStatus();
   };
 
   const navigate = (path) => {
@@ -99,39 +135,45 @@ const AcademicMode = ({ userProfile }) => {
             <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border ${
               status === 'online'
                 ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                : isLaunching
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/30 animate-pulse'
                 : status === 'offline'
                 ? 'bg-red-500/20 text-red-300 border-red-500/30'
                 : 'bg-zinc-500/20 text-zinc-300 border-zinc-500/30'
             }`}>
-              {status === 'online' ? <Wifi className="w-3.5 h-3.5" /> : status === 'offline' ? <WifiOff className="w-3.5 h-3.5" /> : <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              {status === 'online' ? 'Live' : status === 'offline' ? 'Offline' : 'Checking…'}
+              {status === 'online' ? <Wifi className="w-3.5 h-3.5" /> : isLaunching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : status === 'offline' ? <WifiOff className="w-3.5 h-3.5" /> : <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              {status === 'online' ? 'Live' : isLaunching ? 'Starting Engine…' : status === 'offline' ? 'Offline' : 'Checking…'}
             </div>
 
             <button
               onClick={reload}
               title="Reload"
-              className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors border border-white/10"
+              className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors border border-white/10 cursor-pointer"
             >
               <RefreshCw className="w-4 h-4 text-zinc-300" />
             </button>
 
-            <a
-              href={DEEPTUTOR_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Open in new tab"
-              className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors border border-white/10"
-            >
-              <ExternalLink className="w-4 h-4 text-zinc-300" />
-            </a>
+            {status === 'online' && (
+              <a
+                href={DEEPTUTOR_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open in new tab"
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors border border-white/10 cursor-pointer"
+              >
+                <ExternalLink className="w-4 h-4 text-zinc-300" />
+              </a>
+            )}
 
-            <button
-              onClick={() => setIsFullscreen(f => !f)}
-              title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-              className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors border border-white/10"
-            >
-              {isFullscreen ? <Minimize2 className="w-4 h-4 text-zinc-300" /> : <Maximize2 className="w-4 h-4 text-zinc-300" />}
-            </button>
+            {status === 'online' && (
+              <button
+                onClick={() => setIsFullscreen(f => !f)}
+                title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors border border-white/10 cursor-pointer"
+              >
+                {isFullscreen ? <Minimize2 className="w-4 h-4 text-zinc-300" /> : <Maximize2 className="w-4 h-4 text-zinc-300" />}
+              </button>
+            )}
           </div>
         </div>
 
@@ -158,24 +200,73 @@ const AcademicMode = ({ userProfile }) => {
         </div>
       </div>
 
-      {/* Offline State */}
+      {/* Offline State with 1-Click Auto Start Button */}
       {status === 'offline' && (
-        <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-6 text-center">
-          <WifiOff className="w-10 h-10 text-red-400 mx-auto mb-3" />
-          <h3 className="font-black text-red-800 text-lg mb-2">T7 Tutor is not running</h3>
-          <p className="text-red-600 text-sm mb-4">Start the DeepTutor server first, then come back here.</p>
-          <div className="bg-red-900 text-red-100 rounded-xl p-4 text-left font-mono text-sm max-w-lg mx-auto space-y-1.5">
-            <p className="text-red-400 text-xs mb-2"># In the T7Tutor folder — run once:</p>
-            <p><span className="text-red-300">cd</span> T7Tutor</p>
-            <p><span className="text-red-300">python</span> scripts/start_web.py</p>
-            <p className="text-red-400 text-xs mt-2"># Then open → http://localhost:3782</p>
+        <div className="bg-gradient-to-br from-white to-zinc-50 border-2 border-zinc-200 rounded-3xl p-8 text-center shadow-lg relative overflow-hidden">
+          <div className="w-16 h-16 bg-violet-100 border-2 border-violet-200 text-violet-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+            <Sparkles className="w-8 h-8" />
           </div>
-          <button
-            onClick={reload}
-            className="mt-4 flex items-center gap-2 mx-auto px-5 py-2.5 bg-red-700 text-white font-bold rounded-xl hover:bg-red-800 transition-colors"
-          >
-            <RefreshCw className="w-4 h-4" /> Retry Connection
-          </button>
+          
+          <h3 className="font-black text-zinc-900 text-2xl mb-1">
+            T7 Tutor AI Engine is Ready to Start
+          </h3>
+          <p className="text-zinc-500 text-sm max-w-md mx-auto mb-6">
+            Click below to auto-start the local Qwen model engine directly from your browser.
+          </p>
+
+          {/* 1-Click Auto Launch Button */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto mb-6">
+            <button
+              onClick={handleStartEngine}
+              disabled={isLaunching}
+              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-70 text-white font-black rounded-2xl shadow-xl shadow-violet-600/30 flex items-center justify-center gap-3 transition-all hover:-translate-y-0.5 cursor-pointer text-base"
+            >
+              {isLaunching ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Starting Engine ({launchTimer}s)...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5 text-violet-200" />
+                  <span>Start T7 Tutor AI Engine</span>
+                  <ArrowRight className="w-5 h-5" />
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={reload}
+              className="w-full sm:w-auto px-5 py-4 bg-white border-2 border-zinc-200 hover:border-zinc-300 text-zinc-700 font-bold rounded-2xl transition-colors flex items-center justify-center gap-2 text-sm cursor-pointer shadow-sm"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>Retry</span>
+            </button>
+          </div>
+
+          {isLaunching && (
+            <div className="p-4 bg-violet-50 border border-violet-200 rounded-2xl max-w-lg mx-auto mb-6 text-xs text-violet-900 font-medium flex items-center justify-center gap-2 animate-fade-in">
+              <Loader2 className="w-4 h-4 animate-spin text-violet-600" />
+              <span>Launching Ollama & DeepTutor server in background. Connecting automatically...</span>
+            </div>
+          )}
+
+          {/* Help & Fallback Box */}
+          <div className="pt-5 border-t border-zinc-200/80 max-w-lg mx-auto text-left">
+            <details className="group text-xs text-zinc-500">
+              <summary className="font-bold text-zinc-700 hover:text-zinc-900 cursor-pointer flex items-center justify-between p-2 rounded-xl bg-zinc-100 hover:bg-zinc-200/60 transition-colors">
+                <span>🔧 First time setup or manual start instructions</span>
+                <span className="group-open:rotate-180 transition-transform">▼</span>
+              </summary>
+              <div className="mt-3 p-4 bg-zinc-900 text-zinc-200 rounded-xl space-y-2 font-mono">
+                <p className="text-zinc-400 text-[11px]"># Run once to register 1-click browser start:</p>
+                <p className="text-amber-300">.\register_t7tutor_protocol.bat</p>
+                <p className="text-zinc-400 text-[11px] pt-1"># Or manually start in terminal:</p>
+                <p className="text-emerald-400">cd T7Tutor</p>
+                <p className="text-emerald-400">python scripts/start_web.py</p>
+              </div>
+            </details>
+          </div>
         </div>
       )}
 
