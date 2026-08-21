@@ -327,9 +327,13 @@ export default function ChatPage() {
       .then((d) => {
         if (typeof d.model_downloaded === "boolean") {
           setQwenDownloaded(d.model_downloaded);
+        } else {
+          setQwenDownloaded(false);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setQwenDownloaded(false);
+      });
   }, []);
   const [showNotebookPicker, setShowNotebookPicker] = useState(false);
   const [showBookPicker, setShowBookPicker] = useState(false);
