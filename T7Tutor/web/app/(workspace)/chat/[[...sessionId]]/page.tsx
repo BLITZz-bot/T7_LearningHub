@@ -950,6 +950,11 @@ export default function ChatPage() {
       )
         return;
 
+      if (qwenDownloaded === false || (!llmOptionsLoading && llmOptions.length === 0)) {
+        setShowQwenPrompt(true);
+        return;
+      }
+
       let extraAttachments = attachments.map((a) => ({
         type: a.type,
         filename: a.filename,

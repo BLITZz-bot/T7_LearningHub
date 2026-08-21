@@ -64,7 +64,7 @@ export function QwenDownloadPrompt({ isOpen, onClose }: { isOpen: boolean; onClo
         window.location.reload();
       }, 1200);
     } catch (err: any) {
-      setErrorMsg(err.message || "Download failed. Please check if Ollama is running.");
+      setErrorMsg(err.message || "Could not reach local engine. Please install or start the local runtime in Settings first.");
       setIsPulling(false);
     }
   };
