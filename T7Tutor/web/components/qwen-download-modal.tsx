@@ -88,10 +88,10 @@ export function QwenDownloadPrompt({ isOpen, onClose }: { isOpen: boolean; onClo
         </div>
 
         <h3 className="text-xl font-black text-white mb-1 flex items-center gap-2">
-          Qwen 8B Engine Required
+          Download T7 Tutor AI Model
         </h3>
         <p className="text-zinc-400 text-xs leading-relaxed mb-5">
-          T7 Tutor runs on <strong>Qwen 8B</strong> locally on your machine for 100% free, unlimited, and private AI tutoring. Download it once to begin chatting.
+          T7 Tutor runs locally on your machine for 100% free, unlimited, and private AI academic tutoring. Download the model once to begin.
         </p>
 
         {errorMsg && (
@@ -105,7 +105,7 @@ export function QwenDownloadPrompt({ isOpen, onClose }: { isOpen: boolean; onClo
             <div className="flex items-center justify-between text-xs font-semibold">
               <span className="text-zinc-300 flex items-center gap-1.5">
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-400" />
-                {pullProgress || "Downloading model..."}
+                {pullProgress || "Downloading AI Model..."}
               </span>
               {pullPercent !== null && (
                 <span className="text-violet-400 font-mono">{pullPercent}%</span>
@@ -123,7 +123,7 @@ export function QwenDownloadPrompt({ isOpen, onClose }: { isOpen: boolean; onClo
         {isCompleted && (
           <div className="mb-5 p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-2xl flex items-center gap-2 text-emerald-300 text-xs font-bold">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            Download complete! Launching chat...
+            Download complete! Connecting automatically...
           </div>
         )}
 
@@ -132,15 +132,15 @@ export function QwenDownloadPrompt({ isOpen, onClose }: { isOpen: boolean; onClo
             <button
               onClick={handleDownload}
               disabled={isPulling}
-              className="w-full py-3 px-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold text-sm rounded-xl shadow-lg shadow-violet-600/30 flex items-center justify-center gap-2 transition-all"
+              className="w-full py-3 px-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold text-sm rounded-xl shadow-lg shadow-violet-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
               {isPulling ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Downloading Qwen 8B (~4.7 GB)...
+                  <Loader2 className="w-4 h-4 animate-spin" /> Downloading AI Model ({pullPercent || 0}%)...
                 </>
               ) : (
                 <>
-                  <Download className="w-4 h-4" /> Download Qwen 8B (~4.7 GB)
+                  <Download className="w-4 h-4" /> Download T7 Tutor AI Model (~4.7 GB)
                 </>
               )}
             </button>
@@ -154,7 +154,7 @@ export function QwenDownloadPrompt({ isOpen, onClose }: { isOpen: boolean; onClo
             >
               Open Model Settings <ExternalLink className="w-3 h-3" />
             </Link>
-            <span>Powered by Ollama Engine</span>
+            <span>High-Speed Local Engine</span>
           </div>
         </div>
       </div>

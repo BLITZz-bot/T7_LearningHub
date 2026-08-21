@@ -156,13 +156,13 @@ export function QwenManager({ onStatusChange }: { onStatusChange?: (ready: boole
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-black text-lg text-white">Qwen 8B AI Engine</h3>
+              <h3 className="font-black text-lg text-white">T7 Tutor AI Engine</h3>
               <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3" /> 100% Free & Local
               </span>
             </div>
             <p className="text-zinc-400 text-xs mt-0.5">
-              High-performance open-source model running on your computer without API fees or limits.
+              High-performance open-source AI engine running on your computer without API fees or limits.
             </p>
           </div>
         </div>
@@ -191,10 +191,10 @@ export function QwenManager({ onStatusChange }: { onStatusChange?: (ready: boole
         <div className="mt-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs space-y-2">
           <div className="flex items-center gap-2 text-amber-300 font-bold">
             <AlertCircle className="w-4 h-4 text-amber-400" />
-            Ollama Engine is not detected
+            AI Engine is not detected
           </div>
           <p className="text-zinc-300">
-            To run Qwen 8B, make sure <strong>Ollama</strong> is installed and running on your computer.
+            To run T7 Tutor, make sure the local engine is installed and running on your computer.
           </p>
           <div className="flex items-center gap-3 pt-1">
             <a
@@ -203,7 +203,7 @@ export function QwenManager({ onStatusChange }: { onStatusChange?: (ready: boole
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-zinc-950 font-bold rounded-lg hover:bg-amber-400 transition-colors"
             >
-              Download Ollama <ExternalLink className="w-3 h-3" />
+              Download Local Runtime <ExternalLink className="w-3 h-3" />
             </a>
             <span className="text-zinc-400 text-[11px]">
               Or start it in terminal: <code className="bg-zinc-800 px-1.5 py-0.5 rounded font-mono">ollama serve</code>
@@ -215,11 +215,11 @@ export function QwenManager({ onStatusChange }: { onStatusChange?: (ready: boole
       {/* Status Details */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 my-4">
         <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-xl p-3">
-          <span className="text-zinc-400 text-xs block">Model Name</span>
-          <span className="text-white font-mono font-bold text-sm">Qwen 2.5 (7B/8B)</span>
+          <span className="text-zinc-400 text-xs block">Engine Model</span>
+          <span className="text-white font-mono font-bold text-sm">T7 Tutor AI (8B)</span>
         </div>
         <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-xl p-3">
-          <span className="text-zinc-400 text-xs block">Model Size</span>
+          <span className="text-zinc-400 text-xs block">Engine Size</span>
           <span className="text-white font-mono font-bold text-sm">~4.7 GB (Quantized)</span>
         </div>
         <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-xl p-3">
@@ -248,7 +248,7 @@ export function QwenManager({ onStatusChange }: { onStatusChange?: (ready: boole
           <div className="flex items-center justify-between text-xs">
             <span className="text-zinc-300 flex items-center gap-1.5">
               <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-400" />
-              {pullProgress || "Downloading Qwen 8B model..."}
+              {pullProgress || "Downloading AI Engine..."}
             </span>
             {pullPercent !== null && (
               <span className="text-violet-400 font-mono font-bold">{pullPercent}%</span>
@@ -269,15 +269,15 @@ export function QwenManager({ onStatusChange }: { onStatusChange?: (ready: boole
           <button
             onClick={handleDownload}
             disabled={isPulling || !status?.ollama_running}
-            className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-lg shadow-violet-600/30 transition-all"
+            className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs rounded-xl shadow-lg shadow-violet-600/30 transition-all cursor-pointer"
           >
             {isPulling ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" /> Downloading Qwen 8B...
+                <Loader2 className="w-4 h-4 animate-spin" /> Installing T7 Tutor AI Model ({pullPercent || 0}%)...
               </>
             ) : (
               <>
-                <Download className="w-4 h-4" /> Download Qwen 8B (~4.7 GB)
+                <Download className="w-4 h-4" /> Install T7 Tutor AI Model (~4.7 GB)
               </>
             )}
           </button>
@@ -287,23 +287,23 @@ export function QwenManager({ onStatusChange }: { onStatusChange?: (ready: boole
               <button
                 onClick={() => setConfirmDelete(true)}
                 disabled={isDeleting}
-                className="flex items-center gap-1.5 px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold rounded-xl transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" /> Delete Model
               </button>
             ) : (
               <div className="flex items-center gap-2 bg-red-950/60 border border-red-800 p-2 rounded-xl">
-                <span className="text-red-300 text-xs font-medium">Delete 4.7 GB file?</span>
+                <span className="text-red-300 text-xs font-medium">Delete model file to free disk space?</span>
                 <button
                   onClick={handleDelete}
                   disabled={isDeleting}
-                  className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg transition-colors"
+                  className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
                 >
                   {isDeleting ? "Deleting..." : "Yes, Delete"}
                 </button>
                 <button
                   onClick={() => setConfirmDelete(false)}
-                  className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs rounded-lg transition-colors"
+                  className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs rounded-lg transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
