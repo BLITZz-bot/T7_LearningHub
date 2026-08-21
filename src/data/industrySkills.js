@@ -830,5 +830,12 @@ export const branches = [
  */
 export const years = [1, 2, 3, 4];
 
+/**
+ * Graduation / Passout year options
+ */
+export const passoutYears = [
+  2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030, 2031, 2032
+];
+
 export default industryRoles;
 

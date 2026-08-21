@@ -13,10 +13,10 @@
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
     "firebase": "^10.7.1",
+    "lucide-react": "^0.303.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.21.1",
-    "lucide-react": "^0.303.0"
+    "react-router-dom": "^6.21.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

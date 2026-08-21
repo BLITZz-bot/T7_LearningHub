@@ -9,6 +9,7 @@ import { analyzeT7LearningHub } from '../../services/geminiService';
 import { saveAnalysis, getLatestAnalysis, getVideoLearning, getVideoLearningSkills } from '../../services/firestoreService';
 import { industryRoles, allSkills, branches, years } from '../../data/industrySkills';
 import { getJobsForRole } from '../../data/jobListings';
+import StudentProfileModal from './StudentProfileModal';
 import { 
   LogOut,
   Search,
@@ -37,7 +38,10 @@ import {
   Compass,
   Phone,
   Mail,
-  Download
+  Download,
+  Calendar,
+  User,
+  Edit3
 } from 'lucide-react';
 
 // Branch → relevant career roles mapping
@@ -56,6 +60,9 @@ const BRANCH_CAREER_MAP = {
 const StudentDashboard = () => {
   const { currentUser, userProfile, updateUserProfile, logout } = useAuth();
   const navigate = useNavigate();
+
+  // Profile modal state
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // Form state
   const [branch, setBranch] = useState(userProfile?.branch || '');
@@ -294,13 +301,28 @@ const StudentDashboard = () => {
               <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">AI</span>
             </button>
 
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-semibold text-zinc-900">{userProfile?.name}</p>
-              <p className="text-xs text-zinc-500">{userProfile?.email}</p>
-            </div>
+            {/* Profile trigger button in Navbar */}
+            <button
+              onClick={() => setIsProfileModalOpen(true)}
+              className="flex items-center gap-2.5 px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200/80 rounded-xl transition-all border border-zinc-200/70 text-left group"
+              title="View & Edit Student Profile"
+            >
+              <div className="w-7 h-7 bg-zinc-900 text-white rounded-lg flex items-center justify-center font-bold text-xs group-hover:scale-105 transition-transform">
+                {userProfile?.name?.charAt(0)?.toUpperCase() || 'S'}
+              </div>
+              <div className="hidden sm:block">
+                <p className="text-xs font-bold text-zinc-900 leading-tight flex items-center gap-1">
+                  {userProfile?.name || 'Student'}
+                  <Edit3 className="w-3 h-3 text-zinc-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+                </p>
+                <p className="text-[10px] text-zinc-500 truncate max-w-[130px]">{userProfile?.email}</p>
+              </div>
+            </button>
+
             <button
               onClick={logout}
               className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+              title="Sign Out"
             >
               <LogOut className="w-5 h-5" />
             </button>
@@ -374,18 +396,23 @@ const StudentDashboard = () => {
           </div>
         </div>
 
-        {/* Student Profile Info Card */}
-        <div className="mb-6 p-5 bg-white rounded-2xl border border-zinc-200 shadow-sm">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-zinc-900 text-white rounded-xl flex items-center justify-center font-bold text-lg">
+        {/* Professional Student Profile Info Card */}
+        <div className="mb-6 p-5 sm:p-6 bg-white rounded-2xl border border-zinc-200 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div className="flex items-start sm:items-center gap-4">
+              <div className="w-14 h-14 bg-gradient-to-tr from-zinc-900 to-zinc-700 text-white rounded-2xl flex items-center justify-center font-black text-xl shadow-md flex-shrink-0">
                 {userProfile?.name?.charAt(0)?.toUpperCase() || 'S'}
               </div>
               <div>
-                <h2 className="text-lg font-bold text-zinc-900 flex items-center gap-2">
-                  {userProfile?.name || 'Student Profile'}
-                </h2>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500 mt-1">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h2 className="text-xl font-bold text-zinc-900">
+                    {userProfile?.name || 'Student Profile'}
+                  </h2>
+                  <span className="px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider bg-zinc-100 text-zinc-600 rounded-full border border-zinc-200">
+                    Verified Student
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-zinc-500 mt-2">
                   {userProfile?.college && (
                     <span className="flex items-center gap-1.5 font-medium text-zinc-700">
                       <Building2 className="w-3.5 h-3.5 text-zinc-400" />
@@ -396,6 +423,12 @@ const StudentDashboard = () => {
                     <span className="flex items-center gap-1.5 font-medium text-zinc-700">
                       <GraduationCap className="w-3.5 h-3.5 text-zinc-400" />
                       {userProfile.branch}
+                    </span>
+                  )}
+                  {(userProfile?.passoutYear || userProfile?.year) && (
+                    <span className="flex items-center gap-1.5 font-bold text-violet-700 bg-violet-50 px-2.5 py-0.5 rounded-lg border border-violet-200/60">
+                      <Calendar className="w-3.5 h-3.5 text-violet-600" />
+                      {userProfile.passoutYear ? `Passout: ${userProfile.passoutYear}` : `Year ${userProfile.year}`}
                     </span>
                   )}
                   {userProfile?.phone && (
@@ -412,6 +445,18 @@ const StudentDashboard = () => {
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* View & Edit Profile CTA */}
+            <div className="flex items-center gap-3 self-start md:self-center flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsProfileModalOpen(true)}
+                className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs rounded-xl transition-all shadow-md shadow-zinc-900/10 flex items-center gap-2 hover:-translate-y-0.5"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>View & Edit Profile</span>
+              </button>
             </div>
           </div>
         </div>
@@ -948,6 +993,13 @@ const StudentDashboard = () => {
           </div>
         </div>
       </main>
+
+      {/* Professional Student Profile Modal */}
+      <StudentProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        lastAnalysis={lastAnalysis}
+      />
     </div>
   );
 };

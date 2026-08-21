@@ -8,9 +8,9 @@
 import { useState, useEffect } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { branches } from '../../data/industrySkills';
+import { branches, passoutYears } from '../../data/industrySkills';
 import {
-  Mail, Lock, User, Building2, GraduationCap, Phone,
+  Mail, Lock, User, Building2, GraduationCap, Phone, Calendar,
   Loader2, Sparkles, ArrowRight, ChevronDown
 } from 'lucide-react';
 
@@ -47,6 +47,7 @@ const Signup = () => {
     name: '',
     college: '',
     branch: '',
+    passoutYear: '',
     phone: '',
     email: location.state?.email || '',
     password: '',
@@ -77,14 +78,18 @@ const Signup = () => {
     if (!form.name.trim())    return setError('Please enter your full name.');
     if (!form.college.trim()) return setError('Please enter your college name.');
     if (!form.branch)         return setError('Please select your branch.');
+    if (!form.passoutYear)    return setError('Please select your passout year.');
     if (!form.phone.trim())   return setError('Please enter your phone number.');
     if (form.password.length < 6) return setError('Password must be at least 6 characters.');
 
     setLoading(true);
     try {
       await signup(form.email, form.password, {
-        name: form.name.trim(), college: form.college.trim(),
-        branch: form.branch,    phone: form.phone.trim(),
+        name: form.name.trim(),
+        college: form.college.trim(),
+        branch: form.branch,
+        passoutYear: form.passoutYear,
+        phone: form.phone.trim(),
       });
       // Navigate guard above handles redirect once userProfile is set
     } catch (err) {
@@ -102,14 +107,17 @@ const Signup = () => {
   const handleGoogleSignup = async () => {
     setError('');
     if (!form.college.trim() || !form.branch || !form.phone.trim()) {
-      setError('Please fill in College, Branch, and Phone before continuing with Google.');
+      setError('Please fill in College, Branch, Passout Year, and Phone before continuing with Google.');
       return;
     }
     setGoogleLoading(true);
     try {
       await signupWithGoogle({
-        name: form.name.trim(), college: form.college.trim(),
-        branch: form.branch,   phone: form.phone.trim(),
+        name: form.name.trim(),
+        college: form.college.trim(),
+        branch: form.branch,
+        passoutYear: form.passoutYear,
+        phone: form.phone.trim(),
       });
     } catch (err) {
       console.error('Google signup error:', err);
@@ -231,7 +239,30 @@ const Signup = () => {
               </div>
             </div>
 
-            {/* Row 4: Phone */}
+            {/* Row 4: Passout Year */}
+            <div>
+              <label htmlFor="passoutYear" className="block text-sm font-semibold text-zinc-700 mb-1.5">Graduation / Passout Year</label>
+              <div className="relative">
+                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                <select
+                  id="passoutYear"
+                  value={form.passoutYear}
+                  onChange={set('passoutYear')}
+                  required
+                  className="w-full pl-11 pr-10 py-3 bg-zinc-50 border-2 border-zinc-200 rounded-xl focus:bg-white focus:border-zinc-900 outline-none transition-all text-zinc-900 font-medium appearance-none cursor-pointer"
+                >
+                  <option value="">Select Passout Year</option>
+                  {passoutYears.map((yr) => (
+                    <option key={yr} value={yr}>
+                      {yr}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Row 5: Phone */}
             <InputField id="phone" label="Phone Number" icon={Phone} type="tel"
               value={form.phone} onChange={set('phone')} placeholder="+91 9876543210" />
 
