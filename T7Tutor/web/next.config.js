@@ -32,9 +32,6 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
 
   // Move dev indicator to bottom-right corner
   devIndicators: {
