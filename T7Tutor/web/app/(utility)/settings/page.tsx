@@ -1068,9 +1068,6 @@ function SettingsPageContent() {
           </div>
         </div>
 
-        {/* ── Qwen 8B Dedicated Model Manager ── */}
-        <QwenManager />
-
         {/* ── Preferences ── */}
         <div className="mb-5 flex flex-wrap items-center gap-x-8 gap-y-3">
           <div className="flex items-center gap-2">

@@ -317,23 +317,6 @@ export default function ChatPage() {
   // a fresh Chat / Deep Solve session has the shortest possible composer.
   const [panelCollapsed, setPanelCollapsed] = useState(true);
   const [showSaveModal, setShowSaveModal] = useState(false);
-  const [showQwenPrompt, setShowQwenPrompt] = useState(false);
-  const [qwenDownloaded, setQwenDownloaded] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    fetch(apiUrl("/api/v1/model-manager/status"))
-      .then((r) => r.json())
-      .then((d) => {
-        if (typeof d.model_downloaded === "boolean") {
-          setQwenDownloaded(d.model_downloaded);
-        } else {
-          setQwenDownloaded(false);
-        }
-      })
-      .catch(() => {
-        setQwenDownloaded(false);
-      });
-  }, []);
   const [showNotebookPicker, setShowNotebookPicker] = useState(false);
   const [showBookPicker, setShowBookPicker] = useState(false);
   const [showHistoryPicker, setShowHistoryPicker] = useState(false);
@@ -953,11 +936,6 @@ export default function ChatPage() {
       )
         return;
 
-      if (qwenDownloaded === false || (!llmOptionsLoading && llmOptions.length === 0)) {
-        setShowQwenPrompt(true);
-        return;
-      }
-
       let extraAttachments = attachments.map((a) => ({
         type: a.type,
         filename: a.filename,
@@ -1268,25 +1246,6 @@ export default function ChatPage() {
         </div>
       </div>
       <div className="mx-auto flex w-full max-w-[960px] flex-1 min-h-0 flex-col overflow-hidden px-6">
-        {qwenDownloaded === false && (
-          <div className="my-2 p-3.5 bg-gradient-to-r from-violet-950/70 to-zinc-900 border border-violet-500/30 rounded-2xl flex items-center justify-between gap-3 text-xs text-zinc-200 shadow-lg flex-shrink-0 animate-fade-in">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 flex-shrink-0">
-                <Cpu className="w-4 h-4" />
-              </div>
-              <div>
-                <span className="font-bold text-white block">Qwen 8B AI Model Required</span>
-                <span className="text-zinc-400 text-[11px]">Download once to enable free unlimited local AI tutoring.</span>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowQwenPrompt(true)}
-              className="px-3.5 py-1.5 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl flex items-center gap-1.5 transition-colors shadow-md flex-shrink-0 text-xs"
-            >
-              <Download className="w-3.5 h-3.5" /> Download Model (~4.7 GB)
-            </button>
-          </div>
-        )}
         {!hasMessages ? (
           <div className="flex flex-1 min-h-0 flex-col items-center justify-center animate-fade-in">
             <div className="text-center">
@@ -1465,10 +1424,6 @@ export default function ChatPage() {
         open={previewSource !== null}
         source={previewSource}
         onClose={handleClosePreview}
-      />
-      <QwenDownloadPrompt
-        isOpen={showQwenPrompt}
-        onClose={() => setShowQwenPrompt(false)}
       />
     </div>
   );
