@@ -72,7 +72,7 @@ const AcademicMode = ({ userProfile }) => {
 
     const syncTutorCredentials = async () => {
       try {
-        const res = await fetch(`${DEEPTUTOR_URL}/api/settings/catalog`);
+        const res = await fetch(`${DEEPTUTOR_URL}/api/v1/settings/catalog`);
         if (!res.ok) return;
         const data = await res.json();
         const catalog = data.catalog || {};
@@ -91,12 +91,12 @@ const AcademicMode = ({ userProfile }) => {
         }
 
         if (changed) {
-          await fetch(`${DEEPTUTOR_URL}/api/settings/catalog`, {
+          await fetch(`${DEEPTUTOR_URL}/api/v1/settings/catalog`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ catalog })
           });
-          await fetch(`${DEEPTUTOR_URL}/api/settings/apply`, {
+          await fetch(`${DEEPTUTOR_URL}/api/v1/settings/apply`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ catalog })
