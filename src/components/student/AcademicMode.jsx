@@ -66,6 +66,50 @@ const AcademicMode = ({ userProfile }) => {
     return () => clearInterval(interval);
   }, [isLaunching]);
 
+  // Auto-sync personal Gemini key and model to DeepTutor if user configured one
+  useEffect(() => {
+    if (status !== 'online' || !userProfile?.geminiApiKey) return;
+
+    const syncTutorCredentials = async () => {
+      try {
+        const res = await fetch(`${DEEPTUTOR_URL}/api/settings/catalog`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const catalog = data.catalog || {};
+
+        let changed = false;
+        let geminiProfile = catalog.services?.llm?.profiles?.find(p => p.id === 'llm-profile-gemini');
+        if (geminiProfile && geminiProfile.api_key !== userProfile.geminiApiKey) {
+          geminiProfile.api_key = userProfile.geminiApiKey;
+          changed = true;
+        }
+
+        let geminiEmb = catalog.services?.embedding?.profiles?.find(p => p.id === 'emb-profile-gemini');
+        if (geminiEmb && geminiEmb.api_key !== userProfile.geminiApiKey) {
+          geminiEmb.api_key = userProfile.geminiApiKey;
+          changed = true;
+        }
+
+        if (changed) {
+          await fetch(`${DEEPTUTOR_URL}/api/settings/catalog`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ catalog })
+          });
+          await fetch(`${DEEPTUTOR_URL}/api/settings/apply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ catalog })
+          });
+        }
+      } catch (e) {
+        // Silently ignore background sync failures
+      }
+    };
+
+    syncTutorCredentials();
+  }, [status, userProfile?.geminiApiKey, userProfile?.geminiModel]);
+
   // Handle 1-Click Launch via Custom Protocol (t7tutor://launch)
   const handleStartEngine = () => {
     setIsLaunching(true);
