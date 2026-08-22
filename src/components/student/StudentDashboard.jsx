@@ -10,6 +10,7 @@ import { saveAnalysis, getLatestAnalysis, getVideoLearning, getVideoLearningSkil
 import { industryRoles, allSkills, branches, years } from '../../data/industrySkills';
 import { getJobsForRole } from '../../data/jobListings';
 import StudentProfileModal from './StudentProfileModal';
+import YouTubeTrackerModal from './YouTubeTrackerModal';
 import ModelSelector from '../common/ModelSelector';
 import { 
   LogOut,
@@ -66,6 +67,7 @@ const StudentDashboard = () => {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileModalEditMode, setProfileModalEditMode] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [isYouTubeModalOpen, setIsYouTubeModalOpen] = useState(false);
   const profileDropdownRef = useRef(null);
 
   // Close profile dropdown when clicking outside
@@ -313,16 +315,6 @@ const StudentDashboard = () => {
               />
             </div>
 
-            {/* T7 Tutor Quick Action */}
-            <button
-              onClick={() => navigate('/academic')}
-              className="flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl font-bold text-xs transition-all shadow-md shadow-violet-600/20 hover:-translate-y-0.5"
-              title="Open T7 Tutor — AI Academic Mentor"
-            >
-              <GraduationCap className="w-4 h-4 text-violet-200" />
-              <span>T7 Tutor</span>
-              <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">AI</span>
-            </button>
 
             {/* Top Right Profile Dropdown Menu */}
             <div className="relative" ref={profileDropdownRef}>
@@ -489,51 +481,72 @@ const StudentDashboard = () => {
           </div>
         </div>
 
-        {/* T7 Unique ID Card */}
-        {userProfile?.t7Id && (
-          <div className="mb-6 p-5 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 rounded-2xl shadow-xl border border-zinc-700">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/10">
-                  <Sparkles className="w-7 h-7 text-amber-400" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">Your T7 Account ID</p>
-                  <p className="text-2xl font-black text-white tracking-widest font-mono">{userProfile.t7Id}</p>
-                </div>
+        {/* Compact YouTube Learning Tracker & T7 Sync Widget */}
+        <div className="mb-6 p-4 sm:p-5 bg-gradient-to-r from-zinc-900 via-zinc-850 to-zinc-900 rounded-2xl shadow-xl border border-zinc-800 text-white transition-all hover:border-zinc-700">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-red-600/30 flex-shrink-0 border border-red-500/30">
+                <Youtube className="w-6 h-6 text-white" />
               </div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <a
-                  href="/t7-extension.zip"
-                  download="t7-extension.zip"
-                  className="px-4 py-2.5 font-bold rounded-xl transition-all flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white shadow-lg text-sm"
-                  title="Download Chrome Extension (.zip)"
-                >
-                  <Download className="w-4 h-4" />
-                  Download Extension (.zip)
-                </a>
-                <button
-                  onClick={copyT7Id}
-                  className={`px-4 py-2.5 font-bold rounded-xl transition-all flex items-center gap-2 text-sm ${
-                    copied 
-                      ? 'bg-emerald-500 text-white' 
-                      : 'bg-white text-zinc-900 hover:bg-zinc-100'
-                  }`}
-                >
-                  {copied ? (
-                    <><CheckCircle className="w-4 h-4" /> Copied!</>
-                  ) : (
-                    <><Copy className="w-4 h-4" /> Copy ID</>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-bold text-white text-base">YouTube Learning Tracker</h3>
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    {videoLearning.length > 0 ? 'Extension Synced' : 'Ready to Sync'}
+                  </span>
+                </div>
+                <div className="text-xs text-zinc-400 mt-1 flex items-center gap-2 flex-wrap">
+                  <span>
+                    <strong className="text-white font-bold">{videoLearning.length}</strong> videos analyzed
+                  </span>
+                  <span>•</span>
+                  <span>
+                    <strong className="text-white font-bold">{ytSkills.length}</strong> skills detected
+                  </span>
+                  {userProfile?.t7Id && (
+                    <>
+                      <span>•</span>
+                      <span>
+                        T7 ID: <strong className="text-amber-300 font-mono font-bold">{userProfile.t7Id}</strong>
+                      </span>
+                    </>
                   )}
-                </button>
+                </div>
               </div>
             </div>
-            <p className="text-zinc-400 text-sm mt-3 flex items-center gap-2">
-              <ExternalLink className="w-3.5 h-3.5" />
-              Paste this ID in the <span className="text-white font-semibold">T7 Extension → Settings → Account ID</span> to sync your YouTube learning
-            </p>
+
+            <div className="flex items-center gap-2.5 flex-wrap">
+              {userProfile?.t7Id && (
+                <button
+                  type="button"
+                  onClick={copyT7Id}
+                  className={`px-3 py-2 font-bold rounded-xl transition-all flex items-center gap-1.5 text-xs cursor-pointer ${
+                    copied 
+                      ? 'bg-emerald-500 text-white' 
+                      : 'bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white border border-white/10'
+                  }`}
+                  title="Copy T7 Account ID"
+                >
+                  {copied ? (
+                    <><CheckCircle className="w-3.5 h-3.5" /> Copied ID</>
+                  ) : (
+                    <><Copy className="w-3.5 h-3.5" /> Copy ID</>
+                  )}
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsYouTubeModalOpen(true)}
+                className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-lg shadow-red-600/30 flex items-center gap-2 hover:-translate-y-0.5 cursor-pointer"
+              >
+                <span>View Full Tracker & Skills</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
-        )}
+        </div>
 
         {/* Previous Analysis Banner */}
         {lastAnalysis && (
@@ -549,116 +562,13 @@ const StudentDashboard = () => {
             </div>
             <button
               onClick={viewPreviousResults}
-              className="px-5 py-2.5 bg-white text-zinc-900 font-bold rounded-xl hover:bg-zinc-100 transition-all flex items-center gap-2"
+              className="px-5 py-2.5 bg-white text-zinc-900 font-bold rounded-xl hover:bg-zinc-100 transition-all flex items-center gap-2 cursor-pointer"
             >
               View results
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         )}
-
-        {/* YouTube Learning Tracker */}
-        <div className="mb-6 bg-white rounded-2xl p-6 shadow-lg border border-zinc-100">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center">
-                <Youtube className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h2 className="font-bold text-zinc-900 text-lg">YouTube Learning Tracker</h2>
-                <p className="text-sm text-zinc-500">
-                  <span className="text-zinc-900 font-bold">{videoLearning.length}</span> videos analyzed · <span className="text-zinc-900 font-bold">{ytSkills.length}</span> skills learned
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={refreshVideoLearning}
-              disabled={loadingVideos}
-              className="p-2.5 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-colors disabled:opacity-50"
-              title="Refresh"
-            >
-              <RefreshCw className={`w-5 h-5 ${loadingVideos ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-
-          {loadingVideos ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
-              <span className="ml-2 text-zinc-500">Loading your learning data...</span>
-            </div>
-          ) : videoLearning.length === 0 ? (
-            <div className="text-center py-8 bg-zinc-50 rounded-xl border-2 border-dashed border-zinc-200">
-              <Youtube className="w-10 h-10 text-zinc-300 mx-auto mb-3" />
-              <p className="text-zinc-400 text-sm mb-3">Use the T7 extension on YouTube to analyze videos & sync skills here</p>
-              <a
-                href="/t7-extension.zip"
-                download="t7-extension.zip"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold transition-all shadow-md"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Download Chrome Extension (.zip)
-              </a>
-            </div>
-          ) : (
-            <>
-              {/* Skills from YouTube */}
-              {ytSkills.length > 0 && (
-                <div className="mb-4 pb-4 border-b border-zinc-100">
-                  <p className="text-xs font-bold text-red-600 uppercase tracking-wider mb-3">🎥 Skills Learned from YouTube</p>
-                  <div className="flex flex-wrap gap-2">
-                    {ytSkills.map(skill => (
-                      <span
-                        key={skill}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-700 rounded-lg text-sm font-semibold border border-red-100"
-                      >
-                        <Youtube className="w-3 h-3" />
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Recent Videos */}
-              <div className="space-y-3 max-h-64 overflow-y-auto">
-                {videoLearning.slice(0, 8).map(video => (
-                  <div key={video.id} className="flex items-start gap-3 p-3 bg-zinc-50 rounded-xl border border-zinc-100 hover:border-zinc-300 transition-colors">
-                    <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Youtube className="w-5 h-5 text-red-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-zinc-900 text-sm truncate">{video.title}</p>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-zinc-500">
-                          ⭐ {typeof video.rating === 'number' ? video.rating.toFixed(1) : video.rating}
-                        </span>
-                        {video.topSkills?.length > 0 && (
-                          <div className="flex gap-1 flex-wrap">
-                            {video.topSkills.slice(0, 3).map((skill, i) => (
-                              <span key={i} className="text-xs bg-zinc-200 text-zinc-700 px-2 py-0.5 rounded font-medium">
-                                {skill}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {video.videoId && (
-                      <a
-                        href={`https://www.youtube.com/watch?v=${video.videoId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-1.5 text-zinc-400 hover:text-red-600 transition-colors flex-shrink-0"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
 
         {/* Error */}
         {error && (
@@ -1028,6 +938,18 @@ const StudentDashboard = () => {
         onClose={() => setIsProfileModalOpen(false)}
         lastAnalysis={lastAnalysis}
         initialEditMode={profileModalEditMode}
+      />
+
+      {/* Professional YouTube Learning Tracker & Sync Hub Modal */}
+      <YouTubeTrackerModal
+        isOpen={isYouTubeModalOpen}
+        onClose={() => setIsYouTubeModalOpen(false)}
+        videoLearning={videoLearning}
+        ytSkills={ytSkills}
+        loadingVideos={loadingVideos}
+        refreshVideoLearning={loadVideoLearningData}
+        t7Id={userProfile?.t7Id}
+        userProfile={userProfile}
       />
     </div>
   );
