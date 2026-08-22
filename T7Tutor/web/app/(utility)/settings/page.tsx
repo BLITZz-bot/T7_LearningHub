@@ -26,7 +26,6 @@ import { useTranslation } from "react-i18next";
 import { writeStoredLanguage } from "@/context/app-shell-storage";
 import { apiUrl } from "@/lib/api";
 import { setTheme as applyThemePreference } from "@/lib/theme";
-import { QwenManager } from "@/components/qwen-manager";
 
 type ServiceName = "llm" | "embedding" | "search";
 
