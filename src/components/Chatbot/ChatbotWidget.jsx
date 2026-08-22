@@ -1,9 +1,6 @@
-// ============================================================
-// T7 SKILL_BOT - Floating Chatbot Widget
-// ============================================================
-
 import React, { useState, useRef, useEffect } from "react";
 import { buildSystemPrompt, callGemini, detectIntent, getQuickReplies } from "./chatbot";
+import ModelSelector from "../common/ModelSelector";
 import "./chatbot.css";
 
 const TypingIndicator = () => (
@@ -15,8 +12,9 @@ const TypingIndicator = () => (
   </div>
 );
 
-const ChatbotWidget = ({ geminiApiKey, userProfile }) => {
+const ChatbotWidget = ({ geminiApiKey, userProfile, onOpenKeySettings = null }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(userProfile?.geminiModel || 'auto');
   const [messages, setMessages] = useState([
     {
       role: "assistant",
@@ -36,6 +34,14 @@ What would you like to know about your progress or career path today?`,
   const greetingUpdatedRef = useRef(false);
   
   const formatTime = (date) => date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  const activeApiKey = userProfile?.geminiApiKey || geminiApiKey || import.meta.env.VITE_GEMINI_API_KEY;
+
+  useEffect(() => {
+    if (userProfile?.geminiModel) {
+      setSelectedModel(userProfile.geminiModel);
+    }
+  }, [userProfile?.geminiModel]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -77,7 +83,7 @@ What would you like to know about your progress or career path today?`
 
     try {
       const systemPrompt = buildSystemPrompt(userProfile);
-      const reply = await callGemini(geminiApiKey, updatedMessages, systemPrompt);
+      const reply = await callGemini(activeApiKey, updatedMessages, systemPrompt, selectedModel);
       const botMsg = { role: "assistant", content: reply, timestamp: new Date() };
       setMessages((prev) => [...prev, botMsg]);
       const intent = detectIntent(text);
@@ -116,7 +122,15 @@ What would you like to know about your progress or career path today?`
               <div className="sf-header__status"><span className="sf-status-dot"></span>AI Mentor Online</div>
             </div>
           </div>
-          <button className="sf-header__close" onClick={() => setIsOpen(false)}>✕</button>
+          <div className="flex items-center gap-2">
+            <ModelSelector 
+              currentModel={selectedModel} 
+              onModelChange={setSelectedModel} 
+              apiKey={activeApiKey}
+              onOpenKeySettings={onOpenKeySettings}
+            />
+            <button className="sf-header__close" onClick={() => setIsOpen(false)}>✕</button>
+          </div>
         </div>
 
         <div className="sf-contextbar">

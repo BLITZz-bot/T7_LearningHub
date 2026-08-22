@@ -9,10 +9,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { branches, passoutYears } from '../../data/industrySkills';
+import { verifyGeminiApiKey, fetchAvailableGeminiModels, DEFAULT_GEMINI_MODELS } from '../../services/geminiService';
 import {
   X, User, Mail, Phone, Building2, GraduationCap, Calendar, 
   Sparkles, CheckCircle2, ShieldCheck, Edit3, Save, RotateCcw, 
-  Copy, Check, Target, Briefcase, Award, Loader2, AlertCircle
+  Copy, Check, Target, Briefcase, Award, Loader2, AlertCircle,
+  Key, Eye, EyeOff, ExternalLink, Zap, Brain
 } from 'lucide-react';
 
 const StudentProfileModal = ({ isOpen, onClose, lastAnalysis, initialEditMode = false }) => {
@@ -25,7 +27,14 @@ const StudentProfileModal = ({ isOpen, onClose, lastAnalysis, initialEditMode = 
     branch: '',
     passoutYear: '',
     phone: '',
+    geminiApiKey: '',
+    geminiModel: 'auto',
   });
+
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [verifyingKey, setVerifyingKey] = useState(false);
+  const [keyVerificationResult, setKeyVerificationResult] = useState(null);
+  const [availableModels, setAvailableModels] = useState(DEFAULT_GEMINI_MODELS);
 
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -41,7 +50,12 @@ const StudentProfileModal = ({ isOpen, onClose, lastAnalysis, initialEditMode = 
         branch: userProfile.branch || '',
         passoutYear: userProfile.passoutYear || userProfile.year || '',
         phone: userProfile.phone || '',
+        geminiApiKey: userProfile.geminiApiKey || '',
+        geminiModel: userProfile.geminiModel || 'auto',
       });
+      if (userProfile.geminiApiKey) {
+        fetchAvailableGeminiModels(userProfile.geminiApiKey).then(setAvailableModels);
+      }
     }
   }, [userProfile, isOpen]);
 
@@ -51,12 +65,35 @@ const StudentProfileModal = ({ isOpen, onClose, lastAnalysis, initialEditMode = 
       setIsEditing(initialEditMode);
       setSaveSuccess(false);
       setErrorMessage('');
+      setKeyVerificationResult(null);
     } else {
       setIsEditing(false);
       setSaveSuccess(false);
       setErrorMessage('');
+      setKeyVerificationResult(null);
     }
   }, [isOpen, initialEditMode]);
+
+  const handleVerifyApiKey = async () => {
+    if (!formData.geminiApiKey || !formData.geminiApiKey.trim()) {
+      setKeyVerificationResult({ valid: false, error: 'Please enter a Gemini API key to verify' });
+      return;
+    }
+
+    setVerifyingKey(true);
+    setKeyVerificationResult(null);
+    try {
+      const result = await verifyGeminiApiKey(formData.geminiApiKey.trim());
+      setKeyVerificationResult(result);
+      if (result.valid && result.models) {
+        setAvailableModels(result.models);
+      }
+    } catch (e) {
+      setKeyVerificationResult({ valid: false, error: e.message || 'Verification failed' });
+    } finally {
+      setVerifyingKey(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -72,6 +109,7 @@ const StudentProfileModal = ({ isOpen, onClose, lastAnalysis, initialEditMode = 
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
     if (saveSuccess) setSaveSuccess(false);
     if (errorMessage) setErrorMessage('');
+    if (field === 'geminiApiKey') setKeyVerificationResult(null);
   };
 
   const handleSave = async (e) => {
@@ -100,6 +138,8 @@ const StudentProfileModal = ({ isOpen, onClose, lastAnalysis, initialEditMode = 
         branch: formData.branch,
         passoutYear: formData.passoutYear,
         phone: formData.phone.trim(),
+        geminiApiKey: formData.geminiApiKey.trim(),
+        geminiModel: formData.geminiModel,
       });
       setSaveSuccess(true);
       setIsEditing(false);
@@ -120,10 +160,13 @@ const StudentProfileModal = ({ isOpen, onClose, lastAnalysis, initialEditMode = 
         branch: userProfile.branch || '',
         passoutYear: userProfile.passoutYear || userProfile.year || '',
         phone: userProfile.phone || '',
+        geminiApiKey: userProfile.geminiApiKey || '',
+        geminiModel: userProfile.geminiModel || 'auto',
       });
     }
     setIsEditing(false);
     setErrorMessage('');
+    setKeyVerificationResult(null);
   };
 
   const memberSince = userProfile?.createdAt?.toDate
@@ -335,6 +378,114 @@ const StudentProfileModal = ({ isOpen, onClose, lastAnalysis, initialEditMode = 
                 </div>
               </div>
 
+              {/* ──────────────── GOOGLE GEMINI AI CONFIGURATION ──────────────── */}
+              <div className="p-5 bg-gradient-to-br from-zinc-900 to-zinc-950 rounded-2xl border border-zinc-800 text-white space-y-4 shadow-inner">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-md">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                        Google Gemini AI Engine
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800/60">
+                          Live API
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-zinc-400">Power your Roadmaps, T7 Tutor, and Chatbot with your personal Google key</p>
+                    </div>
+                  </div>
+                  <a
+                    href="https://aistudio.google.com/apikey"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 transition-all"
+                  >
+                    <span>Get Free Key</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                {/* Gemini API Key Input */}
+                <div>
+                  <label className="block text-[11px] font-bold text-zinc-300 uppercase tracking-wider mb-1.5">
+                    Personal Gemini API Key (Optional)
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Key className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                      <input
+                        type={showApiKey ? "text" : "password"}
+                        value={formData.geminiApiKey}
+                        onChange={handleInputChange('geminiApiKey')}
+                        placeholder="AIzaSy..."
+                        className="w-full pl-10 pr-10 py-2.5 bg-zinc-800/80 border border-zinc-700 rounded-xl focus:border-cyan-400 outline-none text-white text-xs font-mono transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowApiKey(prev => !prev)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
+                        title={showApiKey ? "Hide key" : "Show key"}
+                      >
+                        {showApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleVerifyApiKey}
+                      disabled={verifyingKey || !formData.geminiApiKey}
+                      className="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5 flex-shrink-0"
+                    >
+                      {verifyingKey ? (
+                        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Testing...</>
+                      ) : (
+                        <><Zap className="w-3.5 h-3.5" /> Verify Key</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Verification Feedback Banner */}
+                {keyVerificationResult && (
+                  <div className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2.5 ${
+                    keyVerificationResult.valid
+                      ? 'bg-emerald-950/70 border border-emerald-800 text-emerald-300'
+                      : 'bg-red-950/70 border border-red-800 text-red-300'
+                  }`}>
+                    {keyVerificationResult.valid ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                        <span>Connected! Google detected {keyVerificationResult.models?.length || 0} active Gemini models.</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                        <span>{keyVerificationResult.error}</span>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Preferred Model Selection */}
+                <div>
+                  <label className="block text-[11px] font-bold text-zinc-300 uppercase tracking-wider mb-1.5">
+                    Preferred Live Model
+                  </label>
+                  <select
+                    value={formData.geminiModel}
+                    onChange={handleInputChange('geminiModel')}
+                    className="w-full px-3.5 py-2.5 bg-zinc-800/80 border border-zinc-700 rounded-xl focus:border-cyan-400 outline-none text-white text-xs font-medium cursor-pointer"
+                  >
+                    <option value="auto">✨ Auto (Selects fastest & smartest model automatically)</option>
+                    {availableModels.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.displayName} {m.tag ? `(${m.tag})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               {/* Readonly Email Note */}
               <div className="p-3.5 bg-zinc-50 rounded-xl border border-zinc-200 text-xs text-zinc-500 flex items-center gap-2.5">
                 <Mail className="w-4 h-4 text-zinc-400 flex-shrink-0" />
@@ -431,6 +582,56 @@ const StudentProfileModal = ({ isOpen, onClose, lastAnalysis, initialEditMode = 
                     </div>
                     <p className="text-sm font-bold text-zinc-900 truncate">{userProfile?.email || '—'}</p>
                   </div>
+                </div>
+              </div>
+
+              {/* ──────────────── GOOGLE GEMINI AI ENGINE STATUS (VIEW MODE) ──────────────── */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest">
+                    Google Gemini AI Connection
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    className="text-xs font-bold text-cyan-600 hover:text-cyan-700 flex items-center gap-1"
+                  >
+                    <Key className="w-3 h-3" />
+                    <span>{userProfile?.geminiApiKey ? 'Change Key' : 'Connect Personal Key'}</span>
+                  </button>
+                </div>
+
+                <div className="p-4 bg-gradient-to-br from-zinc-900 to-zinc-950 text-white rounded-2xl border border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-md flex-shrink-0">
+                      <Sparkles className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">
+                          {userProfile?.geminiApiKey ? 'Personal Key Connected' : 'Default System Key'}
+                        </span>
+                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
+                          userProfile?.geminiApiKey 
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        }`}>
+                          {userProfile?.geminiApiKey ? 'Unlimited Quota' : 'Shared Quota'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-zinc-400 mt-0.5">
+                        Active Model: <strong className="text-cyan-300">{userProfile?.geminiModel === 'auto' || !userProfile?.geminiModel ? 'Gemini 3.7 Flash (Auto)' : userProfile.geminiModel}</strong>
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    className="self-start sm:self-center px-3.5 py-2 bg-white/10 hover:bg-white/15 text-white font-bold text-xs rounded-xl transition-all border border-white/10"
+                  >
+                    {userProfile?.geminiApiKey ? 'Manage Key' : '⚡ Connect Free Key'}
+                  </button>
                 </div>
               </div>
 

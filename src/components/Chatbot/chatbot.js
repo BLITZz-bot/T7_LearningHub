@@ -45,134 +45,115 @@ Current Readiness Score: ${userData.readiness_score || 0}%
 Respond in clean, readable text. Use bullet points and short paragraphs. Never use markdown headers like ## or **.`;
 }
 
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
 // ============================================================
 // GEMINI API CALL
 // ============================================================
-export async function callGemini(apiKey, messages, systemPrompt) {
+export async function callGemini(apiKey, messages, systemPrompt, preferredModel = null) {
   // Validate API key
-  if (!apiKey || apiKey === 'undefined') {
-    throw new Error("Gemini API key is not configured. Check your .env file.");
+  const activeKey = (apiKey && apiKey !== 'undefined') ? apiKey : (import.meta.env.VITE_GEMINI_API_KEY || '');
+  if (!activeKey) {
+    throw new Error("Gemini API key is not configured. Please connect your Gemini API key in Profile or .env file.");
   }
 
-  // All verified available models (stable and reliable)
-  const targetModels = [
-    "gemini-1.5-flash",
-    "gemini-1.5-pro",
-    "gemini-1.0-pro",
-    "gemini-pro"
+  // Active Google Gemini models in priority order
+  const targetModels = [];
+  if (preferredModel && preferredModel !== 'auto') {
+    targetModels.push(preferredModel);
+  }
+
+  const fallbacks = [
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite"
   ];
 
-  // Convert messages to Gemini format
-  const history = messages.slice(0, -1).map((msg) => ({
-    role: msg.role === "assistant" ? "model" : "user",
-    parts: [{ text: msg.content }],
-  }));
+  for (const fb of fallbacks) {
+    if (!targetModels.includes(fb)) {
+      targetModels.push(fb);
+    }
+  }
 
-  const lastMessage = messages[messages.length - 1];
+  const genAI = new GoogleGenerativeAI(activeKey);
 
-  const requestBody = {
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: `SYSTEM INSTRUCTION: ${systemPrompt}` }],
-      },
-      {
-        role: "model",
-        parts: [{ text: "Understood. I will act as T7 SKILL_BOT as instructed." }],
-      },
-      ...history,
-      {
-        role: "user",
-        parts: [{ text: lastMessage.content }],
-      },
-    ],
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 1024,
-      topP: 0.95,
-      topK: 40,
-    },
-    safetySettings: [
-      {
-        category: "HARM_CATEGORY_HARASSMENT",
-        threshold: "BLOCK_MEDIUM_AND_ABOVE"
-      },
-      {
-        category: "HARM_CATEGORY_HATE_SPEECH",
-        threshold: "BLOCK_MEDIUM_AND_ABOVE"
-      },
-      {
-        category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-        threshold: "BLOCK_MEDIUM_AND_ABOVE"
-      },
-      {
-        category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-        threshold: "BLOCK_MEDIUM_AND_ABOVE"
+  // Format history for Gemini SDK
+  // Gemini requires:
+  // 1. History must start with a 'user' turn (strip any initial assistant greeting)
+  // 2. History must strictly alternate between 'user' and 'model'
+  let rawHistory = messages.slice(0, -1);
+  const firstUserIdx = rawHistory.findIndex((m) => m.role === "user");
+
+  if (firstUserIdx >= 0) {
+    rawHistory = rawHistory.slice(firstUserIdx);
+  } else {
+    rawHistory = [];
+  }
+
+  const validHistory = [];
+  for (const msg of rawHistory) {
+    const role = msg.role === "assistant" ? "model" : "user";
+    if (validHistory.length === 0) {
+      if (role === "user") {
+        validHistory.push({ role, parts: [{ text: msg.content }] });
       }
-    ]
-  };
-
-  let lastError = null;
-
-  for (const modelName of targetModels) {
-    // Try v1 first, then v1beta
-    const endpoints = [
-      `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`,
-      `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`
-    ];
-
-    for (const modelUrl of endpoints) {
-      try {
-        console.log(`Attempting connection with model: ${modelName}`);
-        
-        const response = await fetch(modelUrl, {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        });
-
-        // Read body ONCE
-        const data = await response.json();
-
-        if (response.ok) {
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            console.log(`Success with model: ${modelName}`);
-            return text;
-          }
-          // No text in response, try next model
-          console.warn(`Model ${modelName}: empty response`);
-          continue;
-        }
-        
-        const errorMsg = data?.error?.message || `API Error (${response.status})`;
-        console.warn(`Model ${modelName} failed (${response.status}):`, errorMsg);
-        lastError = errorMsg;
-        
-        // If it's an invalid API key error, don't keep trying
-        if (response.status === 400 && errorMsg.includes("API key")) {
-          throw new Error("Invalid API Key. Please check your Gemini API key in .env file.");
-        }
-        
-        // For 404 (model not found) or 429 (rate limit), try next model
-        if (response.status === 404 || response.status === 429) {
-          continue;
-        }
-        
-        // For other errors, also try next
-        continue;
-
-      } catch (error) {
-        if (error.message.includes("Invalid API Key")) throw error;
-        console.error(`Error with model ${modelName}:`, error.message);
-        lastError = error.message;
+    } else {
+      const lastEntry = validHistory[validHistory.length - 1];
+      if (lastEntry.role === role) {
+        lastEntry.parts[0].text += `\n${msg.content}`;
+      } else {
+        validHistory.push({ role, parts: [{ text: msg.content }] });
       }
     }
   }
 
-  throw new Error(lastError || "Could not connect to Gemini API. Please check your API key, internet connection, or try again later.");
+  // Ensure last message before sending is a 'model' turn so the new message is 'user'
+  if (validHistory.length > 0 && validHistory[validHistory.length - 1].role === "user") {
+    validHistory.push({ role: "model", parts: [{ text: "Understood." }] });
+  }
+
+  const lastMessage = messages[messages.length - 1];
+  let lastError = null;
+
+  for (const modelName of targetModels) {
+    try {
+      console.log(`Attempting connection with model: ${modelName}`);
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction: systemPrompt,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 1024,
+          topP: 0.95,
+          topK: 40,
+        }
+      });
+
+      const chat = model.startChat({
+        history: validHistory,
+      });
+
+      const result = await chat.sendMessage(lastMessage.content);
+      const response = await result.response;
+      const text = response.text();
+
+      if (text) {
+        console.log(`Success with model: ${modelName}`);
+        return text;
+      }
+    } catch (error) {
+      console.warn(`Model ${modelName} failed:`, error.message);
+      lastError = error;
+      if (error.message?.includes("API key not valid") || error.message?.includes("API_KEY_INVALID")) {
+        throw new Error("Invalid Gemini API Key. Please verify your key in profile settings.");
+      }
+    }
+  }
+
+  throw new Error(lastError?.message || "Could not connect to Gemini API. Please check your API key, internet connection, or try again later.");
 }
 
 // ============================================================

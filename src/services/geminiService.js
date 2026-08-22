@@ -7,248 +7,122 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Initialize Gemini API
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
+// Initialize Gemini API with default key
+const defaultApiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+const defaultGenAI = defaultApiKey ? new GoogleGenerativeAI(defaultApiKey) : null;
 
 /**
- * Gemini Skill Gap Analysis Prompt Template
- * This prompt is designed to get structured JSON output from Gemini.
+ * Curated list of standard Gemini models used as immediate fallback
  */
-const SKILL_GAP_PROMPT = `You are an expert AI career coach who has helped 10,000+ students get placed at top tech companies (Google, Amazon, Microsoft, startups). You understand Indian engineering college placements deeply.
+export const DEFAULT_GEMINI_MODELS = [
+  { id: 'gemini-3.7-flash', displayName: 'Gemini 3.7 Flash', tag: 'High', speedLabel: 'High', isFlash: true },
+  { id: 'gemini-3.6-flash', displayName: 'Gemini 3.6 Flash', tag: 'Fast', speedLabel: 'Fast', isFlash: true },
+  { id: 'gemini-3.5-flash', displayName: 'Gemini 3.5 Flash', tag: 'Fast', speedLabel: 'Fast', isFlash: true },
+  { id: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro', tag: 'High Reasoning', speedLabel: 'Deep Reasoning', isPro: true },
+  { id: 'gemini-2.5-flash', displayName: 'Gemini 2.5 Flash', tag: 'Fast', speedLabel: 'Fast', isFlash: true },
+  { id: 'gemini-2.5-flash-lite', displayName: 'Gemini 2.5 Flash Lite', tag: 'Ultra Fast', speedLabel: 'Ultra Fast', isFlash: true }
+];
 
-TASK: Analyze a student's skills vs industry requirements and create an ACTIONABLE, DETAILED roadmap that will genuinely help them get placed.
+/**
+ * Fetch real-time available Gemini models for an API key directly from Google
+ * 
+ * @param {string} apiKey - Optional custom API key, defaults to VITE_GEMINI_API_KEY
+ * @returns {Promise<Array>} - List of formatted model objects
+ */
+export const fetchAvailableGeminiModels = async (apiKey = null) => {
+  const activeKey = apiKey || defaultApiKey;
+  if (!activeKey) return DEFAULT_GEMINI_MODELS;
 
-INPUT DATA:
-1. Student's current skills
-2. Target career role  
-3. Industry skill requirements
-4. Optional resume file uploaded by the student
-
-ANALYSIS REQUIREMENTS:
-- Be brutally honest about skill gaps
-- Calculate readiness score (0-100) realistically
-- Identify EXACTLY what's missing and WHY it matters
-- Prioritize skills by: (1) Most asked in interviews (2) Highest impact (3) Quickest to learn
-
-ROADMAP MUST INCLUDE (THIS IS CRITICAL):
-
-1. DAILY STUDY PLAN
-   - Exactly what to study each day
-   - How many hours (realistic for college students: 2-4 hrs/day)
-   - Morning vs evening recommendations
-
-2. SPECIFIC FREE RESOURCES (with actual names):
-   - YouTube: Channel name + playlist name (e.g., "Striver's A2Z DSA playlist", "Chai aur Code React series")
-   - Websites: LeetCode, GeeksforGeeks, freeCodeCamp, MDN Docs
-   - GitHub repos: Awesome lists, project templates
-   - Practice platforms: HackerRank, Codeforces, InterviewBit
-
-3. CODING PRACTICE:
-   - Exact number of problems to solve per week
-   - Specific problem patterns (Two Pointers, Sliding Window, etc.)
-   - Which LeetCode/GFG problems to start with (Easy → Medium → Hard progression)
-
-4. PROJECTS (Portfolio-worthy):
-   - Full project descriptions with features list
-   - Tech stack to use
-   - GitHub readme tips
-   - How to present in interviews
-   - Deployment instructions (Vercel, Netlify, Railway)
-
-5. INTERVIEW PREPARATION:
-   - Common interview questions for each skill
-   - How to explain concepts (with example answers)
-   - HR round tips
-   - Resume bullet points for skills learned
-
-6. WEEKLY CHECKPOINTS:
-   - What you should be able to do by end of each week
-   - Self-assessment questions
-   - Mini-projects to validate learning
-
-7. COMMON MISTAKES TO AVOID:
-   - What students typically do wrong
-   - Time wasters to avoid
-   - Tutorial hell escape strategies
-
-8. SOFT SKILLS & EXTRAS:
-   - Communication tips
-   - LinkedIn optimization
-   - How to network
-   - Open source contribution guide
-
-9. ATS RESUME REVIEW:
-   - First, strictly verify if the uploaded file is actually a resume. If it is clearly NOT a resume (e.g., class notes, random text, assignments), you MUST set the ATS score to 0 and state in the summary: "The uploaded document does not appear to be a valid resume."
-   - If it IS a resume, score it for ATS-friendliness from 0-100.
-   - Highlight missing keywords relevant to the selected role.
-   - Identify formatting or structure issues that hurt ATS parsing.
-   - Suggest bullet rewrites or section improvements.
-   - If no resume is provided, return null for ats_analysis.
-
-OUTPUT FORMAT (Valid JSON only, no markdown):
-{
-  "career_role": "Role Name",
-  "readiness_score": 45,
-  "score_breakdown": {
-    "technical_skills": 50,
-    "projects": 30,
-    "interview_readiness": 40
-  },
-  "honest_assessment": "Brutally honest 2-3 sentence assessment of where student stands",
-  "matched_skills": ["skill1", "skill2"],
-  "missing_skills": ["skill1 - why critical", "skill2 - why critical"],
-  "skill_priority_order": [
-    {"skill": "DSA", "reason": "Asked in 90% of tech interviews", "time_to_learn": "2-3 months", "difficulty": "Medium"}
-  ],
-  "learning_roadmap": [
-    {
-      "month": "Month 1",
-      "title": "Foundation Month",
-      "goal": "What student will achieve this month",
-      "hours_per_week": 15,
-      "daily_schedule": {
-        "weekdays": "2 hrs DSA morning + 1.5 hrs project evening",
-        "weekends": "3-4 hrs focused project work + revision"
-      },
-      "skills_covered": ["Skill 1", "Skill 2"],
-      "weeks": [
-        {
-          "week": 1,
-          "theme": "Week theme",
-          "daily_tasks": [
-            {"day": "Mon-Tue", "task": "Specific task", "duration": "2 hrs"},
-            {"day": "Wed-Thu", "task": "Specific task", "duration": "2 hrs"},
-            {"day": "Fri-Sat", "task": "Specific task", "duration": "3 hrs"},
-            {"day": "Sun", "task": "Revision + practice", "duration": "2 hrs"}
-          ],
-          "coding_problems": {
-            "platform": "LeetCode/GFG",
-            "count": 10,
-            "difficulty": "Easy",
-            "topics": ["Arrays", "Strings"],
-            "must_solve": ["Two Sum", "Valid Palindrome", "Reverse String"]
-          },
-          "checkpoint": "By end of week, you should be able to..."
-        }
-      ],
-      "resources": [
-        {
-          "name": "Striver's A2Z DSA Course",
-          "type": "YouTube Playlist",
-          "url": "youtube.com/playlist?list=PLgUwDviBIf0oF6QL8m22w1hIDC1vJ_BHz",
-          "why": "Best structured DSA course for placements",
-          "how_to_use": "Watch 2 videos/day, code along, then solve related problems"
-        }
-      ],
-      "projects": [
-        {
-          "name": "Project Name",
-          "description": "Detailed description of what to build",
-          "features": ["Feature 1", "Feature 2", "Feature 3"],
-          "tech_stack": ["React", "Node.js", "MongoDB"],
-          "time_required": "1 week",
-          "github_tips": "Add proper README with screenshots, live demo link",
-          "interview_talking_points": ["Explain challenge you faced", "Why you chose this tech stack"],
-          "deploy_on": "Vercel/Netlify"
-        }
-      ],
-      "interview_prep": {
-        "concepts_to_master": ["Concept 1", "Concept 2"],
-        "common_questions": [
-          {"question": "Interview question?", "how_to_answer": "Key points to cover"}
-        ],
-        "practice_tip": "Explain concepts out loud to yourself"
-      },
-      "mistakes_to_avoid": [
-        "Don't just watch tutorials without coding",
-        "Don't skip easy problems - they build foundation"
-      ],
-      "end_of_month_checklist": [
-        "Can solve X type of problems independently",
-        "Have Y project on GitHub",
-        "Can explain Z concept clearly"
-      ]
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${activeKey}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.warn(`Failed to fetch live Gemini models (${res.status}), using default catalog`);
+      return DEFAULT_GEMINI_MODELS;
     }
-  ],
-  "quick_wins": [
-    {"task": "What to do", "time": "2 hours", "impact": "Why it matters"}
-  ],
-  "resume_tips": [
-    "How to write bullet point for skill X",
-    "Action verbs to use"
-  ],
-  "ats_analysis": {
-    "score": 72,
-    "summary": "Short ATS summary",
-    "strengths": ["Clear section headings", "Relevant keywords included"],
-    "issues": ["Missing project impact metrics", "Skills section is too generic"],
-    "keyword_gaps": ["REST APIs", "Testing", "TypeScript"],
-    "suggested_keywords": ["React", "JavaScript", "Git", "Responsive Design"],
-    "section_scores": {
-      "formatting": 80,
-      "keyword_match": 65,
-      "content_strength": 70,
-      "impact": 60
-    },
-    "rewrite_suggestions": [
-      "Rewrite weak bullet points using action + impact",
-      "Add a dedicated skills section with exact job keywords"
-    ]
-  },
-  "linkedin_tips": [
-    "Profile optimization tip",
-    "What to post"
-  ],
-  "motivation": "Encouraging message for the student",
-  "final_outcome": "After completing this roadmap, you will be able to..."
-}
 
-Student Skills:
-{{STUDENT_SKILLS}}
+    const data = await res.json();
+    if (!data?.models || !Array.isArray(data.models)) {
+      return DEFAULT_GEMINI_MODELS;
+    }
 
-Selected Career Role:
-{{CAREER_ROLE}}
-
-Industry Skill Dataset:
-{{INDUSTRY_SKILLS_JSON}}`;
-
-const fileToGenerativePart = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onloadend = () => {
-      const base64 = reader.result?.split(',')[1];
-
-      if (!base64) {
-        reject(new Error('Could not read resume file'));
-        return;
-      }
-
-      let mimeType = file.type;
-      if (file.name.toLowerCase().endsWith('.pdf')) {
-        mimeType = 'application/pdf';
-      } else if (!mimeType) {
-        mimeType = 'application/octet-stream';
-      }
-
-      resolve({
-        inlineData: {
-          data: base64,
-          mimeType: mimeType
-        }
+    // Filter only models that support content generation and are Gemini models
+    const filtered = data.models
+      .filter(m => {
+        const name = m.name?.toLowerCase() || '';
+        const methods = m.supportedGenerationMethods || [];
+        return name.includes('gemini') && 
+               methods.includes('generateContent') && 
+               !name.includes('vision') && // legacy vision-only
+               !name.includes('embedding');
+      })
+      .map(m => {
+        const rawId = m.name.replace(/^models\//, '');
+        const isFlash = rawId.includes('flash');
+        const isPro = rawId.includes('pro');
+        const isHigh = rawId.includes('3.7') || rawId.includes('pro');
+        
+        let tag = isHigh ? 'High' : (isFlash ? 'Fast' : 'General');
+        let speedLabel = isFlash ? 'Fast' : (isPro ? 'Deep Reasoning' : 'Standard');
+        
+        return {
+          id: rawId,
+          displayName: m.displayName || rawId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          description: m.description || '',
+          tag,
+          speedLabel,
+          isFlash,
+          isPro,
+          inputTokenLimit: m.inputTokenLimit,
+          outputTokenLimit: m.outputTokenLimit
+        };
       });
+
+    return filtered.length > 0 ? filtered : DEFAULT_GEMINI_MODELS;
+  } catch (err) {
+    console.warn('Error fetching live models from Google AI:', err);
+    return DEFAULT_GEMINI_MODELS;
+  }
+};
+
+/**
+ * Verify if a Gemini API key is valid by testing it with Google
+ * 
+ * @param {string} apiKey 
+ * @returns {Promise<{valid: boolean, models?: Array, error?: string}>}
+ */
+export const verifyGeminiApiKey = async (apiKey) => {
+  if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length < 10) {
+    return { valid: false, error: 'API key is too short or empty' };
+  }
+
+  const cleanKey = apiKey.trim();
+
+  try {
+    // 1. Check with models endpoint
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${cleanKey}`;
+    const res = await fetch(url);
+    
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      return { 
+        valid: false, 
+        error: errData?.error?.message || `Google API returned status ${res.status}: Invalid API Key` 
+      };
+    }
+
+    const data = await res.json();
+    const liveModels = await fetchAvailableGeminiModels(cleanKey);
+
+    return {
+      valid: true,
+      models: liveModels,
+      totalModels: data?.models?.length || 0
     };
-
-    reader.onerror = () => reject(new Error('Failed to read resume file'));
-    reader.readAsDataURL(file);
-  });
-
-const normalizeSectionScores = (scores = {}) => ({
-  formatting: scores.formatting || 0,
-  keyword_match: scores.keyword_match || 0,
-  content_strength: scores.content_strength || 0,
-  impact: scores.impact || 0
-});
+  } catch (err) {
+    return { valid: false, error: err.message || 'Network error verifying API key' };
+  }
+};
 
 /**
  * Analyze skill gap using Gemini AI
@@ -257,9 +131,18 @@ const normalizeSectionScores = (scores = {}) => ({
  * @param {object} selectedRole - Selected career role object
  * @param {object[]} allRoles - All industry roles for context
  * @param {File|null} resumeFile - Optional uploaded resume file
+ * @param {string|null} customApiKey - Optional user's personal Gemini API key
+ * @param {string|null} preferredModel - Optional preferred model id (e.g., 'gemini-3.7-flash')
  * @returns {Promise<object>} - Analysis result object
  */
-export const analyzeT7LearningHub = async (studentSkills, selectedRole, allRoles, resumeFile = null) => {
+export const analyzeT7LearningHub = async (
+  studentSkills, 
+  selectedRole, 
+  allRoles, 
+  resumeFile = null,
+  customApiKey = null,
+  preferredModel = null
+) => {
   try {
     // Build the prompt with actual data
     const prompt = SKILL_GAP_PROMPT
@@ -282,21 +165,44 @@ export const analyzeT7LearningHub = async (studentSkills, selectedRole, allRoles
       requestParts.push(await fileToGenerativePart(resumeFile));
     }
 
-    // Try multiple models in order of preference
-    const modelNames = [
-      'gemini-2.0-flash',
-      'gemini-1.5-flash',
-      'gemini-1.5-pro',
-      'gemini-pro'
+    // Determine active API key
+    const activeKey = (customApiKey && customApiKey.trim()) || defaultApiKey;
+    if (!activeKey) {
+      console.warn('No Gemini API key available, using local fallback analysis');
+      return generateFallbackAnalysis(studentSkills, selectedRole, resumeFile);
+    }
+
+    const activeGenAI = new GoogleGenerativeAI(activeKey);
+
+    // Build candidate model list starting with user's preferred model if provided
+    const modelCandidates = [];
+    if (preferredModel && preferredModel !== 'auto') {
+      modelCandidates.push(preferredModel);
+    }
+
+    // Default priority fallback list
+    const fallbackList = [
+      'gemini-3.7-flash',
+      'gemini-3.6-flash',
+      'gemini-3.5-flash',
+      'gemini-2.5-pro',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite'
     ];
+
+    for (const m of fallbackList) {
+      if (!modelCandidates.includes(m)) {
+        modelCandidates.push(m);
+      }
+    }
 
     let result = null;
     let lastModelError = null;
 
-    for (const modelName of modelNames) {
+    for (const modelName of modelCandidates) {
       try {
-        console.log(`Trying model: ${modelName}`);
-        const model = genAI.getGenerativeModel({ model: modelName });
+        console.log(`Trying Gemini model: ${modelName}`);
+        const model = activeGenAI.getGenerativeModel({ model: modelName });
         result = await model.generateContent(requestParts);
         console.log(`Success with model: ${modelName}`);
         break;
@@ -374,10 +280,11 @@ export const analyzeT7LearningHub = async (studentSkills, selectedRole, allRoles
 /**
  * Perform a standalone ATS analysis against a selected career role
  */
-export const analyzeResumeOnly = async (resumeFile, selectedRole, apiKey) => {
-  if (!apiKey) throw new Error('API key is required');
+export const analyzeResumeOnly = async (resumeFile, selectedRole, apiKey, preferredModel = null) => {
+  const activeKey = apiKey || defaultApiKey;
+  if (!activeKey) throw new Error('API key is required for ATS analysis');
   
-  const genAI = new GoogleGenerativeAI(apiKey);
+  const genAI = new GoogleGenerativeAI(activeKey);
   const resumePart = await fileToGenerativePart(resumeFile);
   
   const prompt = `Analyze this resume against the "${selectedRole.role_name}" role.
@@ -403,12 +310,21 @@ export const analyzeResumeOnly = async (resumeFile, selectedRole, apiKey) => {
   }`;
 
   try {
-    const modelNames = [
-      'gemini-2.0-flash',
-      'gemini-1.5-flash',
+    const modelNames = [];
+    if (preferredModel && preferredModel !== 'auto') {
+      modelNames.push(preferredModel);
+    }
+    const fallbacks = [
+      'gemini-3.7-flash',
+      'gemini-3.6-flash',
+      'gemini-3.5-flash',
+      'gemini-2.5-pro',
       'gemini-2.5-flash',
-      'gemini-flash-latest'
+      'gemini-2.5-flash-lite'
     ];
+    for (const fb of fallbacks) {
+      if (!modelNames.includes(fb)) modelNames.push(fb);
+    }
 
     let result = null;
     let lastError = null;

@@ -10,6 +10,7 @@ import { saveAnalysis, getLatestAnalysis, getVideoLearning, getVideoLearningSkil
 import { industryRoles, allSkills, branches, years } from '../../data/industrySkills';
 import { getJobsForRole } from '../../data/jobListings';
 import StudentProfileModal from './StudentProfileModal';
+import ModelSelector from '../common/ModelSelector';
 import { 
   LogOut,
   Search,
@@ -237,7 +238,9 @@ const StudentDashboard = () => {
         selectedSkills,
         selectedRole,
         industryRoles,
-        resumeFile
+        resumeFile,
+        userProfile?.geminiApiKey,
+        userProfile?.geminiModel
       );
 
       await saveAnalysis(currentUser.uid, {
@@ -256,46 +259,38 @@ const StudentDashboard = () => {
 
   const handleResumeChange = (e) => {
     const file = e.target.files?.[0];
-
-    if (!file) {
-      setResumeFile(null);
-      return;
+    if (file) {
+      // Validate file type (PDF only for now)
+      if (!file.type.includes('pdf') && !file.name.endsWith('.pdf')) {
+        setError('Please upload a PDF resume file');
+        return;
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Resume file size must be less than 5MB');
+        return;
+      }
+      setResumeFile(file);
+      setError('');
     }
+  };
 
-    const allowedTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ];
-
-    if (!allowedTypes.includes(file.type)) {
-      setError('Please upload your resume as a PDF or Word document.');
-      e.target.value = '';
-      return;
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      setError('Resume file must be under 10MB.');
-      e.target.value = '';
-      return;
-    }
-
-    setError('');
-    setResumeFile(file);
+  const removeResume = () => {
+    setResumeFile(null);
   };
 
   const viewPreviousResults = () => {
     if (lastAnalysis) {
-      const role = industryRoles.find(r => r.role_name === lastAnalysis.career_role);
-      navigate('/results', { state: { analysis: lastAnalysis, role, userSkills: selectedSkills } });
+      const selectedRole = industryRoles.find(r => r.role_name === lastAnalysis.career_role) || industryRoles[0];
+      navigate('/results', { state: { analysis: lastAnalysis, role: selectedRole, userSkills: selectedSkills } });
     }
   };
 
   return (
     <div className="min-h-screen bg-zinc-50">
       {/* Header */}
-      <header className="bg-white/90 backdrop-blur-md border-b border-zinc-100 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <header className="bg-white border-b border-zinc-200 sticky top-0 z-40">
+        <div className="max-w-6xl mx-auto px-6 h-18 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
@@ -304,6 +299,20 @@ const StudentDashboard = () => {
           </div>
           
           <div className="flex items-center gap-3 ml-auto">
+            {/* Live Gemini Model Selector Pill */}
+            <div className="hidden sm:block">
+              <ModelSelector
+                variant="pill"
+                currentModel={userProfile?.geminiModel || 'auto'}
+                onModelChange={(modelId) => updateUserProfile(currentUser.uid, { geminiModel: modelId })}
+                apiKey={userProfile?.geminiApiKey}
+                onOpenKeySettings={() => {
+                  setIsProfileModalOpen(true);
+                  setProfileModalEditMode(true);
+                }}
+              />
+            </div>
+
             {/* T7 Tutor Quick Action */}
             <button
               onClick={() => navigate('/academic')}
