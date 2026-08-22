@@ -2,9 +2,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ArrowLeft, Trophy } from 'lucide-react';
 import AcademicMode from './AcademicMode';
+import ModelSelector from '../common/ModelSelector';
 
 const AcademicPage = () => {
-  const { userProfile } = useAuth();
+  const { currentUser, userProfile, updateUserProfile } = useAuth();
   const navigate = useNavigate();
 
   const goBackToResults = () => {
@@ -38,7 +39,21 @@ const AcademicPage = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-3 ml-auto">
+            {/* Live Model Selector Pill */}
+            <div className="hidden sm:block">
+              <ModelSelector
+                variant="pill"
+                currentModel={userProfile?.geminiModel || 'auto'}
+                onModelChange={(modelId) => {
+                  if (currentUser?.uid) {
+                    updateUserProfile(currentUser.uid, { geminiModel: modelId });
+                  }
+                }}
+                apiKey={userProfile?.geminiApiKey}
+              />
+            </div>
+
             <div className="hidden md:flex items-center bg-zinc-100/60 backdrop-blur-sm p-1 rounded-2xl border border-zinc-200/70 shadow-inner">
               <button
                 type="button"
