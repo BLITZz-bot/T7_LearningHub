@@ -80,19 +80,32 @@ async function saveToDashboard({ accountId, analysis, videoId, title, projectId 
 }
 
 
-async function callGemini({ prompt, key, systemPrompt }) {
+async function callGemini({ prompt, key, systemPrompt, model }) {
   if (!key) throw new Error('Gemini API key is required');
 
-  const targetModels = [
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-1.5-pro',
-    'gemini-pro'
+  const targetModels = [];
+  if (model && model !== 'auto') {
+    targetModels.push(model);
+  }
+
+  const fallbacks = [
+    'gemini-3.7-flash',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite'
   ];
+
+  for (const fb of fallbacks) {
+    if (!targetModels.includes(fb)) {
+      targetModels.push(fb);
+    }
+  }
 
   let lastError = null;
 
-  for (const model of targetModels) {
+  for (const targetModel of targetModels) {
     try {
       const body = {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -102,7 +115,7 @@ async function callGemini({ prompt, key, systemPrompt }) {
         body.system_instruction = { parts: [{ text: systemPrompt }] };
       }
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${key}`,
         { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
       );
       if (res.ok) {
@@ -111,7 +124,7 @@ async function callGemini({ prompt, key, systemPrompt }) {
         return { text };
       }
       const err = await res.json().catch(() => ({}));
-      lastError = new Error(err?.error?.message || `API error ${res.status} on model ${model}`);
+      lastError = new Error(err?.error?.message || `API error ${res.status} on model ${targetModel}`);
     } catch (e) {
       lastError = e;
     }

@@ -67,21 +67,36 @@ export const saveAnalysis = async (userId, analysisData) => {
 export const getLatestAnalysis = async (userId) => {
   try {
     const analysisRef = collection(db, 'skill_analysis');
-    const q = query(
-      analysisRef,
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc'),
-      limit(1)
-    );
-    
-    const snapshot = await getDocs(q);
-    
-    if (snapshot.empty) {
-      return null;
+    try {
+      const q = query(
+        analysisRef,
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        limit(1)
+      );
+      
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        return null;
+      }
+      
+      const doc = snapshot.docs[0];
+      return { id: doc.id, ...doc.data() };
+    } catch (queryErr) {
+      // Graceful fallback if composite index is not yet created
+      console.warn('Composite index fallback for getLatestAnalysis:', queryErr.message);
+      const qFallback = query(analysisRef, where('userId', '==', userId));
+      const snapshot = await getDocs(qFallback);
+      if (snapshot.empty) return null;
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      docs.sort((a, b) => {
+        const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (new Date(a.createdAt || 0)).getTime();
+        const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (new Date(b.createdAt || 0)).getTime();
+        return timeB - timeA;
+      });
+      return docs[0] || null;
     }
-    
-    const doc = snapshot.docs[0];
-    return { id: doc.id, ...doc.data() };
   } catch (error) {
     console.error('Error fetching latest analysis:', error);
     return null;
@@ -97,14 +112,28 @@ export const getLatestAnalysis = async (userId) => {
 export const getUserAnalyses = async (userId) => {
   try {
     const analysisRef = collection(db, 'skill_analysis');
-    const q = query(
-      analysisRef,
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
-    );
-    
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    try {
+      const q = query(
+        analysisRef,
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc')
+      );
+      
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (queryErr) {
+      // Graceful fallback if composite index is not yet created
+      console.warn('Composite index fallback for getUserAnalyses:', queryErr.message);
+      const qFallback = query(analysisRef, where('userId', '==', userId));
+      const snapshot = await getDocs(qFallback);
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      docs.sort((a, b) => {
+        const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (new Date(a.createdAt || 0)).getTime();
+        const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (new Date(b.createdAt || 0)).getTime();
+        return timeB - timeA;
+      });
+      return docs;
+    }
   } catch (error) {
     console.error('Error fetching user analyses:', error);
     return [];
