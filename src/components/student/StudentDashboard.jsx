@@ -49,16 +49,51 @@ import {
   Key
 } from 'lucide-react';
 
-// Branch → relevant career roles mapping
+// Branch → relevant real-world career roles mapping
 const BRANCH_CAREER_MAP = {
-  'Computer Science': ['frontend-developer', 'backend-developer', 'fullstack-developer', 'data-analyst', 'ai-ml-engineer', 'devops-engineer', 'mobile-developer', 'cloud-engineer'],
-  'Information Technology': ['frontend-developer', 'backend-developer', 'fullstack-developer', 'data-analyst', 'devops-engineer', 'mobile-developer', 'cloud-engineer', 'iot-architect'],
+  // Computer Science & IT
+  'Computer Science Engineering': ['frontend-developer', 'backend-developer', 'fullstack-developer', 'data-analyst', 'ai-ml-engineer', 'devops-engineer', 'mobile-developer', 'cloud-engineer', 'iot-architect'],
+  'Computer Science': ['frontend-developer', 'backend-developer', 'fullstack-developer', 'data-analyst', 'ai-ml-engineer', 'devops-engineer', 'mobile-developer', 'cloud-engineer', 'iot-architect'],
+  'Information Technology': ['frontend-developer', 'backend-developer', 'fullstack-developer', 'data-analyst', 'ai-ml-engineer', 'devops-engineer', 'mobile-developer', 'cloud-engineer', 'iot-architect'],
+  'Artificial Intelligence & Machine Learning': ['ai-ml-engineer', 'data-analyst', 'backend-developer', 'fullstack-developer', 'robotics-engineer', 'cloud-engineer'],
+  'Data Science': ['data-analyst', 'ai-ml-engineer', 'backend-developer', 'fullstack-developer', 'cloud-engineer'],
+  'Cyber Security': ['cloud-engineer', 'devops-engineer', 'backend-developer', 'fullstack-developer', 'telecom-engineer', 'iot-architect'],
+  'Cloud Computing': ['cloud-engineer', 'devops-engineer', 'backend-developer', 'fullstack-developer', 'data-analyst'],
+  'Internet of Things (IoT)': ['iot-architect', 'embedded-systems-engineer', 'robotics-engineer', 'telecom-engineer', 'backend-developer', 'cloud-engineer'],
+  'Robotics & Automation': ['robotics-engineer', 'embedded-systems-engineer', 'control-systems-engineer', 'iot-architect', 'ai-ml-engineer', 'manufacturing-engineer'],
+
+  // Electronics & Electrical
+  'Electronics & Communication Engineering': ['embedded-systems-engineer', 'vlsi-design-engineer', 'telecom-engineer', 'iot-architect', 'robotics-engineer', 'ai-ml-engineer', 'fullstack-developer', 'data-analyst'],
   'Electronics & Communication': ['embedded-systems-engineer', 'vlsi-design-engineer', 'telecom-engineer', 'iot-architect', 'robotics-engineer', 'ai-ml-engineer', 'fullstack-developer', 'data-analyst'],
-  'Electrical Engineering': ['power-systems-engineer', 'control-systems-engineer', 'instrumentation-engineer', 'renewable-energy-engineer', 'embedded-systems-engineer', 'robotics-engineer', 'ai-ml-engineer', 'data-analyst'],
-  'Mechanical Engineering': ['mechanical-design-engineer', 'automotive-engineer', 'hvac-engineer', 'manufacturing-engineer', 'quality-engineer', 'robotics-engineer', 'data-analyst', 'ai-ml-engineer'],
-  'Civil Engineering': ['structural-engineer', 'construction-manager', 'environmental-engineer', 'transportation-engineer', 'data-analyst', 'fullstack-developer'],
-  'Chemical Engineering': ['process-engineer', 'chemical-rd-scientist', 'environmental-health-safety', 'quality-engineer', 'data-analyst', 'ai-ml-engineer'],
+  'Electrical Engineering': ['power-systems-engineer', 'control-systems-engineer', 'instrumentation-engineer', 'renewable-energy-engineer', 'embedded-systems-engineer', 'robotics-engineer', 'data-analyst'],
+  'Electrical & Electronics Engineering': ['power-systems-engineer', 'embedded-systems-engineer', 'vlsi-design-engineer', 'control-systems-engineer', 'renewable-energy-engineer', 'instrumentation-engineer', 'robotics-engineer', 'iot-architect'],
+  'Instrumentation Engineering': ['instrumentation-engineer', 'control-systems-engineer', 'embedded-systems-engineer', 'iot-architect', 'robotics-engineer'],
+
+  // Mechanical, Automobile, Aerospace & Industrial
+  'Mechanical Engineering': ['mechanical-design-engineer', 'automotive-engineer', 'hvac-engineer', 'manufacturing-engineer', 'quality-engineer', 'robotics-engineer', 'data-analyst'],
+  'Automobile Engineering': ['automotive-engineer', 'mechanical-design-engineer', 'manufacturing-engineer', 'quality-engineer', 'robotics-engineer', 'embedded-systems-engineer'],
+  'Aerospace Engineering': ['mechanical-design-engineer', 'automotive-engineer', 'quality-engineer', 'embedded-systems-engineer', 'robotics-engineer', 'data-analyst'],
+  'Industrial Engineering': ['manufacturing-engineer', 'quality-engineer', 'construction-manager', 'process-engineer', 'data-analyst'],
+  'Production Engineering': ['manufacturing-engineer', 'quality-engineer', 'mechanical-design-engineer', 'automotive-engineer', 'process-engineer'],
+
+  // Civil & Environmental
+  'Civil Engineering': ['structural-engineer', 'construction-manager', 'environmental-engineer', 'transportation-engineer', 'quality-engineer', 'data-analyst'],
+  'Environmental Engineering': ['environmental-engineer', 'environmental-health-safety', 'structural-engineer', 'construction-manager', 'data-analyst'],
+
+  // Chemical, Biotech, Biomedical & Materials
+  'Chemical Engineering': ['process-engineer', 'chemical-rd-scientist', 'environmental-health-safety', 'quality-engineer', 'data-analyst'],
   'Biotechnology': ['biotech-research', 'biomedical-engineer', 'clinical-research', 'pharma-production', 'data-analyst', 'ai-ml-engineer', 'process-engineer'],
+  'Biomedical Engineering': ['biomedical-engineer', 'biotech-research', 'clinical-research', 'instrumentation-engineer', 'embedded-systems-engineer', 'data-analyst'],
+  'Petroleum Engineering': ['process-engineer', 'mechanical-design-engineer', 'environmental-health-safety', 'quality-engineer', 'data-analyst'],
+  'Mining Engineering': ['process-engineer', 'mechanical-design-engineer', 'environmental-health-safety', 'quality-engineer', 'data-analyst'],
+  'Marine Engineering': ['mechanical-design-engineer', 'power-systems-engineer', 'quality-engineer', 'embedded-systems-engineer', 'data-analyst'],
+  'Textile Engineering': ['manufacturing-engineer', 'quality-engineer', 'process-engineer', 'data-analyst'],
+
+  // Computing & Sciences
+  'Mathematics & Computing': ['data-analyst', 'ai-ml-engineer', 'backend-developer', 'fullstack-developer', 'frontend-developer', 'cloud-engineer'],
+  'Physics': ['data-analyst', 'ai-ml-engineer', 'embedded-systems-engineer', 'biotech-research'],
+  'MCA (Computer Applications)': ['fullstack-developer', 'frontend-developer', 'backend-developer', 'mobile-developer', 'data-analyst', 'cloud-engineer', 'devops-engineer'],
+  'BCA (Computer Applications)': ['fullstack-developer', 'frontend-developer', 'backend-developer', 'mobile-developer', 'data-analyst', 'cloud-engineer', 'devops-engineer'],
   'Other': industryRoles.map(r => r.id)
 };
 
@@ -240,20 +275,16 @@ const StudentDashboard = () => {
     );
   };
 
-  // Filter career roles automatically based on profile branch
-  const filteredRoles = userBranch
-    ? (BRANCH_CAREER_MAP[userBranch] ? industryRoles.filter(role => BRANCH_CAREER_MAP[userBranch].includes(role.id)) : industryRoles)
-    : industryRoles;
+  const [showAllBranchRoles, setShowAllBranchRoles] = useState(false);
 
-  // Reset career interest when branch changes in profile and role is no longer relevant
-  useEffect(() => {
-    if (userBranch && careerInterest) {
-      const allowedIds = BRANCH_CAREER_MAP[userBranch] || [];
-      if (allowedIds.length > 0 && !allowedIds.includes(careerInterest)) {
-        setCareerInterest('');
-      }
-    }
-  }, [userBranch]);
+  // Filter career roles automatically based on profile branch (with fuzzy matching)
+  const branchAllowedIds = userBranch
+    ? (BRANCH_CAREER_MAP[userBranch] || BRANCH_CAREER_MAP[Object.keys(BRANCH_CAREER_MAP).find(k => userBranch.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(userBranch.toLowerCase()))] || [])
+    : [];
+
+  const filteredRoles = (userBranch && !showAllBranchRoles && branchAllowedIds.length > 0)
+    ? industryRoles.filter(role => branchAllowedIds.includes(role.id))
+    : industryRoles;
 
   const handleAnalyze = async () => {
     setError('');
@@ -630,7 +661,7 @@ const StudentDashboard = () => {
           {/* Left Box - Dream Career */}
           <div className="lg:col-span-5 flex flex-col">
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100 flex flex-col h-[520px]">
-              <div className="flex items-center justify-between gap-3 mb-4">
+              <div className="flex items-center justify-between gap-3 mb-3">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-zinc-900 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
                     <Briefcase className="w-6 h-6 text-white" />
@@ -638,7 +669,7 @@ const StudentDashboard = () => {
                   <div>
                     <h2 className="font-bold text-zinc-900 text-lg">Dream Career</h2>
                     <p className="text-sm text-zinc-500">
-                      {userBranch ? `Top roles for ${userBranch}` : 'Top industry roles'}
+                      {userBranch ? `Curated for ${userBranch}` : 'Top industry roles'}
                     </p>
                   </div>
                 </div>
@@ -648,6 +679,34 @@ const StudentDashboard = () => {
                   </span>
                 )}
               </div>
+
+              {/* Branch / All Roles Toggle Filter */}
+              {userBranch && branchAllowedIds.length > 0 && (
+                <div className="flex items-center gap-1.5 p-1 bg-zinc-100 rounded-xl mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowAllBranchRoles(false)}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center cursor-pointer ${
+                      !showAllBranchRoles
+                        ? 'bg-white text-zinc-900 shadow-xs'
+                        : 'text-zinc-500 hover:text-zinc-800'
+                    }`}
+                  >
+                    🎯 Branch Roles ({branchAllowedIds.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAllBranchRoles(true)}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center cursor-pointer ${
+                      showAllBranchRoles
+                        ? 'bg-white text-zinc-900 shadow-xs'
+                        : 'text-zinc-500 hover:text-zinc-800'
+                    }`}
+                  >
+                    🌐 All 24+ Roles
+                  </button>
+                </div>
+              )}
 
               <div className="flex-1 overflow-y-auto pr-2 space-y-2.5">
                 {filteredRoles.length === 0 ? (
