@@ -10,8 +10,8 @@ service cloud.firestore {
       // Video learning data (synced from extension)
       match /videoLearning/{docId} {
         allow read: if request.auth != null;
-        // Allow extension to create video learning records with valid structure
-        allow create: if request.resource.data.videoId is string;
+        // Allow extension to create video learning records only for authenticated users
+        allow create: if request.auth != null && request.resource.data.videoId is string;
         allow update, delete: if request.auth != null && (request.auth.uid == userId || 
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
       }
