@@ -10,7 +10,7 @@ const AuthenticatedLayout = ({ children }) => {
       {children}
       {currentUser && (
         <ChatbotWidget 
-          geminiApiKey={userProfile?.geminiApiKey || import.meta.env.VITE_GEMINI_API_KEY} 
+          geminiApiKey={userProfile?.geminiApiKey || null}
           userProfile={userProfile}
         />
       )}

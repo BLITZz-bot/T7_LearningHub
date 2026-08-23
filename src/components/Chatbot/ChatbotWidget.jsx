@@ -35,7 +35,8 @@ What would you like to know about your progress or career path today?`,
   
   const formatTime = (date) => date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-  const activeApiKey = userProfile?.geminiApiKey || geminiApiKey || import.meta.env.VITE_GEMINI_API_KEY;
+  // User's personal key from profile settings (forwarded securely in HTTPS body to /api/gemini)
+  const activeApiKey = userProfile?.geminiApiKey || null;
 
   useEffect(() => {
     if (userProfile?.geminiModel) {
