@@ -45,115 +45,42 @@ Current Readiness Score: ${userData.readiness_score || 0}%
 Respond in clean, readable text. Use bullet points and short paragraphs. Never use markdown headers like ## or **.`;
 }
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+// All Gemini calls are securely proxied through /api/gemini — no key stored here
 
 // ============================================================
 // GEMINI API CALL
 // ============================================================
-export async function callGemini(apiKey, messages, systemPrompt, preferredModel = null) {
-  // Validate API key
-  const activeKey = (apiKey && apiKey !== 'undefined') ? apiKey : (import.meta.env.VITE_GEMINI_API_KEY || '');
-  if (!activeKey) {
-    throw new Error("Gemini API key is not configured. Please connect your Gemini API key in Profile or .env file.");
+/**
+ * callGemini — Securely proxies chatbot messages through /api/gemini
+ * The API key is NEVER passed or stored in the browser.
+ * If the user has a personal key in their profile, it is forwarded
+ * in the HTTPS request body (encrypted in transit, not in the bundle).
+ */
+export async function callGemini(userPersonalKey, messages, systemPrompt, preferredModel = null) {
+  const res = await fetch('/api/gemini', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'chatMessage',
+      payload: {
+        messages,
+        systemPrompt,
+        preferredModel,
+        // Forward user's personal key if they provided one in profile settings
+        // It travels over HTTPS and is used only server-side per request
+        customApiKey: (userPersonalKey && userPersonalKey !== 'undefined') ? userPersonalKey : null,
+      },
+    }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.error || 'Could not connect to Gemini API. Please check your internet connection or try again later.');
   }
-
-  // Active Google Gemini models in priority order
-  const targetModels = [];
-  if (preferredModel && preferredModel !== 'auto') {
-    targetModels.push(preferredModel);
+  if (!data.text) {
+    throw new Error('Empty response from AI. Please try again.');
   }
-
-  const fallbacks = [
-    "gemini-3.7-flash",
-    "gemini-3.6-flash",
-    "gemini-3.5-flash",
-    "gemini-2.5-pro",
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-lite"
-  ];
-
-  for (const fb of fallbacks) {
-    if (!targetModels.includes(fb)) {
-      targetModels.push(fb);
-    }
-  }
-
-  const genAI = new GoogleGenerativeAI(activeKey);
-
-  // Format history for Gemini SDK
-  // Gemini requires:
-  // 1. History must start with a 'user' turn (strip any initial assistant greeting)
-  // 2. History must strictly alternate between 'user' and 'model'
-  let rawHistory = messages.slice(0, -1);
-  const firstUserIdx = rawHistory.findIndex((m) => m.role === "user");
-
-  if (firstUserIdx >= 0) {
-    rawHistory = rawHistory.slice(firstUserIdx);
-  } else {
-    rawHistory = [];
-  }
-
-  const validHistory = [];
-  for (const msg of rawHistory) {
-    const role = msg.role === "assistant" ? "model" : "user";
-    if (validHistory.length === 0) {
-      if (role === "user") {
-        validHistory.push({ role, parts: [{ text: msg.content }] });
-      }
-    } else {
-      const lastEntry = validHistory[validHistory.length - 1];
-      if (lastEntry.role === role) {
-        lastEntry.parts[0].text += `\n${msg.content}`;
-      } else {
-        validHistory.push({ role, parts: [{ text: msg.content }] });
-      }
-    }
-  }
-
-  // Ensure last message before sending is a 'model' turn so the new message is 'user'
-  if (validHistory.length > 0 && validHistory[validHistory.length - 1].role === "user") {
-    validHistory.push({ role: "model", parts: [{ text: "Understood." }] });
-  }
-
-  const lastMessage = messages[messages.length - 1];
-  let lastError = null;
-
-  for (const modelName of targetModels) {
-    try {
-      console.log(`Attempting connection with model: ${modelName}`);
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-        systemInstruction: systemPrompt,
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 1024,
-          topP: 0.95,
-          topK: 40,
-        }
-      });
-
-      const chat = model.startChat({
-        history: validHistory,
-      });
-
-      const result = await chat.sendMessage(lastMessage.content);
-      const response = await result.response;
-      const text = response.text();
-
-      if (text) {
-        console.log(`Success with model: ${modelName}`);
-        return text;
-      }
-    } catch (error) {
-      console.warn(`Model ${modelName} failed:`, error.message);
-      lastError = error;
-      if (error.message?.includes("API key not valid") || error.message?.includes("API_KEY_INVALID")) {
-        throw new Error("Invalid Gemini API Key. Please verify your key in profile settings.");
-      }
-    }
-  }
-
-  throw new Error(lastError?.message || "Could not connect to Gemini API. Please check your API key, internet connection, or try again later.");
+  return data.text;
 }
 
 // ============================================================

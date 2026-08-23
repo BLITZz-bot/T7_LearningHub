@@ -1,19 +1,14 @@
 /**
- * Gemini AI Service
- * 
- * Handles communication with Google Gemini API for skill gap analysis.
- * Uses structured prompts to get JSON responses.
+ * Gemini AI Service — Secure Client-Side Proxy Layer
+ *
+ * All Gemini API calls are routed through the secure Vercel serverless
+ * function at /api/gemini. API keys are NEVER stored in or exposed by
+ * this file or the browser bundle.
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-// Initialize Gemini API with default key
-const defaultApiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-const defaultGenAI = defaultApiKey ? new GoogleGenerativeAI(defaultApiKey) : null;
-
-/**
- * Curated list of standard Gemini models used as immediate fallback
- */
+// ----------------------------------------------------------------
+// Curated list of standard Gemini models (used for UI dropdowns etc.)
+// ----------------------------------------------------------------
 export const DEFAULT_GEMINI_MODELS = [
   { id: 'gemini-3.7-flash', displayName: 'Gemini 3.7 Flash', tag: 'High', speedLabel: 'High', isFlash: true },
   { id: 'gemini-3.6-flash', displayName: 'Gemini 3.6 Flash', tag: 'Fast', speedLabel: 'Fast', isFlash: true },
@@ -24,36 +19,37 @@ export const DEFAULT_GEMINI_MODELS = [
 ];
 
 /**
- * Fetch real-time available Gemini models for an API key directly from Google
- * 
- * @param {string} apiKey - Optional custom API key, defaults to VITE_GEMINI_API_KEY
+ * Internal helper: POST to /api/gemini proxy
+ */
+const callProxy = async (action, payload = {}) => {
+  const res = await fetch('/api/gemini', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, payload }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error || `Gemini proxy error (${res.status})`);
+  return data;
+};
+
+/**
+ * Fetch real-time available Gemini models via /api/gemini proxy
+ *
+ * @param {string} customApiKey - Optional user's personal key (sent securely in body)
  * @returns {Promise<Array>} - List of formatted model objects
  */
-export const fetchAvailableGeminiModels = async (apiKey = null) => {
-  const activeKey = apiKey || defaultApiKey;
-  if (!activeKey) return DEFAULT_GEMINI_MODELS;
-
+export const fetchAvailableGeminiModels = async (customApiKey = null) => {
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${activeKey}`;
-    const res = await fetch(url);
-    if (!res.ok) {
-      console.warn(`Failed to fetch live Gemini models (${res.status}), using default catalog`);
-      return DEFAULT_GEMINI_MODELS;
-    }
+    const data = await callProxy('listModels', { customApiKey });
+    if (!data?.models || !Array.isArray(data.models)) return DEFAULT_GEMINI_MODELS;
 
-    const data = await res.json();
-    if (!data?.models || !Array.isArray(data.models)) {
-      return DEFAULT_GEMINI_MODELS;
-    }
-
-    // Filter only models that support content generation and are Gemini models
     const filtered = data.models
       .filter(m => {
         const name = m.name?.toLowerCase() || '';
         const methods = m.supportedGenerationMethods || [];
-        return name.includes('gemini') && 
-               methods.includes('generateContent') && 
-               !name.includes('vision') && // legacy vision-only
+        return name.includes('gemini') &&
+               methods.includes('generateContent') &&
+               !name.includes('vision') &&
                !name.includes('embedding');
       })
       .map(m => {
@@ -61,90 +57,77 @@ export const fetchAvailableGeminiModels = async (apiKey = null) => {
         const isFlash = rawId.includes('flash');
         const isPro = rawId.includes('pro');
         const isHigh = rawId.includes('3.7') || rawId.includes('pro');
-        
-        let tag = isHigh ? 'High' : (isFlash ? 'Fast' : 'General');
-        let speedLabel = isFlash ? 'Fast' : (isPro ? 'Deep Reasoning' : 'Standard');
-        
         return {
           id: rawId,
           displayName: m.displayName || rawId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
           description: m.description || '',
-          tag,
-          speedLabel,
+          tag: isHigh ? 'High' : (isFlash ? 'Fast' : 'General'),
+          speedLabel: isFlash ? 'Fast' : (isPro ? 'Deep Reasoning' : 'Standard'),
           isFlash,
           isPro,
           inputTokenLimit: m.inputTokenLimit,
-          outputTokenLimit: m.outputTokenLimit
+          outputTokenLimit: m.outputTokenLimit,
         };
       });
 
     return filtered.length > 0 ? filtered : DEFAULT_GEMINI_MODELS;
   } catch (err) {
-    console.warn('Error fetching live models from Google AI:', err);
+    console.warn('Error fetching live models:', err);
     return DEFAULT_GEMINI_MODELS;
   }
 };
 
 /**
- * Verify if a Gemini API key is valid by testing it with Google
- * 
- * @param {string} apiKey 
- * @returns {Promise<{valid: boolean, models?: Array, error?: string}>}
+ * Verify if a Gemini API key is valid (proxied securely through /api/gemini)
+ *
+ * @param {string} apiKey
+ * @returns {Promise<{valid: boolean, totalModels?: number, error?: string}>}
  */
 export const verifyGeminiApiKey = async (apiKey) => {
   if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length < 10) {
     return { valid: false, error: 'API key is too short or empty' };
   }
-
-  const cleanKey = apiKey.trim();
-
   try {
-    // 1. Check with models endpoint
-    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${cleanKey}`;
-    const res = await fetch(url);
-    
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      return { 
-        valid: false, 
-        error: errData?.error?.message || `Google API returned status ${res.status}: Invalid API Key` 
-      };
-    }
-
-    const data = await res.json();
-    const liveModels = await fetchAvailableGeminiModels(cleanKey);
-
-    return {
-      valid: true,
-      models: liveModels,
-      totalModels: data?.models?.length || 0
-    };
+    const data = await callProxy('verifyKey', { customApiKey: apiKey.trim() });
+    return data;
   } catch (err) {
     return { valid: false, error: err.message || 'Network error verifying API key' };
   }
 };
 
 /**
- * Analyze skill gap using Gemini AI
- * 
- * @param {string[]} studentSkills - Array of student's current skills
- * @param {object} selectedRole - Selected career role object
- * @param {object[]} allRoles - All industry roles for context
- * @param {File|null} resumeFile - Optional uploaded resume file
- * @param {string|null} customApiKey - Optional user's personal Gemini API key
- * @param {string|null} preferredModel - Optional preferred model id (e.g., 'gemini-3.7-flash')
- * @returns {Promise<object>} - Analysis result object
+ * Convert a File object to base64 for sending to the proxy
+ */
+const fileToBase64 = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    // reader.result is "data:<mimeType>;base64,<data>"
+    const base64 = reader.result.split(',')[1];
+    resolve({ base64, mimeType: file.type });
+  };
+  reader.onerror = reject;
+  reader.readAsDataURL(file);
+});
+
+/**
+ * Analyze skill gap using Gemini AI (via secure /api/gemini proxy)
+ *
+ * @param {string[]} studentSkills
+ * @param {object} selectedRole
+ * @param {object[]} allRoles
+ * @param {File|null} resumeFile
+ * @param {string|null} customApiKey - User's personal key from profile settings
+ * @param {string|null} preferredModel
  */
 export const analyzeT7LearningHub = async (
-  studentSkills, 
-  selectedRole, 
-  allRoles, 
+  studentSkills,
+  selectedRole,
+  allRoles,
   resumeFile = null,
   customApiKey = null,
   preferredModel = null
 ) => {
   try {
-    // Build the prompt with actual data
     const prompt = SKILL_GAP_PROMPT
       .replace('{{STUDENT_SKILLS}}', JSON.stringify(studentSkills, null, 2))
       .replace('{{CAREER_ROLE}}', selectedRole.role_name)
@@ -155,85 +138,31 @@ export const analyzeT7LearningHub = async (
         priority_skills: selectedRole.priority_skills
       }, null, 2));
 
-    // Build request parts
-    const requestParts = [{ text: prompt }];
-
+    let fileBase64 = null;
+    let mimeType = null;
     if (resumeFile) {
-      requestParts.push({
-        text: `The uploaded file is the student's resume. Review it for ATS performance against the selected role "${selectedRole.role_name}".`
-      });
-      requestParts.push(await fileToGenerativePart(resumeFile));
+      const encoded = await fileToBase64(resumeFile);
+      fileBase64 = encoded.base64;
+      mimeType = encoded.mimeType;
     }
 
-    // Determine active API key
-    const activeKey = (customApiKey && customApiKey.trim()) || defaultApiKey;
-    if (!activeKey) {
-      console.warn('No Gemini API key available, using local fallback analysis');
-      return generateFallbackAnalysis(studentSkills, selectedRole, resumeFile);
-    }
+    const data = await callProxy('generateContent', {
+      prompt,
+      fileBase64,
+      mimeType,
+      preferredModel,
+      customApiKey,
+    });
 
-    const activeGenAI = new GoogleGenerativeAI(activeKey);
-
-    // Build candidate model list starting with user's preferred model if provided
-    const modelCandidates = [];
-    if (preferredModel && preferredModel !== 'auto') {
-      modelCandidates.push(preferredModel);
-    }
-
-    // Default priority fallback list
-    const fallbackList = [
-      'gemini-3.7-flash',
-      'gemini-3.6-flash',
-      'gemini-3.5-flash',
-      'gemini-2.5-pro',
-      'gemini-2.5-flash',
-      'gemini-2.5-flash-lite'
-    ];
-
-    for (const m of fallbackList) {
-      if (!modelCandidates.includes(m)) {
-        modelCandidates.push(m);
-      }
-    }
-
-    let result = null;
-    let lastModelError = null;
-
-    for (const modelName of modelCandidates) {
-      try {
-        console.log(`Trying Gemini model: ${modelName}`);
-        const model = activeGenAI.getGenerativeModel({ model: modelName });
-        result = await model.generateContent(requestParts);
-        console.log(`Success with model: ${modelName}`);
-        break;
-      } catch (modelErr) {
-        console.warn(`Model ${modelName} failed:`, modelErr.message);
-        lastModelError = modelErr;
-        continue;
-      }
-    }
-
-    if (!result) {
-      throw lastModelError || new Error('All Gemini models failed');
-    }
-
-    const response = await result.response;
-    const text = response.text();
-
-    // Parse JSON from response (handle potential markdown code blocks)
+    const text = data.text;
     let jsonText = text;
-    
-    // Remove markdown code blocks if present
     if (text.includes('```json')) {
       jsonText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '');
     } else if (text.includes('```')) {
       jsonText = text.replace(/```\n?/g, '');
     }
 
-    // Parse and validate JSON
     const analysisResult = JSON.parse(jsonText.trim());
-
-    // Ensure required fields exist
     return {
       career_role: analysisResult.career_role || selectedRole.role_name,
       readiness_score: Math.min(100, Math.max(0, analysisResult.readiness_score || 0)),
@@ -262,31 +191,19 @@ export const analyzeT7LearningHub = async (
           }
         : null,
       resume_meta: resumeFile
-        ? {
-            file_name: resumeFile.name,
-            file_type: resumeFile.type || 'application/octet-stream'
-          }
+        ? { file_name: resumeFile.name, file_type: resumeFile.type || 'application/octet-stream' }
         : null
     };
   } catch (error) {
-    console.error('Gemini API COMPLETE ERROR TRACE:', error);
-    if (error.response) console.error('Response Error Data:', error.response);
-    
-    // Fallback: Generate basic analysis locally if API fails
+    console.error('Gemini proxy error:', error);
     return generateFallbackAnalysis(studentSkills, selectedRole, resumeFile);
   }
 };
 
 /**
- * Perform a standalone ATS analysis against a selected career role
+ * Perform a standalone ATS analysis against a selected career role (via /api/gemini proxy)
  */
-export const analyzeResumeOnly = async (resumeFile, selectedRole, apiKey, preferredModel = null) => {
-  const activeKey = apiKey || defaultApiKey;
-  if (!activeKey) throw new Error('API key is required for ATS analysis');
-  
-  const genAI = new GoogleGenerativeAI(activeKey);
-  const resumePart = await fileToGenerativePart(resumeFile);
-  
+export const analyzeResumeOnly = async (resumeFile, selectedRole, customApiKey = null, preferredModel = null) => {
   const prompt = `Analyze this resume against the "${selectedRole.role_name}" role.
   Role Skills: ${selectedRole.required_skills.map(s => s.name).join(', ')}
 
@@ -309,47 +226,20 @@ export const analyzeResumeOnly = async (resumeFile, selectedRole, apiKey, prefer
     "rewrite_suggestions": ["...", "..."]
   }`;
 
+  const encoded = await fileToBase64(resumeFile);
+
   try {
-    const modelNames = [];
-    if (preferredModel && preferredModel !== 'auto') {
-      modelNames.push(preferredModel);
-    }
-    const fallbacks = [
-      'gemini-3.7-flash',
-      'gemini-3.6-flash',
-      'gemini-3.5-flash',
-      'gemini-2.5-pro',
-      'gemini-2.5-flash',
-      'gemini-2.5-flash-lite'
-    ];
-    for (const fb of fallbacks) {
-      if (!modelNames.includes(fb)) modelNames.push(fb);
-    }
+    const data = await callProxy('analyzeAts', {
+      prompt,
+      fileBase64: encoded.base64,
+      mimeType: encoded.mimeType,
+      preferredModel,
+      customApiKey,
+    });
 
-    let result = null;
-    let lastError = null;
-
-    for (const modelName of modelNames) {
-      try {
-        console.log(`ATS Standalone trying model: ${modelName}`);
-        const model = genAI.getGenerativeModel({ model: modelName });
-        result = await model.generateContent([ prompt, resumePart ]);
-        console.log(`ATS Standalone success with: ${modelName}`);
-        break;
-      } catch (err) {
-        console.warn(`ATS Standalone model ${modelName} failed:`, err.message);
-        lastError = err;
-      }
-    }
-
-    if (!result) throw lastError || new Error('All Gemini models failed for ATS');
-
-    const response = await result.response;
-    const text = response.text();
-    
+    const text = data.text;
     if (!text) throw new Error('Empty response from AI');
-    
-    // Parse JSON
+
     let jsonText = text;
     if (text.includes('```json')) {
       jsonText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '');
@@ -360,20 +250,19 @@ export const analyzeResumeOnly = async (resumeFile, selectedRole, apiKey, prefer
     let parsedResult;
     try {
       parsedResult = JSON.parse(jsonText.trim());
-    } catch (parseErr) {
-      console.warn("JSON Parse Error. AI Output was:", text);
+    } catch {
       parsedResult = {
         score: 0,
-        summary: "The uploaded document does not appear to be a valid resume or the AI rejected it.",
+        summary: 'The uploaded document does not appear to be a valid resume or the AI rejected it.',
         strengths: [],
-        issues: ["Could not extract structured data."],
+        issues: ['Could not extract structured data.'],
         keyword_gaps: [],
         suggested_keywords: [],
         section_scores: { formatting: 0, keyword_match: 0, content_strength: 0, impact: 0 },
         rewrite_suggestions: []
       };
     }
-    
+
     return {
       ats_analysis: parsedResult,
       resume_meta: {
@@ -383,130 +272,121 @@ export const analyzeResumeOnly = async (resumeFile, selectedRole, apiKey, prefer
       }
     };
   } catch (err) {
-    console.error('ATS ONLY Error:', err);
+    console.error('ATS analysis error:', err);
     throw err;
   }
 };
 
+// ----------------------------------------------------------------
+// Helpers
+// ----------------------------------------------------------------
+
+const normalizeSectionScores = (raw = {}) => ({
+  formatting: Math.min(100, Math.max(0, raw?.formatting || 0)),
+  keyword_match: Math.min(100, Math.max(0, raw?.keyword_match || 0)),
+  content_strength: Math.min(100, Math.max(0, raw?.content_strength || 0)),
+  impact: Math.min(100, Math.max(0, raw?.impact || 0)),
+});
+
 /**
  * Fallback analysis when Gemini API is unavailable
- * Provides a basic skill gap analysis based on simple comparison
  */
 const generateFallbackAnalysis = (studentSkills, selectedRole, resumeFile = null) => {
   const requiredSkillNames = selectedRole.required_skills.map(s => s.name);
   const studentSkillsLower = studentSkills.map(s => s.toLowerCase());
-  
-  const matched = requiredSkillNames.filter(skill => 
-    studentSkillsLower.includes(skill.toLowerCase())
-  );
-  
-  const missing = requiredSkillNames.filter(skill => 
-    !studentSkillsLower.includes(skill.toLowerCase())
-  );
-
-  // Calculate readiness score based on matched priority skills
-  const priorityMatched = selectedRole.priority_skills.filter(skill =>
-    studentSkillsLower.includes(skill.toLowerCase())
-  );
-  
+  const matched = requiredSkillNames.filter(skill => studentSkillsLower.includes(skill.toLowerCase()));
+  const missing = requiredSkillNames.filter(skill => !studentSkillsLower.includes(skill.toLowerCase()));
+  const priorityMatched = selectedRole.priority_skills.filter(skill => studentSkillsLower.includes(skill.toLowerCase()));
   const readinessScore = Math.round(
     (matched.length / requiredSkillNames.length) * 60 +
     (priorityMatched.length / selectedRole.priority_skills.length) * 40
   );
-
-  // Generate basic roadmap
-  const roadmap = [];
-  const highPriorityMissing = missing.filter(skill => 
+  const highPriorityMissing = missing.filter(skill =>
     selectedRole.required_skills.find(s => s.name === skill && s.priority === 'high')
   );
-  const mediumPriorityMissing = missing.filter(skill => 
+  const mediumPriorityMissing = missing.filter(skill =>
     selectedRole.required_skills.find(s => s.name === skill && s.priority === 'medium')
   );
-
+  const roadmap = [];
   if (highPriorityMissing.length > 0) {
-    roadmap.push({
-      month: 'Month 1-2',
-      focus: 'Core Foundation Skills',
-      skills: highPriorityMissing.slice(0, 3),
-      resources: ['Official documentation', 'Free YouTube tutorials', 'Practice projects']
-    });
+    roadmap.push({ month: 'Month 1-2', focus: 'Core Foundation Skills', skills: highPriorityMissing.slice(0, 3), resources: ['Official documentation', 'Free YouTube tutorials', 'Practice projects'] });
   }
-
   if (highPriorityMissing.length > 3 || mediumPriorityMissing.length > 0) {
-    roadmap.push({
-      month: 'Month 3-4',
-      focus: 'Intermediate Skills Development',
-      skills: [...highPriorityMissing.slice(3), ...mediumPriorityMissing.slice(0, 2)],
-      resources: ['Build mini-projects', 'Online coding platforms', 'Open source contributions']
-    });
+    roadmap.push({ month: 'Month 3-4', focus: 'Intermediate Skills Development', skills: [...highPriorityMissing.slice(3), ...mediumPriorityMissing.slice(0, 2)], resources: ['Build mini-projects', 'Online coding platforms', 'Open source contributions'] });
   }
-
-  roadmap.push({
-    month: 'Month 5-6',
-    focus: 'Project Building & Interview Prep',
-    skills: ['Portfolio Development', 'Interview Skills'],
-    resources: ['Build 2-3 projects', 'LeetCode practice', 'Mock interviews']
-  });
-
+  roadmap.push({ month: 'Month 5-6', focus: 'Project Building & Interview Prep', skills: ['Portfolio Development', 'Interview Skills'], resources: ['Build 2-3 projects', 'LeetCode practice', 'Mock interviews'] });
   return {
     career_role: selectedRole.role_name,
     readiness_score: readinessScore,
-    score_breakdown: {
-      technical_skills: readinessScore,
-      projects: Math.max(20, readinessScore - 10),
-      interview_readiness: Math.max(25, readinessScore - 5)
-    },
+    score_breakdown: { technical_skills: readinessScore, projects: Math.max(20, readinessScore - 10), interview_readiness: Math.max(25, readinessScore - 5) },
     honest_assessment: matched.length > 0
       ? `You already have some alignment with ${selectedRole.role_name}, but there are still important gaps to close before placements.`
       : `You are still at the starting point for ${selectedRole.role_name}, so focus on the highest-priority fundamentals first.`,
     matched_skills: matched,
     missing_skills: missing,
     recommended_skills: highPriorityMissing.slice(0, 5),
-    skill_priority_order: highPriorityMissing.slice(0, 5).map((skill) => ({
-      skill,
-      reason: 'High-priority requirement for this role',
-      time_to_learn: '2-4 weeks',
-      difficulty: 'Medium'
-    })),
+    skill_priority_order: highPriorityMissing.slice(0, 5).map(skill => ({ skill, reason: 'High-priority requirement for this role', time_to_learn: '2-4 weeks', difficulty: 'Medium' })),
     learning_roadmap: roadmap,
-    quick_wins: highPriorityMissing.slice(0, 3).map((skill) => ({
-      task: `Start practicing ${skill}`,
-      time: '1-2 hours',
-      impact: `Improves alignment with ${selectedRole.role_name}`
-    })),
-    resume_tips: [
-      'Use measurable impact in project bullet points',
-      'Add keywords from the job role naturally in skills and projects'
-    ],
-    linkedin_tips: [
-      `Mention your interest in ${selectedRole.role_name} clearly in the headline`,
-      'Post weekly progress about projects and learning milestones'
-    ],
+    quick_wins: highPriorityMissing.slice(0, 3).map(skill => ({ task: `Start practicing ${skill}`, time: '1-2 hours', impact: `Improves alignment with ${selectedRole.role_name}` })),
+    resume_tips: ['Use measurable impact in project bullet points', 'Add keywords from the job role naturally in skills and projects'],
+    linkedin_tips: [`Mention your interest in ${selectedRole.role_name} clearly in the headline`, 'Post weekly progress about projects and learning milestones'],
     motivation: 'Consistent weekly effort will compound quickly if you keep building and practicing.',
     final_outcome: `You will have a much stronger profile for ${selectedRole.role_name} interviews after following the roadmap.`,
     ats_analysis: resumeFile ? {
       score: 55,
-      summary: 'Resume uploaded, but ATS-specific AI analysis is unavailable right now. Use the suggestions below as a starter checklist.',
+      summary: 'Resume uploaded, but ATS-specific AI analysis is unavailable right now.',
       strengths: ['Resume is available for review'],
       issues: ['Detailed ATS parsing could not be completed in fallback mode'],
       keyword_gaps: selectedRole.priority_skills.slice(0, 5),
       suggested_keywords: selectedRole.priority_skills.slice(0, 6),
-      section_scores: {
-        formatting: 60,
-        keyword_match: 50,
-        content_strength: 55,
-        impact: 50
-      },
-      rewrite_suggestions: [
-        'Rewrite project bullets with action verbs and outcomes',
-        'Mirror important role keywords in the skills and projects sections'
-      ]
+      section_scores: { formatting: 60, keyword_match: 50, content_strength: 55, impact: 50 },
+      rewrite_suggestions: ['Rewrite project bullets with action verbs and outcomes', 'Mirror important role keywords in the skills and projects sections']
     } : null,
-    resume_meta: resumeFile ? {
-      file_name: resumeFile.name,
-      file_type: resumeFile.type || 'application/octet-stream'
-    } : null
+    resume_meta: resumeFile ? { file_name: resumeFile.name, file_type: resumeFile.type || 'application/octet-stream' } : null
   };
 };
+
+// ----------------------------------------------------------------
+// Skill-Gap Prompt Template
+// ----------------------------------------------------------------
+const SKILL_GAP_PROMPT = `You are a senior placement expert and technical career coach at a top Indian engineering college.
+
+A student has provided their current skills and wants to break into a specific tech career.
+
+STUDENT'S CURRENT SKILLS:
+{{STUDENT_SKILLS}}
+
+TARGET CAREER ROLE: {{CAREER_ROLE}}
+
+INDUSTRY REQUIREMENTS FOR THIS ROLE:
+{{INDUSTRY_SKILLS_JSON}}
+
+Provide a comprehensive skill gap analysis in the following JSON format (return ONLY the JSON, no markdown):
+{
+  "career_role": "...",
+  "readiness_score": 0-100,
+  "score_breakdown": {
+    "technical_skills": 0-100,
+    "projects": 0-100,
+    "interview_readiness": 0-100
+  },
+  "honest_assessment": "2-3 sentence honest but encouraging assessment",
+  "matched_skills": ["skill1", "skill2"],
+  "missing_skills": ["skill1", "skill2"],
+  "recommended_skills": ["skill1", "skill2"],
+  "skill_priority_order": [
+    {"skill": "...", "reason": "...", "time_to_learn": "...", "difficulty": "Easy/Medium/Hard"}
+  ],
+  "learning_roadmap": [
+    {"month": "Month 1-2", "focus": "...", "skills": ["..."], "resources": ["..."]}
+  ],
+  "quick_wins": [
+    {"task": "...", "time": "...", "impact": "..."}
+  ],
+  "resume_tips": ["tip1", "tip2"],
+  "linkedin_tips": ["tip1", "tip2"],
+  "motivation": "An inspiring but realistic message",
+  "final_outcome": "What the student can achieve in 6 months"
+}`;
 
 export default analyzeT7LearningHub;

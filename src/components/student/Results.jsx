@@ -81,8 +81,8 @@ const Results = () => {
     setIsParsingResume(true);
 
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      const result = await analyzeResumeOnly(file, role, apiKey);
+      // customApiKey is null → server uses GEMINI_API_KEY from env (never exposed to browser)
+      const result = await analyzeResumeOnly(file, role, null);
       setLocalAtsAnalysis(result.ats_analysis);
       setLocalResumeMeta(result.resume_meta);
     } catch (err) {
