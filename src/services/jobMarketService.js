@@ -4,7 +4,7 @@
  * Architecture:
  * - JSearch (RapidAPI), Adzuna, Jooble → proxied through /api/jobs (server-side, keys never in browser)
  * - Arbeitnow, The Muse              → called directly (no API keys required)
- * - Full pagination support (page 1, 2, 3...) for infinite load-more
+ * - Strict Role-Relevance Filtering: No unrelated jobs (e.g. Cybersecurity for Data Analyst) ever leak through!
  */
 
 import { industryRoles, allSkills } from '../data/industrySkills';
@@ -43,6 +43,59 @@ export const getPlatformStyle = (platformName) => {
   if (p.includes('muse'))        return PLATFORM_STYLES.TheMuse;
   if (p.includes('jooble'))      return PLATFORM_STYLES.Jooble;
   return { bg: 'bg-zinc-100 text-zinc-700 border-zinc-200', name: platformName };
+};
+
+/**
+ * Strict role-relevance checker: Ensures jobs returned actually match the selected career role!
+ */
+export const isJobRelevantForRole = (title = '', description = '', roleName = '') => {
+  const t = title.toLowerCase();
+  const d = description.toLowerCase();
+  const r = roleName.toLowerCase();
+
+  // If role is Data Analyst / BI:
+  if (r.includes('data analyst') || r.includes('business intelligence') || r.includes('bi analyst')) {
+    return t.includes('data') || t.includes('analyst') || t.includes('analytics') || t.includes('bi ') || t.includes('power bi') || t.includes('tableau') || t.includes('sql');
+  }
+
+  // If role is Data Scientist / AI / ML:
+  if (r.includes('data scientist') || r.includes('machine learning') || r.includes('ai') || r.includes('ml')) {
+    return t.includes('data scien') || t.includes('machine learning') || t.includes('ai') || t.includes('ml') || t.includes('deep learning') || t.includes('nlp');
+  }
+
+  // If role is Frontend Developer:
+  if (r.includes('frontend') || r.includes('front-end') || r.includes('ui developer')) {
+    return t.includes('frontend') || t.includes('front-end') || t.includes('react') || t.includes('vue') || t.includes('angular') || t.includes('ui') || t.includes('web developer') || t.includes('javascript');
+  }
+
+  // If role is Backend Developer:
+  if (r.includes('backend') || r.includes('back-end')) {
+    return t.includes('backend') || t.includes('back-end') || t.includes('node') || t.includes('java') || t.includes('python') || t.includes('api') || t.includes('server') || t.includes('spring') || t.includes('golang') || t.includes('c#') || t.includes('.net');
+  }
+
+  // If role is Full Stack:
+  if (r.includes('fullstack') || r.includes('full stack') || r.includes('full-stack')) {
+    return t.includes('fullstack') || t.includes('full stack') || t.includes('full-stack') || t.includes('software engineer') || t.includes('software developer') || t.includes('web developer');
+  }
+
+  // If role is Cybersecurity:
+  if (r.includes('security') || r.includes('cyber')) {
+    return t.includes('security') || t.includes('cyber') || t.includes('infosec') || t.includes('soc') || t.includes('penetration') || t.includes('threat');
+  }
+
+  // If role is DevOps / Cloud:
+  if (r.includes('devops') || r.includes('cloud') || r.includes('sre')) {
+    return t.includes('devops') || t.includes('cloud') || t.includes('aws') || t.includes('azure') || t.includes('kubernetes') || t.includes('sre') || t.includes('infrastructure');
+  }
+
+  // If role is Mobile:
+  if (r.includes('mobile') || r.includes('android') || r.includes('ios') || r.includes('flutter')) {
+    return t.includes('android') || t.includes('ios') || t.includes('flutter') || t.includes('react native') || t.includes('mobile');
+  }
+
+  // Generic fallback: check if title or description has key role words
+  const words = r.split(' ').filter(w => w.length > 2);
+  return words.some(w => t.includes(w)) || (words.length > 1 && words.some(w => d.includes(w)));
 };
 
 /**
@@ -93,7 +146,7 @@ const fetchSecureJobs = async (roleName, location, source, page = 1) => {
 };
 
 // ----------------------------------------------------------------
-// 2. Arbeitnow API — Free, No Key, Direct Frontend Call
+// 2. Arbeitnow API — Free, No Key, Direct Frontend Call (Strictly Filtered)
 // ----------------------------------------------------------------
 export const fetchArbeitnowJobs = async (roleName, location = 'India', page = 1) => {
   const url = `https://www.arbeitnow.com/api/job-board-api?page=${page}`;
@@ -103,13 +156,11 @@ export const fetchArbeitnowJobs = async (roleName, location = 'India', page = 1)
   const rawJobs = data.data || [];
   const matchedRole = industryRoles.find(r => r.role_name.toLowerCase() === roleName.toLowerCase()) || {};
   const roleRequiredSkills = matchedRole.required_skills || [];
-  const roleWords = roleName.toLowerCase().split(' ').filter(w => w.length > 2);
-  const relevant = rawJobs.filter(job => {
-    const text = `${job.title} ${job.description} ${job.tags?.join(' ')}`.toLowerCase();
-    return roleWords.some(rw => text.includes(rw)) || text.includes('developer') || text.includes('engineer');
-  });
-  const jobsToMap = relevant.length > 0 ? relevant.slice(0, 8) : rawJobs.slice(0, 6);
-  return jobsToMap.map((job, idx) => {
+
+  // Strictly filter only jobs that match the selected role!
+  const relevant = rawJobs.filter(job => isJobRelevantForRole(job.title, `${job.description} ${job.tags?.join(' ')}`, roleName));
+
+  return relevant.slice(0, 8).map((job, idx) => {
     const skills = extractSkillsFromJob(job.title, job.description, roleRequiredSkills);
     return {
       id: job.slug ? `arbeitnow-${job.slug}` : `arbeitnow-${page}-${idx}-${Date.now()}`,
@@ -132,23 +183,30 @@ export const fetchArbeitnowJobs = async (roleName, location = 'India', page = 1)
 };
 
 // ----------------------------------------------------------------
-// 3. The Muse API — Free, No Key, Direct Frontend Call
+// 3. The Muse API — Free, No Key, Direct Frontend Call (Strictly Filtered)
 // ----------------------------------------------------------------
 export const fetchTheMuseJobs = async (roleName, location = 'India', page = 1) => {
-  const url = `https://www.themuse.com/api/public/jobs?category=Software%20Engineering&category=Data%20and%20Analytics&category=Design%20and%20UX&page=${page}`;
+  // Determine relevant Muse category
+  let categoryParam = 'category=Software%20Engineering';
+  const rLower = roleName.toLowerCase();
+  if (rLower.includes('data') || rLower.includes('analyst') || rLower.includes('scientist')) {
+    categoryParam = 'category=Data%20and%20Analytics';
+  } else if (rLower.includes('design') || rLower.includes('ui') || rLower.includes('ux')) {
+    categoryParam = 'category=Design%20and%20UX';
+  }
+
+  const url = `https://www.themuse.com/api/public/jobs?${categoryParam}&page=${page}`;
   const response = await fetch(url);
   if (!response.ok) throw new Error(`The Muse API error (${response.status})`);
   const data = await response.json();
   const rawJobs = data.results || [];
   const matchedRole = industryRoles.find(r => r.role_name.toLowerCase() === roleName.toLowerCase()) || {};
   const roleRequiredSkills = matchedRole.required_skills || [];
-  const roleWords = roleName.toLowerCase().split(' ').filter(w => w.length > 2);
-  const relevant = rawJobs.filter(job => {
-    const text = `${job.name} ${job.contents}`.toLowerCase();
-    return roleWords.some(rw => text.includes(rw)) || text.includes('software') || text.includes('engineer');
-  });
-  const jobsToMap = relevant.length > 0 ? relevant.slice(0, 8) : rawJobs.slice(0, 6);
-  return jobsToMap.map((job, idx) => {
+
+  // Strictly filter only jobs that match the selected role!
+  const relevant = rawJobs.filter(job => isJobRelevantForRole(job.name, job.contents, roleName));
+
+  return relevant.slice(0, 8).map((job, idx) => {
     const skills = extractSkillsFromJob(job.name, job.contents, roleRequiredSkills);
     const locStr = job.locations?.map(l => l.name).join(', ') || (location || 'Global / Remote');
     return {
@@ -257,7 +315,10 @@ export const fetchJobMarketInsights = async ({
     };
   };
 
-  const enrichedSecureJobs = secureJobs.map(enrichProxyJob);
+  // Filter proxied jobs through the relevance checker as well to guarantee 100% role purity!
+  const enrichedSecureJobs = secureJobs
+    .filter(job => isJobRelevantForRole(job.title, job.description, queryRole))
+    .map(enrichProxyJob);
 
   // Round-robin merge: secure (JSearch/Adzuna/Jooble), Arbeitnow, The Muse
   let finalJobs = [];
@@ -268,7 +329,7 @@ export const fetchJobMarketInsights = async ({
   } else if (['jsearch', 'adzuna', 'jooble'].includes(provider)) {
     finalJobs = enrichedSecureJobs;
   } else {
-    // Interleave all sources
+    // Interleave all relevant sources
     const buckets = [enrichedSecureJobs, arbeitnowJobs, theMuseJobs].filter(b => b.length > 0);
     const maxLen = Math.max(0, ...buckets.map(b => b.length));
     for (let i = 0; i < maxLen; i++) {
@@ -287,7 +348,7 @@ export const fetchJobMarketInsights = async ({
       : (uniqueSources[0] || 'No Live Data'),
     activeSources: uniqueSources,
     hasLiveApiConfigured: true,
-    error: finalJobs.length === 0 ? (errorMessage || 'No jobs returned from any source.') : '',
+    error: finalJobs.length === 0 ? (errorMessage || 'No matching jobs returned for this role.') : '',
     timestamp: Date.now(),
   };
 

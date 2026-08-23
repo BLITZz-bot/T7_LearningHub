@@ -4,7 +4,7 @@ import {
   ExternalLink, Target, CheckCircle2, XCircle, TrendingUp, 
   Loader2, Filter, ChevronDown, Briefcase
 } from 'lucide-react';
-import { fetchJobMarketInsights } from '../../services/jobMarketService';
+import { fetchJobMarketInsights, isJobRelevantForRole } from '../../services/jobMarketService';
 import { industryRoles } from '../../data/industrySkills';
 
 const FullJobMarketView = ({ 
@@ -90,9 +90,14 @@ const FullJobMarketView = ({
     }
   };
 
-  // Filter jobs by search query & selected source
+  // Filter jobs by role relevance, search query & selected source
   const filteredJobs = jobs.filter(job => {
-    // Source filter check
+    // 1. Strict Role Relevance check
+    if (!isJobRelevantForRole(job.title, job.description, selectedRole.role_name)) {
+      return false;
+    }
+
+    // 2. Source filter check
     if (selectedSource !== 'auto') {
       const p = (job.platform || job.source || '').toLowerCase();
       if (selectedSource === 'jsearch' && !p.includes('jsearch') && !p.includes('linkedin') && !p.includes('indeed') && !p.includes('glassdoor') && !p.includes('google')) return false;
@@ -102,7 +107,7 @@ const FullJobMarketView = ({
       if (selectedSource === 'themuse' && !p.includes('muse')) return false;
     }
 
-    // Search query check
+    // 3. Search query check
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
