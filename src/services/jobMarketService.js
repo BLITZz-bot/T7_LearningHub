@@ -343,7 +343,7 @@ export const fetchJoobleJobs = async (roleName, location = 'India', customKey = 
     throw new Error('Jooble API Key is missing');
   }
 
-  const url = `https://in.jooble.org/api/${apiKey.trim()}`;
+  const url = `https://jooble.org/api/${apiKey.trim()}`;
 
   const response = await fetch(url, {
     method: 'POST',
