@@ -46,19 +46,55 @@ import {
   User,
   Settings,
   Globe,
-  Key
+  Key,
+  FileText
 } from 'lucide-react';
 
-// Branch → relevant career roles mapping
+// Branch → relevant real-world career roles mapping
 const BRANCH_CAREER_MAP = {
-  'Computer Science': ['frontend-developer', 'backend-developer', 'fullstack-developer', 'data-analyst', 'ai-ml-engineer', 'devops-engineer', 'mobile-developer', 'cloud-engineer'],
-  'Information Technology': ['frontend-developer', 'backend-developer', 'fullstack-developer', 'data-analyst', 'devops-engineer', 'mobile-developer', 'cloud-engineer', 'iot-architect'],
+  // Computer Science & IT
+  'Computer Science Engineering': ['frontend-developer', 'backend-developer', 'fullstack-developer', 'data-analyst', 'ai-ml-engineer', 'devops-engineer', 'mobile-developer', 'cloud-engineer', 'iot-architect'],
+  'Computer Science': ['frontend-developer', 'backend-developer', 'fullstack-developer', 'data-analyst', 'ai-ml-engineer', 'devops-engineer', 'mobile-developer', 'cloud-engineer', 'iot-architect'],
+  'Information Technology': ['frontend-developer', 'backend-developer', 'fullstack-developer', 'data-analyst', 'ai-ml-engineer', 'devops-engineer', 'mobile-developer', 'cloud-engineer', 'iot-architect'],
+  'Artificial Intelligence & Machine Learning': ['ai-ml-engineer', 'data-analyst', 'backend-developer', 'fullstack-developer', 'robotics-engineer', 'cloud-engineer'],
+  'Data Science': ['data-analyst', 'ai-ml-engineer', 'backend-developer', 'fullstack-developer', 'cloud-engineer'],
+  'Cyber Security': ['cloud-engineer', 'devops-engineer', 'backend-developer', 'fullstack-developer', 'telecom-engineer', 'iot-architect'],
+  'Cloud Computing': ['cloud-engineer', 'devops-engineer', 'backend-developer', 'fullstack-developer', 'data-analyst'],
+  'Internet of Things (IoT)': ['iot-architect', 'embedded-systems-engineer', 'robotics-engineer', 'telecom-engineer', 'backend-developer', 'cloud-engineer'],
+  'Robotics & Automation': ['robotics-engineer', 'embedded-systems-engineer', 'control-systems-engineer', 'iot-architect', 'ai-ml-engineer', 'manufacturing-engineer'],
+
+  // Electronics & Electrical
+  'Electronics & Communication Engineering': ['embedded-systems-engineer', 'vlsi-design-engineer', 'telecom-engineer', 'iot-architect', 'robotics-engineer', 'ai-ml-engineer', 'fullstack-developer', 'data-analyst'],
   'Electronics & Communication': ['embedded-systems-engineer', 'vlsi-design-engineer', 'telecom-engineer', 'iot-architect', 'robotics-engineer', 'ai-ml-engineer', 'fullstack-developer', 'data-analyst'],
-  'Electrical Engineering': ['power-systems-engineer', 'control-systems-engineer', 'instrumentation-engineer', 'renewable-energy-engineer', 'embedded-systems-engineer', 'robotics-engineer', 'ai-ml-engineer', 'data-analyst'],
-  'Mechanical Engineering': ['mechanical-design-engineer', 'automotive-engineer', 'hvac-engineer', 'manufacturing-engineer', 'quality-engineer', 'robotics-engineer', 'data-analyst', 'ai-ml-engineer'],
-  'Civil Engineering': ['structural-engineer', 'construction-manager', 'environmental-engineer', 'transportation-engineer', 'data-analyst', 'fullstack-developer'],
-  'Chemical Engineering': ['process-engineer', 'chemical-rd-scientist', 'environmental-health-safety', 'quality-engineer', 'data-analyst', 'ai-ml-engineer'],
+  'Electrical Engineering': ['power-systems-engineer', 'control-systems-engineer', 'instrumentation-engineer', 'renewable-energy-engineer', 'embedded-systems-engineer', 'robotics-engineer', 'data-analyst'],
+  'Electrical & Electronics Engineering': ['power-systems-engineer', 'embedded-systems-engineer', 'vlsi-design-engineer', 'control-systems-engineer', 'renewable-energy-engineer', 'instrumentation-engineer', 'robotics-engineer', 'iot-architect'],
+  'Instrumentation Engineering': ['instrumentation-engineer', 'control-systems-engineer', 'embedded-systems-engineer', 'iot-architect', 'robotics-engineer'],
+
+  // Mechanical, Automobile, Aerospace & Industrial
+  'Mechanical Engineering': ['mechanical-design-engineer', 'automotive-engineer', 'hvac-engineer', 'manufacturing-engineer', 'quality-engineer', 'robotics-engineer', 'data-analyst'],
+  'Automobile Engineering': ['automotive-engineer', 'mechanical-design-engineer', 'manufacturing-engineer', 'quality-engineer', 'robotics-engineer', 'embedded-systems-engineer'],
+  'Aerospace Engineering': ['mechanical-design-engineer', 'automotive-engineer', 'quality-engineer', 'embedded-systems-engineer', 'robotics-engineer', 'data-analyst'],
+  'Industrial Engineering': ['manufacturing-engineer', 'quality-engineer', 'construction-manager', 'process-engineer', 'data-analyst'],
+  'Production Engineering': ['manufacturing-engineer', 'quality-engineer', 'mechanical-design-engineer', 'automotive-engineer', 'process-engineer'],
+
+  // Civil & Environmental
+  'Civil Engineering': ['structural-engineer', 'construction-manager', 'environmental-engineer', 'transportation-engineer', 'quality-engineer', 'data-analyst'],
+  'Environmental Engineering': ['environmental-engineer', 'environmental-health-safety', 'structural-engineer', 'construction-manager', 'data-analyst'],
+
+  // Chemical, Biotech, Biomedical & Materials
+  'Chemical Engineering': ['process-engineer', 'chemical-rd-scientist', 'environmental-health-safety', 'quality-engineer', 'data-analyst'],
   'Biotechnology': ['biotech-research', 'biomedical-engineer', 'clinical-research', 'pharma-production', 'data-analyst', 'ai-ml-engineer', 'process-engineer'],
+  'Biomedical Engineering': ['biomedical-engineer', 'biotech-research', 'clinical-research', 'instrumentation-engineer', 'embedded-systems-engineer', 'data-analyst'],
+  'Petroleum Engineering': ['process-engineer', 'mechanical-design-engineer', 'environmental-health-safety', 'quality-engineer', 'data-analyst'],
+  'Mining Engineering': ['process-engineer', 'mechanical-design-engineer', 'environmental-health-safety', 'quality-engineer', 'data-analyst'],
+  'Marine Engineering': ['mechanical-design-engineer', 'power-systems-engineer', 'quality-engineer', 'embedded-systems-engineer', 'data-analyst'],
+  'Textile Engineering': ['manufacturing-engineer', 'quality-engineer', 'process-engineer', 'data-analyst'],
+
+  // Computing & Sciences
+  'Mathematics & Computing': ['data-analyst', 'ai-ml-engineer', 'backend-developer', 'fullstack-developer', 'frontend-developer', 'cloud-engineer'],
+  'Physics': ['data-analyst', 'ai-ml-engineer', 'embedded-systems-engineer', 'biotech-research'],
+  'MCA (Computer Applications)': ['fullstack-developer', 'frontend-developer', 'backend-developer', 'mobile-developer', 'data-analyst', 'cloud-engineer', 'devops-engineer'],
+  'BCA (Computer Applications)': ['fullstack-developer', 'frontend-developer', 'backend-developer', 'mobile-developer', 'data-analyst', 'cloud-engineer', 'devops-engineer'],
   'Other': industryRoles.map(r => r.id)
 };
 
@@ -240,20 +276,16 @@ const StudentDashboard = () => {
     );
   };
 
-  // Filter career roles automatically based on profile branch
-  const filteredRoles = userBranch
-    ? (BRANCH_CAREER_MAP[userBranch] ? industryRoles.filter(role => BRANCH_CAREER_MAP[userBranch].includes(role.id)) : industryRoles)
-    : industryRoles;
+  const [showAllBranchRoles, setShowAllBranchRoles] = useState(false);
 
-  // Reset career interest when branch changes in profile and role is no longer relevant
-  useEffect(() => {
-    if (userBranch && careerInterest) {
-      const allowedIds = BRANCH_CAREER_MAP[userBranch] || [];
-      if (allowedIds.length > 0 && !allowedIds.includes(careerInterest)) {
-        setCareerInterest('');
-      }
-    }
-  }, [userBranch]);
+  // Filter career roles automatically based on profile branch (with fuzzy matching)
+  const branchAllowedIds = userBranch
+    ? (BRANCH_CAREER_MAP[userBranch] || BRANCH_CAREER_MAP[Object.keys(BRANCH_CAREER_MAP).find(k => userBranch.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(userBranch.toLowerCase()))] || [])
+    : [];
+
+  const filteredRoles = (userBranch && !showAllBranchRoles && branchAllowedIds.length > 0)
+    ? industryRoles.filter(role => branchAllowedIds.includes(role.id))
+    : industryRoles;
 
   const handleAnalyze = async () => {
     setError('');
@@ -630,7 +662,7 @@ const StudentDashboard = () => {
           {/* Left Box - Dream Career */}
           <div className="lg:col-span-5 flex flex-col">
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100 flex flex-col h-[520px]">
-              <div className="flex items-center justify-between gap-3 mb-4">
+              <div className="flex items-center justify-between gap-3 mb-3">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-zinc-900 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
                     <Briefcase className="w-6 h-6 text-white" />
@@ -638,7 +670,7 @@ const StudentDashboard = () => {
                   <div>
                     <h2 className="font-bold text-zinc-900 text-lg">Dream Career</h2>
                     <p className="text-sm text-zinc-500">
-                      {userBranch ? `Top roles for ${userBranch}` : 'Top industry roles'}
+                      {userBranch ? `Curated for ${userBranch}` : 'Top industry roles'}
                     </p>
                   </div>
                 </div>
@@ -648,6 +680,34 @@ const StudentDashboard = () => {
                   </span>
                 )}
               </div>
+
+              {/* Branch / All Roles Toggle Filter */}
+              {userBranch && branchAllowedIds.length > 0 && (
+                <div className="flex items-center gap-1.5 p-1 bg-zinc-100 rounded-xl mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowAllBranchRoles(false)}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center cursor-pointer ${
+                      !showAllBranchRoles
+                        ? 'bg-white text-zinc-900 shadow-xs'
+                        : 'text-zinc-500 hover:text-zinc-800'
+                    }`}
+                  >
+                    🎯 Branch Roles ({branchAllowedIds.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAllBranchRoles(true)}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all text-center cursor-pointer ${
+                      showAllBranchRoles
+                        ? 'bg-white text-zinc-900 shadow-xs'
+                        : 'text-zinc-500 hover:text-zinc-800'
+                    }`}
+                  >
+                    🌐 All 24+ Roles
+                  </button>
+                </div>
+              )}
 
               <div className="flex-1 overflow-y-auto pr-2 space-y-2.5">
                 {filteredRoles.length === 0 ? (
@@ -667,8 +727,10 @@ const StudentDashboard = () => {
                     }`}
                   >
                     <div>
-                      <p className="font-bold text-sm sm:text-base">{role.role_name}</p>
-                      <p className={`text-xs mt-0.5 ${careerInterest === role.id ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                      <p className={`font-bold text-sm sm:text-base ${careerInterest === role.id ? 'text-white' : 'text-zinc-900'}`}>
+                        {role.role_name}
+                      </p>
+                      <p className={`text-xs mt-0.5 ${careerInterest === role.id ? 'text-zinc-300' : 'text-zinc-500'}`}>
                         {role.required_skills.length} skills required
                       </p>
                     </div>
@@ -1044,24 +1106,70 @@ const StudentDashboard = () => {
                                   </div>
                                   
                                   <div>
-                                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">❌ Skills Missing (Target for placement)</p>
+                                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">❌ Skills Missing (Click to Learn)</p>
                                     <div className="flex flex-wrap gap-1.5">
                                       {missingJobSkills.length > 0 ? missingJobSkills.map(skill => (
-                                        <span key={skill} className="text-xs font-medium bg-red-50 text-red-700 border border-red-200 px-2 py-1 rounded-md flex items-center gap-1">
-                                          <XCircle className="w-3 h-3" /> {skill}
-                                        </span>
+                                        <a
+                                          key={skill}
+                                          href={`https://www.youtube.com/results?search_query=${encodeURIComponent(skill + ' tutorial full course')}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          title={`Learn ${skill} on YouTube`}
+                                          className="text-xs font-medium bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-2 py-1 rounded-md flex items-center gap-1 transition-all cursor-pointer group"
+                                        >
+                                          <XCircle className="w-3 h-3 text-red-500 group-hover:scale-110 transition-transform" /> 
+                                          <span>{skill}</span>
+                                          <span className="text-[10px] text-red-500/70 group-hover:text-red-700">▶</span>
+                                        </a>
                                       )) : <span className="text-xs text-emerald-600 font-bold flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> You meet all skill requirements!</span>}
                                     </div>
                                   </div>
 
                                   {missingJobSkills.length > 0 && (
-                                    <div className="bg-amber-50 rounded-xl p-3 border border-amber-200/70">
-                                      <p className="text-xs font-bold text-amber-900 mb-1 flex items-center gap-1.5">
-                                        <TrendingUp className="w-3.5 h-3.5 text-amber-700" /> Recommended Learning Action
+                                    <div className="bg-amber-50/90 rounded-xl p-3.5 border border-amber-200/80 space-y-2.5">
+                                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                                        <p className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                                          <TrendingUp className="w-4 h-4 text-amber-700" /> Recommended Learning Action
+                                        </p>
+                                        <span className="text-[11px] font-extrabold px-2 py-0.5 bg-amber-100 text-amber-900 rounded-md border border-amber-300/60">
+                                          Boosts Match: {matchPercentage}% ➔ {Math.min(100, Math.round(((matchedJobSkills.length + 1) / Math.max(1, job.requiredSkills.length)) * 100))}%
+                                        </span>
+                                      </div>
+                                      
+                                      <p className="text-xs text-amber-900 leading-relaxed font-medium">
+                                        Prioritize learning <strong className="font-extrabold text-amber-950 underline decoration-amber-400">{missingJobSkills[0]}</strong> first to increase your match percentage.
                                       </p>
-                                      <p className="text-xs text-amber-800 leading-relaxed font-medium">
-                                        Prioritize learning <strong className="font-extrabold text-amber-950">{missingJobSkills[0]}</strong> first to increase your match percentage. Watch tutorials on YouTube and track progress in T7 Learning Hub.
+
+                                      <div className="pt-0.5 flex items-center gap-2 flex-wrap">
+                                        <a
+                                          href={`https://www.youtube.com/results?search_query=${encodeURIComponent(missingJobSkills[0] + ' tutorial full course')}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs cursor-pointer"
+                                        >
+                                          <Youtube className="w-3.5 h-3.5" />
+                                          <span>Watch {missingJobSkills[0]} Tutorials ↗</span>
+                                        </a>
+                                        <button
+                                          type="button"
+                                          onClick={() => setIsYouTubeModalOpen(true)}
+                                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs cursor-pointer"
+                                        >
+                                          <span>Open T7 Video Tracker</span>
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Full Job Description from API */}
+                                  {job.description && (
+                                    <div className="pt-2 border-t border-zinc-200/70">
+                                      <p className="text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                        <FileText className="w-3.5 h-3.5 text-zinc-500" /> Full Job Overview & Requirements
                                       </p>
+                                      <div className="bg-zinc-50 rounded-xl p-3.5 border border-zinc-200 text-xs text-zinc-700 leading-relaxed max-h-56 overflow-y-auto whitespace-pre-line font-normal select-text">
+                                        {job.description}
+                                      </div>
                                     </div>
                                   )}
                                 </div>

@@ -104,24 +104,36 @@ export const isJobRelevantForRole = (title = '', description = '', roleName = ''
 };
 
 /**
- * Smart skill extraction: match skills from job title + description
+ * Smart skill extraction: matches real skills extracted from employer's job title + description
  */
 export const extractSkillsFromJob = (title = '', description = '', roleSkills = []) => {
   const combinedText = `${title} ${description}`.toLowerCase();
   const matched = new Set();
+
+  // 1. Scan all industry tech skills against the employer's actual job posting
+  allSkills.forEach(s => {
+    const sLower = s.toLowerCase();
+    if (sLower.length >= 2 && combinedText.includes(sLower)) {
+      matched.add(s);
+    }
+  });
+
+  // 2. Scan role-specific skills against the job text
   roleSkills.forEach(skillObj => {
     const sName = typeof skillObj === 'string' ? skillObj : skillObj.name;
-    if (sName && combinedText.includes(sName.toLowerCase())) matched.add(sName);
+    if (sName && combinedText.includes(sName.toLowerCase())) {
+      matched.add(sName);
+    }
   });
-  allSkills.slice(0, 50).forEach(s => {
-    if (combinedText.includes(s.toLowerCase())) matched.add(s);
-  });
-  if (matched.size < 4 && roleSkills.length > 0) {
-    roleSkills.slice(0, 5).forEach(s => {
+
+  // 3. If posting was extremely brief (e.g. 1 line), supplement with core role essentials
+  if (matched.size < 2 && roleSkills.length > 0) {
+    roleSkills.slice(0, 4).forEach(s => {
       const sName = typeof s === 'string' ? s : s.name;
       if (sName) matched.add(sName);
     });
   }
+
   return Array.from(matched);
 };
 
