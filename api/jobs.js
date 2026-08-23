@@ -18,7 +18,8 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed. Use GET.' });
 
-  const { role = 'Software Developer', location = 'India', source = 'all' } = req.query;
+  const { role = 'Software Developer', location = 'India', source = 'all', page = '1' } = req.query;
+  const pageNum = parseInt(page, 10) || 1;
 
   // Server-only env vars — no VITE_ prefix, never bundled into frontend
   const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || '';
@@ -37,7 +38,7 @@ export default async function handler(req, res) {
       (async () => {
         try {
           const query = encodeURIComponent(`${role} in ${location}`);
-          const url = `https://jsearch.p.rapidapi.com/search-v2?query=${query}&num_pages=1`;
+          const url = `https://jsearch.p.rapidapi.com/search-v2?query=${query}&page=${pageNum}&num_pages=1`;
           const r = await fetch(url, {
             headers: {
               'X-RapidAPI-Key': RAPIDAPI_KEY,
@@ -48,7 +49,7 @@ export default async function handler(req, res) {
           const data = await r.json();
           const rawJobs = Array.isArray(data.data) ? data.data : (data.data?.jobs || []);
           results.jsearch = rawJobs.map((j, idx) => ({
-            id: j.job_id || `jsearch-${idx}`,
+            id: j.job_id || `jsearch-${pageNum}-${idx}`,
             title: j.job_title,
             company: j.employer_name || 'Hiring Company',
             companyLogo: j.employer_logo || null,
@@ -77,12 +78,12 @@ export default async function handler(req, res) {
       (async () => {
         try {
           const what = encodeURIComponent(role);
-          const url = `https://api.adzuna.com/v1/api/jobs/in/search/1?app_id=${ADZUNA_APP_ID}&app_key=${ADZUNA_APP_KEY}&what=${what}&results_per_page=10&content-type=application/json`;
+          const url = `https://api.adzuna.com/v1/api/jobs/in/search/${pageNum}?app_id=${ADZUNA_APP_ID}&app_key=${ADZUNA_APP_KEY}&what=${what}&results_per_page=10&content-type=application/json`;
           const r = await fetch(url);
           if (!r.ok) throw new Error(`Adzuna ${r.status}: ${await r.text()}`);
           const data = await r.json();
           results.adzuna = (data.results || []).map((j, idx) => ({
-            id: j.id ? `adzuna-${j.id}` : `adzuna-${idx}`,
+            id: j.id ? `adzuna-${j.id}` : `adzuna-${pageNum}-${idx}`,
             title: j.title?.replace(/<\/?[^>]+(>|$)/g, '') || '',
             company: j.company?.display_name || 'Leading Enterprise',
             companyLogo: null,
@@ -114,12 +115,12 @@ export default async function handler(req, res) {
           const r = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ keywords: role, location, page: 1 }),
+            body: JSON.stringify({ keywords: role, location, page: pageNum }),
           });
           if (!r.ok) throw new Error(`Jooble ${r.status}`);
           const data = await r.json();
           results.jooble = (data.jobs || []).map((j, idx) => ({
-            id: j.id ? `jooble-${j.id}` : `jooble-${idx}`,
+            id: j.id ? `jooble-${j.id}` : `jooble-${pageNum}-${idx}`,
             title: j.title?.replace(/<\/?[^>]+(>|$)/g, '') || '',
             company: j.company || 'Leading Employer',
             companyLogo: null,

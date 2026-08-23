@@ -4,7 +4,7 @@
  * Architecture:
  * - JSearch (RapidAPI), Adzuna, Jooble → proxied through /api/jobs (server-side, keys never in browser)
  * - Arbeitnow, The Muse              → called directly (no API keys required)
- * - All results merged and returned to the UI
+ * - Full pagination support (page 1, 2, 3...) for infinite load-more
  */
 
 import { industryRoles, allSkills } from '../data/industrySkills';
@@ -84,8 +84,8 @@ const formatPostedDate = (dateStr) => {
 // ----------------------------------------------------------------
 // 1. SECURE PROXY: JSearch + Adzuna + Jooble via /api/jobs
 // ----------------------------------------------------------------
-const fetchSecureJobs = async (roleName, location, source) => {
-  const params = new URLSearchParams({ role: roleName, location, source });
+const fetchSecureJobs = async (roleName, location, source, page = 1) => {
+  const params = new URLSearchParams({ role: roleName, location, source, page: String(page) });
   const res = await fetch(`/api/jobs?${params}`);
   if (!res.ok) throw new Error(`Job proxy error (${res.status})`);
   const data = await res.json();
@@ -95,8 +95,9 @@ const fetchSecureJobs = async (roleName, location, source) => {
 // ----------------------------------------------------------------
 // 2. Arbeitnow API — Free, No Key, Direct Frontend Call
 // ----------------------------------------------------------------
-export const fetchArbeitnowJobs = async (roleName, location = 'India') => {
-  const response = await fetch('https://www.arbeitnow.com/api/job-board-api');
+export const fetchArbeitnowJobs = async (roleName, location = 'India', page = 1) => {
+  const url = `https://www.arbeitnow.com/api/job-board-api?page=${page}`;
+  const response = await fetch(url);
   if (!response.ok) throw new Error(`Arbeitnow API error (${response.status})`);
   const data = await response.json();
   const rawJobs = data.data || [];
@@ -107,11 +108,11 @@ export const fetchArbeitnowJobs = async (roleName, location = 'India') => {
     const text = `${job.title} ${job.description} ${job.tags?.join(' ')}`.toLowerCase();
     return roleWords.some(rw => text.includes(rw)) || text.includes('developer') || text.includes('engineer');
   });
-  const jobsToMap = relevant.length > 0 ? relevant.slice(0, 6) : rawJobs.slice(0, 4);
+  const jobsToMap = relevant.length > 0 ? relevant.slice(0, 8) : rawJobs.slice(0, 6);
   return jobsToMap.map((job, idx) => {
     const skills = extractSkillsFromJob(job.title, job.description, roleRequiredSkills);
     return {
-      id: job.slug ? `arbeitnow-${job.slug}` : `arbeitnow-${idx}-${Date.now()}`,
+      id: job.slug ? `arbeitnow-${job.slug}` : `arbeitnow-${page}-${idx}-${Date.now()}`,
       title: job.title,
       company: job.company_name || 'Tech Company',
       companyLogo: null,
@@ -133,8 +134,8 @@ export const fetchArbeitnowJobs = async (roleName, location = 'India') => {
 // ----------------------------------------------------------------
 // 3. The Muse API — Free, No Key, Direct Frontend Call
 // ----------------------------------------------------------------
-export const fetchTheMuseJobs = async (roleName, location = 'India') => {
-  const url = `https://www.themuse.com/api/public/jobs?category=Software%20Engineering&category=Data%20and%20Analytics&category=Design%20and%20UX&page=1`;
+export const fetchTheMuseJobs = async (roleName, location = 'India', page = 1) => {
+  const url = `https://www.themuse.com/api/public/jobs?category=Software%20Engineering&category=Data%20and%20Analytics&category=Design%20and%20UX&page=${page}`;
   const response = await fetch(url);
   if (!response.ok) throw new Error(`The Muse API error (${response.status})`);
   const data = await response.json();
@@ -146,12 +147,12 @@ export const fetchTheMuseJobs = async (roleName, location = 'India') => {
     const text = `${job.name} ${job.contents}`.toLowerCase();
     return roleWords.some(rw => text.includes(rw)) || text.includes('software') || text.includes('engineer');
   });
-  const jobsToMap = relevant.length > 0 ? relevant.slice(0, 6) : rawJobs.slice(0, 4);
+  const jobsToMap = relevant.length > 0 ? relevant.slice(0, 8) : rawJobs.slice(0, 6);
   return jobsToMap.map((job, idx) => {
     const skills = extractSkillsFromJob(job.name, job.contents, roleRequiredSkills);
     const locStr = job.locations?.map(l => l.name).join(', ') || (location || 'Global / Remote');
     return {
-      id: job.id ? `themuse-${job.id}` : `themuse-${idx}-${Date.now()}`,
+      id: job.id ? `themuse-${job.id}` : `themuse-${page}-${idx}-${Date.now()}`,
       title: job.name,
       company: job.company?.name || 'Top Tech Enterprise',
       companyLogo: null,
@@ -178,9 +179,10 @@ export const fetchJobMarketInsights = async ({
   roleName,
   location = 'India',
   provider = 'auto', // 'auto'|'all'|'jsearch'|'adzuna'|'arbeitnow'|'themuse'|'jooble'
+  page = 1,
   forceRefresh = false,
 } = {}) => {
-  const cacheKey = `${roleId || roleName}-${location}-${provider}`;
+  const cacheKey = `${roleId || roleName}-${location}-${provider}-p${page}`;
   if (!forceRefresh && jobCache.has(cacheKey)) {
     const cached = jobCache.get(cacheKey);
     if (Date.now() - cached.timestamp < CACHE_TTL_MS) return cached.data;
@@ -203,7 +205,7 @@ export const fetchJobMarketInsights = async ({
   if (isAuto || ['jsearch', 'adzuna', 'jooble'].includes(provider)) {
     const proxySource = isAuto ? 'all' : provider;
     promises.push(
-      fetchSecureJobs(queryRole, location, proxySource)
+      fetchSecureJobs(queryRole, location, proxySource, page)
         .then(data => {
           secureJobs = data.jobs || [];
           if (data.activeSources) activeSources.push(...data.activeSources);
@@ -219,7 +221,7 @@ export const fetchJobMarketInsights = async ({
   // Free APIs — direct frontend calls
   if (isAuto || provider === 'arbeitnow') {
     promises.push(
-      fetchArbeitnowJobs(queryRole, location)
+      fetchArbeitnowJobs(queryRole, location, page)
         .then(res => {
           arbeitnowJobs = res || [];
           if (arbeitnowJobs.length > 0) activeSources.push('Arbeitnow');
@@ -230,7 +232,7 @@ export const fetchJobMarketInsights = async ({
 
   if (isAuto || provider === 'themuse') {
     promises.push(
-      fetchTheMuseJobs(queryRole, location)
+      fetchTheMuseJobs(queryRole, location, page)
         .then(res => {
           theMuseJobs = res || [];
           if (theMuseJobs.length > 0) activeSources.push('The Muse');
@@ -278,12 +280,13 @@ export const fetchJobMarketInsights = async ({
 
   const uniqueSources = [...new Set(activeSources)];
   const resultPayload = {
-    jobs: finalJobs.slice(0, 50),
+    jobs: finalJobs,
+    page,
     provider: uniqueSources.length > 1
       ? `Multi-Source Live (${uniqueSources.join(' + ')})`
       : (uniqueSources[0] || 'No Live Data'),
     activeSources: uniqueSources,
-    hasLiveApiConfigured: true, // Keys are on server; always available
+    hasLiveApiConfigured: true,
     error: finalJobs.length === 0 ? (errorMessage || 'No jobs returned from any source.') : '',
     timestamp: Date.now(),
   };

@@ -11,6 +11,7 @@ import { industryRoles, allSkills } from '../../data/industrySkills';
 import { fetchJobMarketInsights } from '../../services/jobMarketService';
 import StudentProfileModal from './StudentProfileModal';
 import YouTubeTrackerModal from './YouTubeTrackerModal';
+import FullJobMarketView from './FullJobMarketView';
 import ModelSelector from '../common/ModelSelector';
 import { 
   LogOut,
@@ -113,7 +114,7 @@ const StudentDashboard = () => {
   const [selectedJob, setSelectedJob] = useState(null);
   const [jobProvider, setJobProvider] = useState('Real-Time Feed');
   const [selectedSource, setSelectedSource] = useState('auto');
-  const [showAllJobs, setShowAllJobs] = useState(false);
+  const [isFullJobViewOpen, setIsFullJobViewOpen] = useState(false);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [jobError, setJobError] = useState('');
 
@@ -317,12 +318,16 @@ const StudentDashboard = () => {
     setResumeFile(null);
   };
 
-  const viewPreviousResults = () => {
-    if (lastAnalysis) {
-      const selectedRole = industryRoles.find(r => r.role_name === lastAnalysis.career_role) || industryRoles[0];
-      navigate('/results', { state: { analysis: lastAnalysis, role: selectedRole, userSkills: selectedSkills } });
-    }
-  };
+  if (isFullJobViewOpen && careerInterest) {
+    return (
+      <FullJobMarketView
+        careerInterest={careerInterest}
+        userSkills={selectedSkills}
+        initialSource={selectedSource}
+        onBack={() => setIsFullJobViewOpen(false)}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -937,7 +942,7 @@ const StudentDashboard = () => {
                 ) : (
                   <div>
                     <div className="grid sm:grid-cols-2 gap-4">
-                      {(showAllJobs ? jobListings : jobListings.slice(0, 4)).map(job => {
+                      {jobListings.slice(0, 8).map(job => {
                         const matchedJobSkills = job.requiredSkills.filter(s => selectedSkills.includes(s));
                         const missingJobSkills = job.requiredSkills.filter(s => !selectedSkills.includes(s));
                         const matchPercentage = job.requiredSkills.length > 0
@@ -1060,22 +1065,20 @@ const StudentDashboard = () => {
                       })}
                     </div>
 
-                    {/* View All / Show Less Toggle Button */}
-                    {jobListings.length > 4 && (
-                      <div className="mt-6 pt-4 border-t border-zinc-100 flex items-center justify-between flex-wrap gap-3">
-                        <p className="text-xs text-zinc-500 font-medium">
-                          Showing <span className="font-bold text-zinc-900">{showAllJobs ? jobListings.length : Math.min(4, jobListings.length)}</span> of <span className="font-bold text-zinc-900">{jobListings.length}</span> live matching roles
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => setShowAllJobs(!showAllJobs)}
-                          className="px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-sm cursor-pointer"
-                        >
-                          <span>{showAllJobs ? 'Show Fewer Jobs' : `View All Jobs (${jobListings.length})`}</span>
-                          <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showAllJobs ? 'rotate-180' : ''}`} />
-                        </button>
-                      </div>
-                    )}
+                    {/* View All in Full Screen Button */}
+                    <div className="mt-6 pt-4 border-t border-zinc-100 flex items-center justify-between flex-wrap gap-3">
+                      <p className="text-xs text-zinc-500 font-medium">
+                        Showing top <span className="font-bold text-zinc-900">{Math.min(8, jobListings.length)}</span> featured roles for <span className="font-bold text-zinc-900">{industryRoles.find(r => r.id === careerInterest)?.role_name || 'your career'}</span>
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setIsFullJobViewOpen(true)}
+                        className="px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-md cursor-pointer hover:gap-2.5"
+                      >
+                        <span>View All Jobs in Full Screen ({jobListings.length > 0 ? `${jobListings.length}+ Roles` : 'Explore Board'})</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
