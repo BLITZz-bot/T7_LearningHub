@@ -890,9 +890,12 @@ const StudentDashboard = () => {
                         className="px-3 py-2 pr-8 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-800 outline-none cursor-pointer appearance-none"
                         title="Choose job data source"
                       >
-                        <option value="auto">⚡ Both (JSearch + Adzuna)</option>
-                        <option value="jsearch">💼 JSearch (LinkedIn/Indeed)</option>
-                        <option value="adzuna">🏢 Adzuna API</option>
+                        <option value="auto">⚡ All Live Sources (Multi-Feed)</option>
+                        <option value="jsearch">💼 JSearch (LinkedIn / Indeed / Glassdoor)</option>
+                        <option value="adzuna">🏢 Adzuna API (Licensed Aggregator)</option>
+                        <option value="arbeitnow">🌐 Arbeitnow (Remote & Tech)</option>
+                        <option value="themuse">🏛️ The Muse (Top Tech Enterprises)</option>
+                        <option value="jooble">🔍 Jooble Jobs</option>
                       </select>
                       <ChevronDown className="w-3.5 h-3.5 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
