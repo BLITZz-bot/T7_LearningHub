@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Search, RefreshCw, Compass, Building2, MapPin, 
   ExternalLink, Target, CheckCircle2, XCircle, TrendingUp, 
-  Loader2, Briefcase, ChevronDown
+  Loader2, Filter, ChevronDown, Briefcase
 } from 'lucide-react';
 import { fetchJobMarketInsights } from '../../services/jobMarketService';
 import { industryRoles } from '../../data/industrySkills';
@@ -13,7 +13,7 @@ const FullJobMarketView = ({
   onBack,
   initialSource = 'auto'
 }) => {
-  const [activeRole, setActiveRole] = useState(careerInterest || (industryRoles[0]?.id || 'frontend-developer'));
+  const [activeRoleId, setActiveRoleId] = useState(careerInterest || industryRoles[0]?.id || 'frontend-developer');
   const [jobs, setJobs] = useState([]);
   const [selectedJob, setSelectedJob] = useState(null);
   const [selectedSource, setSelectedSource] = useState(initialSource);
@@ -25,21 +25,17 @@ const FullJobMarketView = ({
   const [activeSources, setActiveSources] = useState([]);
   const [hasMore, setHasMore] = useState(true);
 
-  const selectedRoleObj = industryRoles.find(r => r.id === activeRole) || {
-    id: activeRole,
-    role_name: activeRole.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-    required_skills: []
-  };
+  const selectedRole = industryRoles.find(r => r.id === activeRoleId) || industryRoles[0];
 
-  // Initial load or filter change
+  // Initial load or role/source change
   const loadInitialJobs = async (forceRefresh = false) => {
     setLoading(true);
     setError('');
     setPage(1);
     try {
       const data = await fetchJobMarketInsights({
-        roleId: activeRole,
-        roleName: selectedRoleObj.role_name,
+        roleId: activeRoleId,
+        roleName: selectedRole.role_name,
         provider: selectedSource,
         page: 1,
         forceRefresh
@@ -60,7 +56,7 @@ const FullJobMarketView = ({
 
   useEffect(() => {
     loadInitialJobs();
-  }, [activeRole, selectedSource]);
+  }, [activeRoleId, selectedSource]);
 
   // Load next page of jobs
   const handleLoadMore = async () => {
@@ -69,8 +65,8 @@ const FullJobMarketView = ({
     setLoadingMore(true);
     try {
       const data = await fetchJobMarketInsights({
-        roleId: activeRole,
-        roleName: selectedRoleObj.role_name,
+        roleId: activeRoleId,
+        roleName: selectedRole.role_name,
         provider: selectedSource,
         page: nextPage,
         forceRefresh: true
@@ -94,8 +90,19 @@ const FullJobMarketView = ({
     }
   };
 
-  // Filter jobs by search query
+  // Filter jobs by search query & selected source
   const filteredJobs = jobs.filter(job => {
+    // Source filter check
+    if (selectedSource !== 'auto') {
+      const p = (job.platform || job.source || '').toLowerCase();
+      if (selectedSource === 'jsearch' && !p.includes('jsearch') && !p.includes('linkedin') && !p.includes('indeed') && !p.includes('glassdoor') && !p.includes('google')) return false;
+      if (selectedSource === 'adzuna' && !p.includes('adzuna')) return false;
+      if (selectedSource === 'jooble' && !p.includes('jooble')) return false;
+      if (selectedSource === 'arbeitnow' && !p.includes('arbeitnow')) return false;
+      if (selectedSource === 'themuse' && !p.includes('muse')) return false;
+    }
+
+    // Search query check
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -110,7 +117,7 @@ const FullJobMarketView = ({
     <div className="min-h-screen bg-zinc-50 pb-16 animate-fade-in">
       {/* Top Sticky Header */}
       <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-zinc-200 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4 flex-wrap">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -124,11 +131,11 @@ const FullJobMarketView = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-base sm:text-lg font-black text-zinc-900 tracking-tight">
-                  {selectedRoleObj.role_name} Live Jobs
+                  {selectedRole.role_name} Jobs
                 </h1>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Live Real-Time Feed
+                  Live Feed
                 </span>
               </div>
               <p className="text-xs text-zinc-500 hidden md:block">
@@ -138,42 +145,21 @@ const FullJobMarketView = ({
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap w-full sm:w-auto">
-            {/* Target Career Role Filter Dropdown */}
-            <div className="relative">
-              <div className="flex items-center gap-1.5 pl-3 pr-8 py-2 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-800 cursor-pointer">
-                <Briefcase className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" />
-                <select
-                  value={activeRole}
-                  onChange={(e) => setActiveRole(e.target.value)}
-                  className="bg-transparent outline-none cursor-pointer appearance-none pr-2 font-bold text-zinc-900"
-                  title="Change Career Role"
-                >
-                  {industryRoles.map(role => (
-                    <option key={role.id} value={role.id}>
-                      {role.role_name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-3.5 h-3.5 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* API Source Provider Filter Dropdown */}
+            {/* Career Role Selector Dropdown */}
             <div className="relative">
               <select
-                value={selectedSource}
-                onChange={(e) => setSelectedSource(e.target.value)}
-                className="px-3 py-2 pr-8 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-800 outline-none cursor-pointer appearance-none"
-                title="Choose job data source"
+                value={activeRoleId}
+                onChange={(e) => setActiveRoleId(e.target.value)}
+                className="px-3.5 py-2 pr-9 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-900 outline-none cursor-pointer appearance-none shadow-xs transition-all"
+                title="Select Career Role"
               >
-                <option value="auto">⚡ All Live Sources (Multi-Feed)</option>
-                <option value="jsearch">💼 JSearch (LinkedIn / Indeed / Glassdoor)</option>
-                <option value="adzuna">🏢 Adzuna API (Licensed Aggregator)</option>
-                <option value="arbeitnow">🌐 Arbeitnow (Remote & Tech)</option>
-                <option value="themuse">🏛️ The Muse (Top Tech Enterprises)</option>
-                <option value="jooble">🔍 Jooble Jobs</option>
+                {industryRoles.map(role => (
+                  <option key={role.id} value={role.id}>
+                    🎯 {role.role_name}
+                  </option>
+                ))}
               </select>
-              <ChevronDown className="w-3.5 h-3.5 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-4 h-4 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
 
             {/* Quick Refresh */}
@@ -184,7 +170,7 @@ const FullJobMarketView = ({
               className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
+              <span>{loading ? 'Fetching...' : 'Refresh'}</span>
             </button>
           </div>
         </div>
@@ -235,7 +221,7 @@ const FullJobMarketView = ({
         {/* Results Header */}
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <p className="text-xs font-bold text-zinc-600">
-            Showing <span className="text-zinc-900">{filteredJobs.length}</span> live matching opportunities for <strong className="text-zinc-950 font-black">{selectedRoleObj.role_name}</strong>
+            Showing <span className="text-zinc-900">{filteredJobs.length}</span> live matching opportunities for <span className="text-zinc-900 font-extrabold">{selectedRole.role_name}</span>
           </p>
           {activeSources.length > 0 && (
             <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-zinc-500 font-medium">
@@ -253,7 +239,7 @@ const FullJobMarketView = ({
         {loading ? (
           <div className="py-24 text-center">
             <Loader2 className="w-10 h-10 animate-spin mx-auto text-zinc-900 mb-3" />
-            <p className="text-base font-bold text-zinc-900">Fetching live {selectedRoleObj.role_name} job postings...</p>
+            <p className="text-base font-bold text-zinc-900">Fetching live {selectedRole.role_name} postings...</p>
             <p className="text-xs text-zinc-500 mt-1">Querying LinkedIn, Indeed, Glassdoor, Adzuna, Jooble & top enterprise boards</p>
           </div>
         ) : filteredJobs.length === 0 ? (
