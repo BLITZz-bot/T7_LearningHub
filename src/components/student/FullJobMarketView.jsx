@@ -25,7 +25,9 @@ const FullJobMarketView = ({
   const [activeSources, setActiveSources] = useState([]);
   const [hasMore, setHasMore] = useState(true);
 
-  const selectedRole = industryRoles.find(r => r.id === activeRoleId) || industryRoles[0];
+  const selectedRole = activeRoleId === 'all' 
+    ? { id: 'all', role_name: 'All Tech Roles', required_skills: [] }
+    : (industryRoles.find(r => r.id === activeRoleId) || industryRoles[0]);
 
   // Initial load or role/source change
   const loadInitialJobs = async (forceRefresh = false) => {
@@ -158,6 +160,7 @@ const FullJobMarketView = ({
                 className="px-3.5 py-2 pr-9 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-900 outline-none cursor-pointer appearance-none shadow-xs transition-all"
                 title="Select Career Role"
               >
+                <option value="all">🌟 All Roles (Explore All Jobs)</option>
                 {industryRoles.map(role => (
                   <option key={role.id} value={role.id}>
                     🎯 {role.role_name}

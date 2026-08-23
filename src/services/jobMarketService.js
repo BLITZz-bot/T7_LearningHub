@@ -53,6 +53,11 @@ export const isJobRelevantForRole = (title = '', description = '', roleName = ''
   const d = description.toLowerCase();
   const r = roleName.toLowerCase();
 
+  // If 'All Roles' or 'all' is selected — permit all tech opportunities!
+  if (!r || r === 'all' || r.includes('all roles') || r.includes('all tech') || r.includes('all jobs') || r === 'all-roles') {
+    return true;
+  }
+
   // If role is Data Analyst / BI:
   if (r.includes('data analyst') || r.includes('business intelligence') || r.includes('bi analyst')) {
     return t.includes('data') || t.includes('analyst') || t.includes('analytics') || t.includes('bi ') || t.includes('power bi') || t.includes('tableau') || t.includes('sql');
@@ -246,8 +251,9 @@ export const fetchJobMarketInsights = async ({
     if (Date.now() - cached.timestamp < CACHE_TTL_MS) return cached.data;
   }
 
-  const role = industryRoles.find(r => r.id === roleId || r.role_name === roleName) || industryRoles[0];
-  const queryRole = roleName || role.role_name;
+  const isAllRoles = roleId === 'all' || roleName === 'All Tech Roles' || roleName === 'All Roles' || !roleId;
+  const matchedRole = !isAllRoles ? (industryRoles.find(r => r.id === roleId || r.role_name === roleName) || industryRoles[0]) : null;
+  const queryRole = isAllRoles ? 'Developer' : (roleName || matchedRole?.role_name || 'Software Developer');
 
   const isAuto = provider === 'auto' || provider === 'all';
 
@@ -302,8 +308,7 @@ export const fetchJobMarketInsights = async ({
   await Promise.allSettled(promises);
 
   // Enrich proxy jobs with client-side skill matching and platform styling
-  const matchedRole = industryRoles.find(r => r.role_name === queryRole) || {};
-  const roleRequiredSkills = matchedRole.required_skills || [];
+  const roleRequiredSkills = matchedRole?.required_skills || [];
 
   const enrichProxyJob = (job) => {
     const styling = getPlatformStyle(job.platform);
