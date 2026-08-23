@@ -390,8 +390,7 @@ const FullJobMarketView = ({
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-4 h-4 text-emerald-400" />
-                      <span>Load More Live Jobs (Page {page + 1})</span>
+                      <span>Load More Jobs</span>
                       <ChevronDown className="w-4 h-4" />
                     </>
                   )}
