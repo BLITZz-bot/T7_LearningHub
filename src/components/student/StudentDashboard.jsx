@@ -115,11 +115,13 @@ const StudentDashboard = () => {
   const [jobLocation, setJobLocation] = useState('India');
   const [selectedSource, setSelectedSource] = useState('auto');
   const [loadingJobs, setLoadingJobs] = useState(false);
+  const [jobError, setJobError] = useState('');
 
   const loadJobMarketData = async (forceRefresh = false) => {
     if (!careerInterest) {
       setJobListings([]);
       setSelectedJob(null);
+      setJobError('');
       return;
     }
 
@@ -127,6 +129,7 @@ const StudentDashboard = () => {
     if (!selectedRole) return;
 
     setLoadingJobs(true);
+    setJobError('');
     try {
       const data = await fetchJobMarketInsights({
         roleId: careerInterest,
@@ -137,8 +140,12 @@ const StudentDashboard = () => {
       });
       setJobListings(data.jobs || []);
       setJobProvider(data.provider || 'Real-Time Feed');
+      if (data.error) {
+        setJobError(data.error);
+      }
     } catch (err) {
       console.error('Error fetching real-time jobs:', err);
+      setJobError(err.message);
     } finally {
       setLoadingJobs(false);
     }
@@ -930,10 +937,18 @@ const StudentDashboard = () => {
                     <p className="text-xs text-zinc-500 mt-1">Connecting to JSearch (LinkedIn, Indeed, Glassdoor) & Adzuna</p>
                   </div>
                 ) : jobListings.length === 0 ? (
-                  <div className="py-12 text-center text-zinc-400 text-sm">
+                  <div className="py-12 text-center text-zinc-400 text-sm max-w-md mx-auto">
                     <Compass className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                    <p className="font-bold text-zinc-600">No active job listings found for this filter</p>
-                    <p className="text-xs text-zinc-400 mt-1">Try selecting a different location or check your API keys.</p>
+                    <p className="font-bold text-zinc-700">No active job listings found</p>
+                    {jobError ? (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3 mt-2 leading-relaxed font-medium">
+                        {jobError.includes('not subscribed')
+                          ? 'RapidAPI Notice: Please click "Subscribe to Test" on the free tier of JSearch in RapidAPI to activate your key.'
+                          : jobError}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-zinc-400 mt-1">Try selecting a different location or check your data source filter.</p>
+                    )}
                   </div>
                 ) : (
                   <div className="grid sm:grid-cols-2 gap-4">
