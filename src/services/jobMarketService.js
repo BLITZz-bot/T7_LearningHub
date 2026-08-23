@@ -107,7 +107,7 @@ export const fetchJSearchJobs = async (roleName, location = 'India', customKey =
   }
 
   const query = `${roleName} in ${location}`;
-  const url = `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query)}&page=1&num_pages=1&employment_types=FULLTIME,INTERN`;
+  const url = `https://jsearch.p.rapidapi.com/search-v2?query=${encodeURIComponent(query)}&num_pages=1`;
 
   const response = await fetch(url, {
     method: 'GET',
@@ -123,14 +123,15 @@ export const fetchJSearchJobs = async (roleName, location = 'India', customKey =
   }
 
   const data = await response.json();
-  if (!data.data || !Array.isArray(data.data)) {
+  const rawJobs = Array.isArray(data.data) ? data.data : (data.data?.jobs || []);
+  if (!rawJobs || !Array.isArray(rawJobs) || rawJobs.length === 0) {
     return [];
   }
 
   const matchedRole = industryRoles.find(r => r.role_name.toLowerCase() === roleName.toLowerCase()) || {};
   const roleRequiredSkills = matchedRole.required_skills || [];
 
-  return data.data.map((job, idx) => {
+  return rawJobs.map((job, idx) => {
     const platform = job.job_publisher || 'Google for Jobs';
     const styling = getPlatformStyle(platform);
 
