@@ -159,7 +159,7 @@ export default async function handler(req, res) {
   ].filter(Boolean);
 
   return res.status(200).json({
-    jobs: merged.slice(0, 15),
+    jobs: merged.slice(0, 50),
     activeSources,
     errors: results.errors,
     timestamp: Date.now(),
