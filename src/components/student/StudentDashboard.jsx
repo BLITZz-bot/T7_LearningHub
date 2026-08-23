@@ -318,6 +318,13 @@ const StudentDashboard = () => {
     setResumeFile(null);
   };
 
+  const viewPreviousResults = () => {
+    if (lastAnalysis) {
+      const selectedRole = industryRoles.find(r => r.role_name === lastAnalysis.career_role) || industryRoles[0];
+      navigate('/results', { state: { analysis: lastAnalysis, role: selectedRole, userSkills: selectedSkills } });
+    }
+  };
+
   if (isFullJobViewOpen && careerInterest) {
     return (
       <FullJobMarketView
