@@ -278,7 +278,7 @@ export const fetchJobMarketInsights = async ({
 
   const uniqueSources = [...new Set(activeSources)];
   const resultPayload = {
-    jobs: finalJobs.slice(0, 12),
+    jobs: finalJobs.slice(0, 50),
     provider: uniqueSources.length > 1
       ? `Multi-Source Live (${uniqueSources.join(' + ')})`
       : (uniqueSources[0] || 'No Live Data'),
