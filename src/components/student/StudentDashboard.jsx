@@ -11,7 +11,6 @@ import { industryRoles, allSkills } from '../../data/industrySkills';
 import { fetchJobMarketInsights } from '../../services/jobMarketService';
 import StudentProfileModal from './StudentProfileModal';
 import YouTubeTrackerModal from './YouTubeTrackerModal';
-import JobApiConfigModal from './JobApiConfigModal';
 import ModelSelector from '../common/ModelSelector';
 import { 
   LogOut,
@@ -116,12 +115,6 @@ const StudentDashboard = () => {
   const [jobLocation, setJobLocation] = useState('India');
   const [selectedSource, setSelectedSource] = useState('auto');
   const [loadingJobs, setLoadingJobs] = useState(false);
-  const [isJobConfigModalOpen, setIsJobConfigModalOpen] = useState(false);
-  const [jobApiKeys, setJobApiKeys] = useState({
-    rapidApiKey: localStorage.getItem('t7_rapidapi_key') || '',
-    adzunaAppId: localStorage.getItem('t7_adzuna_app_id') || '',
-    adzunaAppKey: localStorage.getItem('t7_adzuna_app_key') || '',
-  });
 
   const loadJobMarketData = async (forceRefresh = false) => {
     if (!careerInterest) {
@@ -140,9 +133,6 @@ const StudentDashboard = () => {
         roleName: selectedRole.role_name,
         location: jobLocation,
         provider: selectedSource,
-        customRapidApiKey: jobApiKeys.rapidApiKey,
-        customAdzunaAppId: jobApiKeys.adzunaAppId,
-        customAdzunaAppKey: jobApiKeys.adzunaAppKey,
         forceRefresh
       });
       setJobListings(data.jobs || []);
@@ -154,10 +144,10 @@ const StudentDashboard = () => {
     }
   };
 
-  // Load jobs when career interest, location, provider or keys change
+  // Load jobs when career interest, location or provider change
   useEffect(() => {
     loadJobMarketData();
-  }, [careerInterest, jobLocation, selectedSource, jobApiKeys]);
+  }, [careerInterest, jobLocation, selectedSource]);
 
   // T7 ID & YouTube learning state
   const [copied, setCopied] = useState(false);
@@ -924,22 +914,11 @@ const StudentDashboard = () => {
                       type="button"
                       onClick={() => loadJobMarketData(true)}
                       disabled={loadingJobs}
-                      className="px-3 py-2 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 text-zinc-700 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                      className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
                       title="Refresh real-time job listings"
                     >
-                      <RefreshCw className={`w-3.5 h-3.5 ${loadingJobs ? 'animate-spin text-zinc-900' : ''}`} />
+                      <RefreshCw className={`w-3.5 h-3.5 ${loadingJobs ? 'animate-spin' : ''}`} />
                       <span>{loadingJobs ? 'Fetching...' : 'Refresh'}</span>
-                    </button>
-
-                    {/* API Settings (JSearch & Adzuna) */}
-                    <button
-                      type="button"
-                      onClick={() => setIsJobConfigModalOpen(true)}
-                      className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
-                      title="Configure JSearch (RapidAPI) or Adzuna API keys"
-                    >
-                      <Key className="w-3.5 h-3.5" />
-                      <span>API Keys</span>
                     </button>
                   </div>
                 </div>
@@ -1103,17 +1082,6 @@ const StudentDashboard = () => {
         refreshVideoLearning={loadVideoLearningData}
         t7Id={userProfile?.t7Id}
         userProfile={userProfile}
-      />
-
-      {/* Real-Time Job Market API Configuration Modal */}
-      <JobApiConfigModal
-        isOpen={isJobConfigModalOpen}
-        onClose={() => setIsJobConfigModalOpen(false)}
-        onSaveKeys={(keys) => {
-          setJobApiKeys(keys);
-          loadJobMarketData(true);
-        }}
-        currentKeys={jobApiKeys}
       />
     </div>
   );
