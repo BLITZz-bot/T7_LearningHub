@@ -7,9 +7,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { analyzeT7LearningHub } from '../../services/geminiService';
 import { saveAnalysis, getLatestAnalysis, getVideoLearning, getVideoLearningSkills } from '../../services/firestoreService';
-import { industryRoles, allSkills, branches, years } from '../../data/industrySkills';
-import { getJobsForRole } from '../../data/jobListings';
+import { industryRoles, allSkills } from '../../data/industrySkills';
+import { fetchJobMarketInsights } from '../../services/jobMarketService';
 import StudentProfileModal from './StudentProfileModal';
+import YouTubeTrackerModal from './YouTubeTrackerModal';
 import ModelSelector from '../common/ModelSelector';
 import { 
   LogOut,
@@ -42,7 +43,9 @@ import {
   Download,
   Calendar,
   User,
-  Edit3
+  Settings,
+  Globe,
+  Key
 } from 'lucide-react';
 
 // Branch → relevant career roles mapping
@@ -66,6 +69,7 @@ const StudentDashboard = () => {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileModalEditMode, setProfileModalEditMode] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [isYouTubeModalOpen, setIsYouTubeModalOpen] = useState(false);
   const profileDropdownRef = useRef(null);
 
   // Close profile dropdown when clicking outside
@@ -79,9 +83,9 @@ const StudentDashboard = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Form state
-  const [branch, setBranch] = useState(userProfile?.branch || '');
-  const [year, setYear] = useState(userProfile?.year || '');
+  // Form state - Branch & Year are automatically sourced from the student's profile
+  const userBranch = userProfile?.branch || '';
+  const userYear = userProfile?.passoutYear || userProfile?.year || '';
   const [selectedSkills, setSelectedSkills] = useState(userProfile?.skills || []);
   const [careerInterest, setCareerInterest] = useState(userProfile?.career_interest || '');
   const [resumeFile, setResumeFile] = useState(null);
@@ -92,30 +96,65 @@ const StudentDashboard = () => {
   const [error, setError] = useState('');
   const [lastAnalysis, setLastAnalysis] = useState(null);
 
-  // Sync userProfile into local form state once it loads (fixes re-login showing empty form)
+  // Sync userProfile skills and career interest when user profile loads
   useEffect(() => {
     if (userProfile) {
-      if (userProfile.branch) setBranch(userProfile.branch);
-      if (userProfile.year) setYear(String(userProfile.year));
-      if (userProfile.skills?.length > 0) setSelectedSkills(userProfile.skills);
-      if (userProfile.career_interest) setCareerInterest(userProfile.career_interest);
+      if (userProfile.skills?.length > 0 && selectedSkills.length === 0) {
+        setSelectedSkills(userProfile.skills);
+      }
+      if (userProfile.career_interest && !careerInterest) {
+        setCareerInterest(userProfile.career_interest);
+      }
     }
-  }, [userProfile?.uid]); // Only run when a new user profile loads (not on every profile update)
+  }, [userProfile?.uid]);
 
-  // Job Market state
+  // Real-Time Job Market state (JSearch & Adzuna)
   const [jobListings, setJobListings] = useState([]);
   const [selectedJob, setSelectedJob] = useState(null);
+  const [jobProvider, setJobProvider] = useState('Real-Time Feed');
+  const [jobLocation, setJobLocation] = useState('India');
+  const [selectedSource, setSelectedSource] = useState('auto');
+  const [loadingJobs, setLoadingJobs] = useState(false);
+  const [jobError, setJobError] = useState('');
 
-  // Load jobs when career interest changes
-  useEffect(() => {
-    if (careerInterest) {
-      setJobListings(getJobsForRole(careerInterest));
-      setSelectedJob(null);
-    } else {
+  const loadJobMarketData = async (forceRefresh = false) => {
+    if (!careerInterest) {
       setJobListings([]);
       setSelectedJob(null);
+      setJobError('');
+      return;
     }
-  }, [careerInterest]);
+
+    const selectedRole = industryRoles.find(r => r.id === careerInterest);
+    if (!selectedRole) return;
+
+    setLoadingJobs(true);
+    setJobError('');
+    try {
+      const data = await fetchJobMarketInsights({
+        roleId: careerInterest,
+        roleName: selectedRole.role_name,
+        location: jobLocation,
+        provider: selectedSource,
+        forceRefresh
+      });
+      setJobListings(data.jobs || []);
+      setJobProvider(data.provider || 'Real-Time Feed');
+      if (data.error) {
+        setJobError(data.error);
+      }
+    } catch (err) {
+      console.error('Error fetching real-time jobs:', err);
+      setJobError(err.message);
+    } finally {
+      setLoadingJobs(false);
+    }
+  };
+
+  // Load jobs when career interest, location or provider change
+  useEffect(() => {
+    loadJobMarketData();
+  }, [careerInterest, jobLocation, selectedSource]);
 
   // T7 ID & YouTube learning state
   const [copied, setCopied] = useState(false);
@@ -200,25 +239,26 @@ const StudentDashboard = () => {
     );
   };
 
-  const filteredRoles = branch
-    ? industryRoles.filter(role => (BRANCH_CAREER_MAP[branch] || []).includes(role.id))
+  // Filter career roles automatically based on profile branch
+  const filteredRoles = userBranch
+    ? (BRANCH_CAREER_MAP[userBranch] ? industryRoles.filter(role => BRANCH_CAREER_MAP[userBranch].includes(role.id)) : industryRoles)
     : industryRoles;
 
-  // Reset career interest when branch changes and role is no longer relevant
+  // Reset career interest when branch changes in profile and role is no longer relevant
   useEffect(() => {
-    if (branch && careerInterest) {
-      const allowedIds = BRANCH_CAREER_MAP[branch] || [];
-      if (!allowedIds.includes(careerInterest)) {
+    if (userBranch && careerInterest) {
+      const allowedIds = BRANCH_CAREER_MAP[userBranch] || [];
+      if (allowedIds.length > 0 && !allowedIds.includes(careerInterest)) {
         setCareerInterest('');
       }
     }
-  }, [branch]);
+  }, [userBranch]);
 
   const handleAnalyze = async () => {
     setError('');
     
-    if (!branch || !year || selectedSkills.length === 0 || !careerInterest) {
-      setError('Please complete all fields before analyzing');
+    if (selectedSkills.length === 0 || !careerInterest) {
+      setError('Please select a dream career and at least one skill before analyzing');
       return;
     }
 
@@ -226,8 +266,6 @@ const StudentDashboard = () => {
 
     try {
       await updateUserProfile(currentUser.uid, {
-        branch,
-        year: parseInt(year),
         skills: selectedSkills,
         career_interest: careerInterest
       });
@@ -313,16 +351,6 @@ const StudentDashboard = () => {
               />
             </div>
 
-            {/* T7 Tutor Quick Action */}
-            <button
-              onClick={() => navigate('/academic')}
-              className="flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl font-bold text-xs transition-all shadow-md shadow-violet-600/20 hover:-translate-y-0.5"
-              title="Open T7 Tutor — AI Academic Mentor"
-            >
-              <GraduationCap className="w-4 h-4 text-violet-200" />
-              <span>T7 Tutor</span>
-              <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">AI</span>
-            </button>
 
             {/* Top Right Profile Dropdown Menu */}
             <div className="relative" ref={profileDropdownRef}>
@@ -489,51 +517,72 @@ const StudentDashboard = () => {
           </div>
         </div>
 
-        {/* T7 Unique ID Card */}
-        {userProfile?.t7Id && (
-          <div className="mb-6 p-5 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900 rounded-2xl shadow-xl border border-zinc-700">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/10">
-                  <Sparkles className="w-7 h-7 text-amber-400" />
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">Your T7 Account ID</p>
-                  <p className="text-2xl font-black text-white tracking-widest font-mono">{userProfile.t7Id}</p>
-                </div>
+        {/* Compact YouTube Learning Tracker & T7 Sync Widget */}
+        <div className="mb-6 p-4 sm:p-5 bg-gradient-to-r from-zinc-900 via-zinc-850 to-zinc-900 rounded-2xl shadow-xl border border-zinc-800 text-white transition-all hover:border-zinc-700">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-red-600/30 flex-shrink-0 border border-red-500/30">
+                <Youtube className="w-6 h-6 text-white" />
               </div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <a
-                  href="/t7-extension.zip"
-                  download="t7-extension.zip"
-                  className="px-4 py-2.5 font-bold rounded-xl transition-all flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white shadow-lg text-sm"
-                  title="Download Chrome Extension (.zip)"
-                >
-                  <Download className="w-4 h-4" />
-                  Download Extension (.zip)
-                </a>
-                <button
-                  onClick={copyT7Id}
-                  className={`px-4 py-2.5 font-bold rounded-xl transition-all flex items-center gap-2 text-sm ${
-                    copied 
-                      ? 'bg-emerald-500 text-white' 
-                      : 'bg-white text-zinc-900 hover:bg-zinc-100'
-                  }`}
-                >
-                  {copied ? (
-                    <><CheckCircle className="w-4 h-4" /> Copied!</>
-                  ) : (
-                    <><Copy className="w-4 h-4" /> Copy ID</>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-bold text-white text-base">YouTube Learning Tracker</h3>
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    {videoLearning.length > 0 ? 'Extension Synced' : 'Ready to Sync'}
+                  </span>
+                </div>
+                <div className="text-xs text-zinc-400 mt-1 flex items-center gap-2 flex-wrap">
+                  <span>
+                    <strong className="text-white font-bold">{videoLearning.length}</strong> videos analyzed
+                  </span>
+                  <span>•</span>
+                  <span>
+                    <strong className="text-white font-bold">{ytSkills.length}</strong> skills detected
+                  </span>
+                  {userProfile?.t7Id && (
+                    <>
+                      <span>•</span>
+                      <span>
+                        T7 ID: <strong className="text-amber-300 font-mono font-bold">{userProfile.t7Id}</strong>
+                      </span>
+                    </>
                   )}
-                </button>
+                </div>
               </div>
             </div>
-            <p className="text-zinc-400 text-sm mt-3 flex items-center gap-2">
-              <ExternalLink className="w-3.5 h-3.5" />
-              Paste this ID in the <span className="text-white font-semibold">T7 Extension → Settings → Account ID</span> to sync your YouTube learning
-            </p>
+
+            <div className="flex items-center gap-2.5 flex-wrap">
+              {userProfile?.t7Id && (
+                <button
+                  type="button"
+                  onClick={copyT7Id}
+                  className={`px-3 py-2 font-bold rounded-xl transition-all flex items-center gap-1.5 text-xs cursor-pointer ${
+                    copied 
+                      ? 'bg-emerald-500 text-white' 
+                      : 'bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white border border-white/10'
+                  }`}
+                  title="Copy T7 Account ID"
+                >
+                  {copied ? (
+                    <><CheckCircle className="w-3.5 h-3.5" /> Copied ID</>
+                  ) : (
+                    <><Copy className="w-3.5 h-3.5" /> Copy ID</>
+                  )}
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsYouTubeModalOpen(true)}
+                className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-lg shadow-red-600/30 flex items-center gap-2 hover:-translate-y-0.5 cursor-pointer"
+              >
+                <span>View Full Tracker & Skills</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
-        )}
+        </div>
 
         {/* Previous Analysis Banner */}
         {lastAnalysis && (
@@ -549,116 +598,13 @@ const StudentDashboard = () => {
             </div>
             <button
               onClick={viewPreviousResults}
-              className="px-5 py-2.5 bg-white text-zinc-900 font-bold rounded-xl hover:bg-zinc-100 transition-all flex items-center gap-2"
+              className="px-5 py-2.5 bg-white text-zinc-900 font-bold rounded-xl hover:bg-zinc-100 transition-all flex items-center gap-2 cursor-pointer"
             >
               View results
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         )}
-
-        {/* YouTube Learning Tracker */}
-        <div className="mb-6 bg-white rounded-2xl p-6 shadow-lg border border-zinc-100">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center">
-                <Youtube className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h2 className="font-bold text-zinc-900 text-lg">YouTube Learning Tracker</h2>
-                <p className="text-sm text-zinc-500">
-                  <span className="text-zinc-900 font-bold">{videoLearning.length}</span> videos analyzed · <span className="text-zinc-900 font-bold">{ytSkills.length}</span> skills learned
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={refreshVideoLearning}
-              disabled={loadingVideos}
-              className="p-2.5 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-colors disabled:opacity-50"
-              title="Refresh"
-            >
-              <RefreshCw className={`w-5 h-5 ${loadingVideos ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-
-          {loadingVideos ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
-              <span className="ml-2 text-zinc-500">Loading your learning data...</span>
-            </div>
-          ) : videoLearning.length === 0 ? (
-            <div className="text-center py-8 bg-zinc-50 rounded-xl border-2 border-dashed border-zinc-200">
-              <Youtube className="w-10 h-10 text-zinc-300 mx-auto mb-3" />
-              <p className="text-zinc-400 text-sm mb-3">Use the T7 extension on YouTube to analyze videos & sync skills here</p>
-              <a
-                href="/t7-extension.zip"
-                download="t7-extension.zip"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold transition-all shadow-md"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Download Chrome Extension (.zip)
-              </a>
-            </div>
-          ) : (
-            <>
-              {/* Skills from YouTube */}
-              {ytSkills.length > 0 && (
-                <div className="mb-4 pb-4 border-b border-zinc-100">
-                  <p className="text-xs font-bold text-red-600 uppercase tracking-wider mb-3">🎥 Skills Learned from YouTube</p>
-                  <div className="flex flex-wrap gap-2">
-                    {ytSkills.map(skill => (
-                      <span
-                        key={skill}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-700 rounded-lg text-sm font-semibold border border-red-100"
-                      >
-                        <Youtube className="w-3 h-3" />
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Recent Videos */}
-              <div className="space-y-3 max-h-64 overflow-y-auto">
-                {videoLearning.slice(0, 8).map(video => (
-                  <div key={video.id} className="flex items-start gap-3 p-3 bg-zinc-50 rounded-xl border border-zinc-100 hover:border-zinc-300 transition-colors">
-                    <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Youtube className="w-5 h-5 text-red-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-zinc-900 text-sm truncate">{video.title}</p>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-zinc-500">
-                          ⭐ {typeof video.rating === 'number' ? video.rating.toFixed(1) : video.rating}
-                        </span>
-                        {video.topSkills?.length > 0 && (
-                          <div className="flex gap-1 flex-wrap">
-                            {video.topSkills.slice(0, 3).map((skill, i) => (
-                              <span key={i} className="text-xs bg-zinc-200 text-zinc-700 px-2 py-0.5 rounded font-medium">
-                                {skill}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {video.videoId && (
-                      <a
-                        href={`https://www.youtube.com/watch?v=${video.videoId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-1.5 text-zinc-400 hover:text-red-600 transition-colors flex-shrink-0"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
 
         {/* Error */}
         {error && (
@@ -667,146 +613,70 @@ const StudentDashboard = () => {
           </div>
         )}
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Left Column - Profile & Career */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Profile Card */}
-            <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-zinc-900 rounded-xl flex items-center justify-center">
-                  <GraduationCap className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="font-bold text-zinc-900 text-lg">Your Profile</h2>
-                  <p className="text-sm text-zinc-500">Academic details</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-zinc-700 mb-2">Branch</label>
-                  <div className="relative">
-                    <select
-                      value={branch}
-                      onChange={(e) => setBranch(e.target.value)}
-                      className="w-full px-4 py-3 bg-zinc-50 border-2 border-zinc-200 rounded-xl appearance-none focus:border-zinc-900 outline-none text-zinc-900 font-medium"
-                    >
-                      <option value="">Select branch</option>
-                      {branches.map(b => (
-                        <option key={b} value={b}>{b}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 pointer-events-none" />
+        {/* Step 1 & Step 2: Dream Career (Left) & Your Skills (Right) - Equal Height */}
+        <div className="grid lg:grid-cols-12 gap-6 items-stretch mb-6">
+          {/* Left Box - Dream Career */}
+          <div className="lg:col-span-5 flex flex-col">
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100 flex flex-col h-[520px]">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-zinc-900 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
+                    <Briefcase className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-zinc-900 text-lg">Dream Career</h2>
+                    <p className="text-sm text-zinc-500">
+                      {userBranch ? `Top roles for ${userBranch}` : 'Top industry roles'}
+                    </p>
                   </div>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-zinc-700 mb-2">Year</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {years.map(y => (
-                      <button
-                        key={y}
-                        type="button"
-                        onClick={() => setYear(y)}
-                        className={`py-3 text-sm font-bold rounded-xl transition-all ${
-                          year === y
-                            ? 'bg-zinc-900 text-white shadow-lg'
-                            : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-                        }`}
-                      >
-                        {y}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Career Card */}
-            <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-zinc-900 rounded-xl flex items-center justify-center">
-                  <Briefcase className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="font-bold text-zinc-900 text-lg">Dream Career</h2>
-                  <p className="text-sm text-zinc-500">
-                    {branch ? `Top roles for ${branch}` : 'Select a branch first'}
-                  </p>
-                </div>
+                {careerInterest && (
+                  <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-200">
+                    Selected
+                  </span>
+                )}
               </div>
 
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-2">
+              <div className="flex-1 overflow-y-auto pr-2 space-y-2.5">
                 {filteredRoles.length === 0 ? (
-                  <div className="text-center py-6 text-zinc-400 text-sm">
-                    <Briefcase className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    Select your branch to see relevant career paths
+                  <div className="text-center py-12 text-zinc-400 text-sm">
+                    <Briefcase className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                    No career paths found. Set your branch in profile.
                   </div>
                 ) : filteredRoles.map(role => (
                   <button
                     key={role.id}
                     type="button"
                     onClick={() => setCareerInterest(role.id)}
-                    className={`w-full p-4 rounded-xl text-left transition-all flex items-center justify-between ${
+                    className={`w-full p-3.5 rounded-xl text-left transition-all flex items-center justify-between cursor-pointer ${
                       careerInterest === role.id
-                        ? 'bg-zinc-900 text-white shadow-lg'
-                        : 'bg-zinc-50 text-zinc-700 hover:bg-zinc-100 border border-zinc-100'
+                        ? 'bg-zinc-900 text-white shadow-lg ring-2 ring-zinc-900'
+                        : 'bg-zinc-50 hover:bg-zinc-100/90 text-zinc-700 border border-zinc-100 hover:border-zinc-200'
                     }`}
                   >
                     <div>
-                      <p className="font-bold">{role.role_name}</p>
-                      <p className={`text-sm mt-0.5 ${careerInterest === role.id ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                      <p className="font-bold text-sm sm:text-base">{role.role_name}</p>
+                      <p className={`text-xs mt-0.5 ${careerInterest === role.id ? 'text-zinc-400' : 'text-zinc-500'}`}>
                         {role.required_skills.length} skills required
                       </p>
                     </div>
                     {careerInterest === role.id && (
-                      <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
-                        <Check className="w-4 h-4" />
+                      <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Check className="w-4 h-4 text-white" />
                       </div>
                     )}
                   </button>
                 ))}
               </div>
             </div>
-
-            <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-zinc-900 rounded-xl flex items-center justify-center">
-                  <Sparkles className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="font-bold text-zinc-900 text-lg">ATS Resume Check</h2>
-                  <p className="text-sm text-zinc-500">Optional, but recommended</p>
-                </div>
-              </div>
-
-              <label className="block">
-                <span className="block text-sm font-semibold text-zinc-700 mb-2">Upload Resume</span>
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                  onChange={handleResumeChange}
-                  className="block w-full text-sm text-zinc-600 file:mr-4 file:rounded-xl file:border-0 file:bg-zinc-900 file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-white hover:file:bg-zinc-800"
-                />
-              </label>
-
-              <div className="mt-4 rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4">
-                <p className="text-sm font-medium text-zinc-800">
-                  {resumeFile ? resumeFile.name : 'No resume uploaded yet'}
-                </p>
-                <p className="mt-1 text-xs text-zinc-500">
-                  We will score ATS fit, keyword match, formatting, and rewrite suggestions directly inside your results.
-                </p>
-              </div>
-            </div>
           </div>
 
-          {/* Right Column - Skills */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100">
-              <div className="flex items-center justify-between mb-6">
+          {/* Right Box - Your Skills */}
+          <div className="lg:col-span-7 flex flex-col">
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100 flex flex-col h-[520px]">
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-zinc-900 rounded-xl flex items-center justify-center">
+                  <div className="w-12 h-12 bg-zinc-900 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0">
                     <Zap className="w-6 h-6 text-white" />
                   </div>
                   <div>
@@ -816,36 +686,33 @@ const StudentDashboard = () => {
                     </p>
                   </div>
                 </div>
-                <img 
-                  src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=100&h=100&fit=crop" 
-                  alt="" 
-                  className="w-14 h-14 rounded-xl object-cover hidden sm:block"
-                />
+                <span className="text-xs font-semibold text-zinc-400">
+                  {allSkills.length} total skills
+                </span>
               </div>
 
               {/* Search */}
-              <div className="relative mb-4">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+              <div className="relative mb-3">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                 <input
                   type="text"
                   value={skillSearch}
                   onChange={(e) => setSkillSearch(e.target.value)}
-                  placeholder="Search skills..."
-                  className="w-full pl-12 pr-4 py-3.5 bg-zinc-50 border-2 border-zinc-200 rounded-xl focus:bg-white focus:border-zinc-900 outline-none text-zinc-900 font-medium placeholder:text-zinc-400"
+                  placeholder="Search skills (e.g. React, Python, Docker)..."
+                  className="w-full pl-10 pr-4 py-2.5 bg-zinc-50 border-2 border-zinc-200 rounded-xl focus:bg-white focus:border-zinc-900 outline-none text-zinc-900 font-medium text-sm placeholder:text-zinc-400 transition-colors"
                 />
               </div>
 
               {/* Selected Skills */}
               {selectedSkills.length > 0 && (
-                <div className="mb-4 pb-4 border-b-2 border-zinc-100">
-                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3">✨ Selected Skills</p>
-                  <div className="flex flex-wrap gap-2">
+                <div className="mb-3 pb-3 border-b-2 border-zinc-100 max-h-24 overflow-y-auto">
+                  <div className="flex flex-wrap gap-1.5">
                     {selectedSkills.map(skill => {
                       const isFromYt = ytSkills.some(ys => ys.toLowerCase() === skill.toLowerCase());
                       return (
                         <span
                           key={skill}
-                          className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold ${
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${
                             isFromYt 
                               ? 'bg-red-600 text-white' 
                               : 'bg-zinc-900 text-white'
@@ -854,10 +721,11 @@ const StudentDashboard = () => {
                           {isFromYt && <Youtube className="w-3.5 h-3.5" />}
                           {skill}
                           <button
+                            type="button"
                             onClick={() => toggleSkill(skill)}
-                            className="hover:bg-white/20 rounded-full p-0.5"
+                            className="hover:bg-white/20 rounded-full p-0.5 cursor-pointer"
                           >
-                            <X className="w-4 h-4" />
+                            <X className="w-3 h-3" />
                           </button>
                         </span>
                       );
@@ -866,15 +734,16 @@ const StudentDashboard = () => {
                 </div>
               )}
 
-              {/* All Skills */}
-              <div className="max-h-56 overflow-y-auto">
-                <div className="flex flex-wrap gap-2">
+              {/* All Skills Cloud */}
+              <div className="flex-1 overflow-y-auto pr-1">
+                <div className="flex flex-wrap gap-1.5">
                   {filteredSkills.map(skill => (
                     <button
                       key={skill}
+                      type="button"
                       onClick={() => toggleSkill(skill)}
                       disabled={selectedSkills.includes(skill)}
-                      className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                         selectedSkills.includes(skill)
                           ? 'bg-zinc-100 text-zinc-400 cursor-not-allowed'
                           : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-900 hover:text-white'
@@ -885,142 +754,330 @@ const StudentDashboard = () => {
                   ))}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
 
-              {/* Analyze Button */}
-              <div className="mt-6 pt-6 border-t-2 border-zinc-100">
-                <button
-                  onClick={handleAnalyze}
-                  disabled={analyzing}
-                  className="w-full py-4 bg-zinc-900 text-white font-bold rounded-xl hover:bg-zinc-800 transition-all shadow-xl shadow-zinc-900/20 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-3 text-lg"
-                >
-                  {analyzing ? (
-                    <>
-                      <Loader2 className="w-6 h-6 animate-spin" />
-                      Analyzing skills{resumeFile ? ' + resume' : ''}...
-                    </>
-                  ) : (
-                    <>
-                      <Rocket className="w-6 h-6" />
-                      Analyze my profile
-                      <ArrowRight className="w-5 h-5" />
-                    </>
-                  )}
-                </button>
-                <p className="text-center text-sm text-zinc-500 mt-4 flex items-center justify-center gap-2">
-                  <Sparkles className="w-4 h-4" />
-                  Powered by Google Gemini AI
-                </p>
+        {/* Step 3: Unified ATS Resume & Analysis Action Box */}
+        <div className="bg-white rounded-2xl shadow-lg border border-zinc-100 mb-8 overflow-hidden">
+          {/* Top Section: Resume Analyzer Controls */}
+          <div className="p-6">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+              <div className="flex items-start sm:items-center gap-4 max-w-xl">
+                <div className="w-12 h-12 bg-zinc-900 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+                  <Sparkles className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="font-bold text-zinc-900 text-lg">ATS Resume Analyzer</h2>
+                    <span className="text-[11px] font-bold bg-zinc-100 text-zinc-600 px-2.5 py-0.5 rounded-full border border-zinc-200">
+                      Optional
+                    </span>
+                    <span className="text-[11px] font-bold bg-amber-50 text-amber-700 px-2.5 py-0.5 rounded-full border border-amber-200/70">
+                      Recommended
+                    </span>
+                  </div>
+                  <p className="text-sm text-zinc-500 mt-1">
+                    Upload your resume for instant ATS scoring, keyword gap analysis, formatting audit, and role-tailored rewrite suggestions.
+                  </p>
+                </div>
+              </div>
+
+              {/* Upload Dropzone / File Display */}
+              <div className="flex-1 lg:max-w-md">
+                {resumeFile ? (
+                  <div className="flex items-center justify-between p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-lg bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-xs shadow-sm">
+                        PDF
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-zinc-900 truncate">{resumeFile.name}</p>
+                        <p className="text-xs text-emerald-700 font-medium flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Ready for ATS Analysis
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removeResume}
+                      className="p-1.5 hover:bg-emerald-200/60 text-emerald-800 rounded-lg transition-colors cursor-pointer ml-2 flex-shrink-0"
+                      title="Remove Resume"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex items-center justify-between p-3.5 bg-zinc-50 hover:bg-zinc-100/90 border-2 border-dashed border-zinc-200 hover:border-zinc-900 rounded-xl transition-all cursor-pointer group">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-zinc-900 group-hover:scale-105 text-white flex items-center justify-center transition-transform flex-shrink-0 shadow-sm">
+                        <Download className="w-4 h-4 rotate-180" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-zinc-900">Upload Resume (PDF)</p>
+                        <p className="text-xs text-zinc-500">Max size 5MB • AI ATS Review</p>
+                      </div>
+                    </div>
+                    <span className="px-3 py-1.5 bg-white border border-zinc-200 text-xs font-bold text-zinc-800 rounded-lg group-hover:bg-zinc-900 group-hover:text-white transition-colors shadow-xs">
+                      Browse
+                    </span>
+                    <input
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      onChange={handleResumeChange}
+                      className="hidden"
+                    />
+                  </label>
+                )}
               </div>
             </div>
+          </div>
+
+          {/* Bottom Integrated Action Bar */}
+          <div className="px-6 py-4 bg-zinc-50/80 border-t border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-xs font-medium text-zinc-500">
+              <Sparkles className="w-4 h-4 text-zinc-700" />
+              <span>Powered by Google Gemini AI</span>
+            </div>
+
+            <button
+              onClick={handleAnalyze}
+              disabled={analyzing}
+              className="px-8 py-3.5 bg-zinc-900 hover:bg-zinc-800 text-white font-bold rounded-xl shadow-lg shadow-zinc-900/10 hover:shadow-zinc-900/20 hover:-translate-y-0.5 transition-all text-sm sm:text-base flex items-center justify-center gap-2.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 cursor-pointer"
+            >
+              {analyzing ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Analyzing skills{resumeFile ? ' + resume' : ''}...</span>
+                </>
+              ) : (
+                <>
+                  <Rocket className="w-5 h-5" />
+                  <span>Analyze My Profile</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </div>
+        </div>
 
             {/* Job Market Insights */}
-            {jobListings.length > 0 && (
+            {careerInterest && (
               <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100 mt-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 bg-zinc-900 rounded-xl flex items-center justify-center">
-                    <Compass className="w-6 h-6 text-white" />
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-zinc-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-zinc-900 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+                      <Compass className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="font-bold text-zinc-900 text-lg">Job Market Insights</h2>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          {jobProvider}
+                        </span>
+                      </div>
+                      <p className="text-sm text-zinc-500">Live roles matching your dream career</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="font-bold text-zinc-900 text-lg">Job Market Insights</h2>
-                    <p className="text-sm text-zinc-500">Live roles matching your dream career</p>
+
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    {/* API Source Provider Filter */}
+                    <div className="relative">
+                      <select
+                        value={selectedSource}
+                        onChange={(e) => setSelectedSource(e.target.value)}
+                        className="px-3 py-2 pr-8 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-800 outline-none cursor-pointer appearance-none"
+                        title="Choose job data source"
+                      >
+                        <option value="auto">⚡ Both (JSearch + Adzuna)</option>
+                        <option value="jsearch">💼 JSearch (LinkedIn/Indeed)</option>
+                        <option value="adzuna">🏢 Adzuna API</option>
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+
+                    {/* Location Filter */}
+                    <div className="relative">
+                      <select
+                        value={jobLocation}
+                        onChange={(e) => setJobLocation(e.target.value)}
+                        className="px-3 py-2 pr-8 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-800 outline-none cursor-pointer appearance-none"
+                      >
+                        <option value="India">🇮🇳 India</option>
+                        <option value="Bangalore">📍 Bangalore</option>
+                        <option value="Hyderabad">📍 Hyderabad</option>
+                        <option value="Pune">📍 Pune</option>
+                        <option value="Chennai">📍 Chennai</option>
+                        <option value="Delhi NCR">📍 Delhi NCR</option>
+                        <option value="Remote">🌐 Remote</option>
+                        <option value="Global">🌍 Global</option>
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+
+                    {/* Refresh Live Jobs */}
+                    <button
+                      type="button"
+                      onClick={() => loadJobMarketData(true)}
+                      disabled={loadingJobs}
+                      className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                      title="Refresh real-time job listings"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${loadingJobs ? 'animate-spin' : ''}`} />
+                      <span>{loadingJobs ? 'Fetching...' : 'Refresh'}</span>
+                    </button>
                   </div>
                 </div>
 
-                <div className="grid sm:grid-cols-2 gap-4">
-                  {jobListings.map(job => {
-                    const matchedJobSkills = job.requiredSkills.filter(s => selectedSkills.includes(s));
-                    const missingJobSkills = job.requiredSkills.filter(s => !selectedSkills.includes(s));
-                    const matchPercentage = Math.round((matchedJobSkills.length / job.requiredSkills.length) * 100);
+                {loadingJobs ? (
+                  <div className="py-16 text-center">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-zinc-900 mb-3" />
+                    <p className="text-sm font-bold text-zinc-800">Fetching live job market postings...</p>
+                    <p className="text-xs text-zinc-500 mt-1">Connecting to JSearch (LinkedIn, Indeed, Glassdoor) & Adzuna</p>
+                  </div>
+                ) : jobListings.length === 0 ? (
+                  <div className="py-12 text-center text-zinc-400 text-sm max-w-md mx-auto">
+                    <Compass className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                    <p className="font-bold text-zinc-700">No active job listings found</p>
+                    {jobError ? (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3 mt-2 leading-relaxed font-medium">
+                        {jobError.includes('not subscribed')
+                          ? 'RapidAPI Notice: Please click "Subscribe to Test" on the free tier of JSearch in RapidAPI to activate your key.'
+                          : jobError}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-zinc-400 mt-1">Try selecting a different location or check your data source filter.</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {jobListings.map(job => {
+                      const matchedJobSkills = job.requiredSkills.filter(s => selectedSkills.includes(s));
+                      const missingJobSkills = job.requiredSkills.filter(s => !selectedSkills.includes(s));
+                      const matchPercentage = job.requiredSkills.length > 0
+                        ? Math.round((matchedJobSkills.length / job.requiredSkills.length) * 100)
+                        : 0;
 
-                    return (
-                      <div key={job.id} className="border border-zinc-200 rounded-xl p-4 bg-zinc-50 hover:bg-white hover:border-zinc-300 transition-all shadow-sm">
-                        <div className="flex justify-between items-start mb-2">
-                          <span className={`text-xs font-bold px-2.5 py-1 rounded-md ${job.platformColor}`}>
-                            {job.platform}
-                          </span>
-                          <span className="text-xs font-semibold text-zinc-500 bg-white border border-zinc-200 px-2 py-1 rounded-md">
-                            {job.posted}
-                          </span>
-                        </div>
-                        <h3 className="font-bold text-zinc-900 text-base mb-1">{job.title}</h3>
-                        <div className="flex items-center text-xs text-zinc-500 gap-3 mb-3">
-                          <span className="flex items-center gap-1"><Building2 className="w-3.5 h-3.5" /> {job.company}</span>
-                          <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {job.location}</span>
-                        </div>
-                        
-                        <div className="mb-4">
-                          <div className="flex justify-between text-xs font-semibold mb-1">
-                            <span className="text-zinc-600">Skill Match</span>
-                            <span className={matchPercentage >= 70 ? 'text-emerald-600' : matchPercentage >= 40 ? 'text-amber-600' : 'text-red-600'}>
-                              {matchPercentage}%
-                            </span>
-                          </div>
-                          <div className="h-1.5 w-full bg-zinc-200 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full rounded-full ${matchPercentage >= 70 ? 'bg-emerald-500' : matchPercentage >= 40 ? 'bg-amber-500' : 'bg-red-500'}`}
-                              style={{ width: `${matchPercentage}%` }}
-                            />
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => setSelectedJob(selectedJob?.id === job.id ? null : job)}
-                          className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
-                            selectedJob?.id === job.id 
-                              ? 'bg-zinc-900 text-white' 
-                              : 'bg-white border-2 border-zinc-200 text-zinc-700 hover:border-zinc-900 hover:text-zinc-900'
-                          }`}
-                        >
-                          <Target className="w-4 h-4" />
-                          Compare & Plan
-                        </button>
-
-                        {/* Expandable Comparison Section */}
-                        {selectedJob?.id === job.id && (
-                          <div className="mt-4 pt-4 border-t border-zinc-200 space-y-4">
-                            <div>
-                              <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">✅ Skills You Have</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {matchedJobSkills.length > 0 ? matchedJobSkills.map(skill => (
-                                  <span key={skill} className="text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-md flex items-center gap-1">
-                                    <CheckCircle2 className="w-3 h-3" /> {skill}
+                      return (
+                        <div key={job.id} className="border border-zinc-200 rounded-xl p-4 bg-zinc-50/70 hover:bg-white hover:border-zinc-300 transition-all shadow-xs flex flex-col justify-between">
+                          <div>
+                            <div className="flex justify-between items-start mb-2.5 gap-2 flex-wrap">
+                              <span className={`text-xs font-bold px-2.5 py-1 rounded-md border ${job.platformStyle || 'bg-zinc-100 text-zinc-700 border-zinc-200'}`}>
+                                {job.platform}
+                              </span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {job.source && (
+                                  <span className="text-[10px] font-bold text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded-md border border-zinc-200">
+                                    {job.source.includes('JSearch') ? 'via JSearch' : job.source.includes('Adzuna') ? 'via Adzuna' : 'Live Feed'}
                                   </span>
-                                )) : <span className="text-xs text-zinc-400 font-medium italic">No matched skills yet</span>}
+                                )}
+                                {job.salary && (
+                                  <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-md">
+                                    {job.salary}
+                                  </span>
+                                )}
+                                <span className="text-xs font-semibold text-zinc-500 bg-white border border-zinc-200 px-2 py-0.5 rounded-md">
+                                  {job.posted}
+                                </span>
                               </div>
+                            </div>
+
+                            <h3 className="font-bold text-zinc-900 text-base mb-1 leading-snug">{job.title}</h3>
+                            <div className="flex items-center text-xs text-zinc-500 gap-3 mb-3.5 flex-wrap">
+                              <span className="flex items-center gap-1 font-medium text-zinc-700"><Building2 className="w-3.5 h-3.5 text-zinc-400" /> {job.company}</span>
+                              <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-zinc-400" /> {job.location}</span>
+                              {job.type && <span className="px-1.5 py-0.5 bg-zinc-200/60 text-zinc-700 rounded text-[10px] font-semibold">{job.type}</span>}
                             </div>
                             
-                            <div>
-                              <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">❌ Skills Missing (What to learn)</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {missingJobSkills.length > 0 ? missingJobSkills.map(skill => (
-                                  <span key={skill} className="text-xs font-medium bg-red-50 text-red-700 border border-red-200 px-2 py-1 rounded-md flex items-center gap-1">
-                                    <XCircle className="w-3 h-3" /> {skill}
-                                  </span>
-                                )) : <span className="text-xs text-emerald-600 font-bold flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> You meet all requirements!</span>}
+                            <div className="mb-4">
+                              <div className="flex justify-between text-xs font-semibold mb-1">
+                                <span className="text-zinc-600">Your Skill Match</span>
+                                <span className={matchPercentage >= 70 ? 'text-emerald-600 font-bold' : matchPercentage >= 40 ? 'text-amber-600 font-bold' : 'text-red-600 font-bold'}>
+                                  {matchPercentage}%
+                                </span>
+                              </div>
+                              <div className="h-1.5 w-full bg-zinc-200 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full transition-all duration-500 ${matchPercentage >= 70 ? 'bg-emerald-500' : matchPercentage >= 40 ? 'bg-amber-500' : 'bg-red-500'}`}
+                                  style={{ width: `${matchPercentage}%` }}
+                                />
                               </div>
                             </div>
+                          </div>
 
-                            {missingJobSkills.length > 0 && (
-                              <div className="bg-amber-50 rounded-lg p-3 border border-amber-100 mt-2">
-                                <p className="text-xs font-bold text-amber-800 mb-1 flex items-center gap-1.5">
-                                  <TrendingUp className="w-3.5 h-3.5" /> Recommended Next Step
-                                </p>
-                                <p className="text-xs text-amber-700 leading-relaxed font-medium">
-                                  Focus on learning <strong className="font-extrabold">{missingJobSkills[0]}</strong> first. Find introductory tutorials on YouTube to add it to your profile.
-                                </p>
+                          <div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedJob(selectedJob?.id === job.id ? null : job)}
+                                className={`w-full py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                                  selectedJob?.id === job.id 
+                                    ? 'bg-zinc-900 text-white shadow-sm' 
+                                    : 'bg-white border border-zinc-200 text-zinc-700 hover:border-zinc-900 hover:text-zinc-900'
+                                }`}
+                              >
+                                <Target className="w-3.5 h-3.5" />
+                                <span>{selectedJob?.id === job.id ? 'Close Plan' : 'Compare & Plan'}</span>
+                              </button>
+
+                              <a
+                                href={job.applyUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                              >
+                                <span>Apply on {job.platform || 'Board'}</span>
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            </div>
+
+                            {/* Expandable Comparison Section */}
+                            {selectedJob?.id === job.id && (
+                              <div className="mt-4 pt-4 border-t border-zinc-200 space-y-3.5 animate-fade-in">
+                                <div>
+                                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">✅ Skills You Have</p>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {matchedJobSkills.length > 0 ? matchedJobSkills.map(skill => (
+                                      <span key={skill} className="text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-md flex items-center gap-1">
+                                        <CheckCircle2 className="w-3 h-3" /> {skill}
+                                      </span>
+                                    )) : <span className="text-xs text-zinc-400 font-medium italic">No matching skills selected yet</span>}
+                                  </div>
+                                </div>
+                                
+                                <div>
+                                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">❌ Skills Missing (Target for placement)</p>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {missingJobSkills.length > 0 ? missingJobSkills.map(skill => (
+                                      <span key={skill} className="text-xs font-medium bg-red-50 text-red-700 border border-red-200 px-2 py-1 rounded-md flex items-center gap-1">
+                                        <XCircle className="w-3 h-3" /> {skill}
+                                      </span>
+                                    )) : <span className="text-xs text-emerald-600 font-bold flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> You meet all skill requirements!</span>}
+                                  </div>
+                                </div>
+
+                                {missingJobSkills.length > 0 && (
+                                  <div className="bg-amber-50 rounded-xl p-3 border border-amber-200/70">
+                                    <p className="text-xs font-bold text-amber-900 mb-1 flex items-center gap-1.5">
+                                      <TrendingUp className="w-3.5 h-3.5 text-amber-700" /> Recommended Learning Action
+                                    </p>
+                                    <p className="text-xs text-amber-800 leading-relaxed font-medium">
+                                      Prioritize learning <strong className="font-extrabold text-amber-950">{missingJobSkills[0]}</strong> first to increase your match percentage. Watch tutorials on YouTube and track progress in T7 Learning Hub.
+                                    </p>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        </div>
-      </main>
+        </main>
 
       {/* Professional Student Profile Modal */}
       <StudentProfileModal
@@ -1028,6 +1085,18 @@ const StudentDashboard = () => {
         onClose={() => setIsProfileModalOpen(false)}
         lastAnalysis={lastAnalysis}
         initialEditMode={profileModalEditMode}
+      />
+
+      {/* Professional YouTube Learning Tracker & Sync Hub Modal */}
+      <YouTubeTrackerModal
+        isOpen={isYouTubeModalOpen}
+        onClose={() => setIsYouTubeModalOpen(false)}
+        videoLearning={videoLearning}
+        ytSkills={ytSkills}
+        loadingVideos={loadingVideos}
+        refreshVideoLearning={loadVideoLearningData}
+        t7Id={userProfile?.t7Id}
+        userProfile={userProfile}
       />
     </div>
   );
