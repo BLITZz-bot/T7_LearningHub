@@ -46,7 +46,8 @@ import {
   User,
   Settings,
   Globe,
-  Key
+  Key,
+  FileText
 } from 'lucide-react';
 
 // Branch → relevant real-world career roles mapping
@@ -726,8 +727,10 @@ const StudentDashboard = () => {
                     }`}
                   >
                     <div>
-                      <p className="font-bold text-sm sm:text-base">{role.role_name}</p>
-                      <p className={`text-xs mt-0.5 ${careerInterest === role.id ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                      <p className={`font-bold text-sm sm:text-base ${careerInterest === role.id ? 'text-white' : 'text-zinc-900'}`}>
+                        {role.role_name}
+                      </p>
+                      <p className={`text-xs mt-0.5 ${careerInterest === role.id ? 'text-zinc-300' : 'text-zinc-500'}`}>
                         {role.required_skills.length} skills required
                       </p>
                     </div>
@@ -1103,24 +1106,70 @@ const StudentDashboard = () => {
                                   </div>
                                   
                                   <div>
-                                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">❌ Skills Missing (Target for placement)</p>
+                                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">❌ Skills Missing (Click to Learn)</p>
                                     <div className="flex flex-wrap gap-1.5">
                                       {missingJobSkills.length > 0 ? missingJobSkills.map(skill => (
-                                        <span key={skill} className="text-xs font-medium bg-red-50 text-red-700 border border-red-200 px-2 py-1 rounded-md flex items-center gap-1">
-                                          <XCircle className="w-3 h-3" /> {skill}
-                                        </span>
+                                        <a
+                                          key={skill}
+                                          href={`https://www.youtube.com/results?search_query=${encodeURIComponent(skill + ' tutorial full course')}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          title={`Learn ${skill} on YouTube`}
+                                          className="text-xs font-medium bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-2 py-1 rounded-md flex items-center gap-1 transition-all cursor-pointer group"
+                                        >
+                                          <XCircle className="w-3 h-3 text-red-500 group-hover:scale-110 transition-transform" /> 
+                                          <span>{skill}</span>
+                                          <span className="text-[10px] text-red-500/70 group-hover:text-red-700">▶</span>
+                                        </a>
                                       )) : <span className="text-xs text-emerald-600 font-bold flex items-center gap-1"><CheckCircle2 className="w-4 h-4" /> You meet all skill requirements!</span>}
                                     </div>
                                   </div>
 
                                   {missingJobSkills.length > 0 && (
-                                    <div className="bg-amber-50 rounded-xl p-3 border border-amber-200/70">
-                                      <p className="text-xs font-bold text-amber-900 mb-1 flex items-center gap-1.5">
-                                        <TrendingUp className="w-3.5 h-3.5 text-amber-700" /> Recommended Learning Action
+                                    <div className="bg-amber-50/90 rounded-xl p-3.5 border border-amber-200/80 space-y-2.5">
+                                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                                        <p className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                                          <TrendingUp className="w-4 h-4 text-amber-700" /> Recommended Learning Action
+                                        </p>
+                                        <span className="text-[11px] font-extrabold px-2 py-0.5 bg-amber-100 text-amber-900 rounded-md border border-amber-300/60">
+                                          Boosts Match: {matchPercentage}% ➔ {Math.min(100, Math.round(((matchedJobSkills.length + 1) / Math.max(1, job.requiredSkills.length)) * 100))}%
+                                        </span>
+                                      </div>
+                                      
+                                      <p className="text-xs text-amber-900 leading-relaxed font-medium">
+                                        Prioritize learning <strong className="font-extrabold text-amber-950 underline decoration-amber-400">{missingJobSkills[0]}</strong> first to increase your match percentage.
                                       </p>
-                                      <p className="text-xs text-amber-800 leading-relaxed font-medium">
-                                        Prioritize learning <strong className="font-extrabold text-amber-950">{missingJobSkills[0]}</strong> first to increase your match percentage. Watch tutorials on YouTube and track progress in T7 Learning Hub.
+
+                                      <div className="pt-0.5 flex items-center gap-2 flex-wrap">
+                                        <a
+                                          href={`https://www.youtube.com/results?search_query=${encodeURIComponent(missingJobSkills[0] + ' tutorial full course')}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs cursor-pointer"
+                                        >
+                                          <Youtube className="w-3.5 h-3.5" />
+                                          <span>Watch {missingJobSkills[0]} Tutorials ↗</span>
+                                        </a>
+                                        <button
+                                          type="button"
+                                          onClick={() => setIsYouTubeModalOpen(true)}
+                                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-[11px] font-bold transition-all shadow-xs cursor-pointer"
+                                        >
+                                          <span>Open T7 Video Tracker</span>
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Full Job Description from API */}
+                                  {job.description && (
+                                    <div className="pt-2 border-t border-zinc-200/70">
+                                      <p className="text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                        <FileText className="w-3.5 h-3.5 text-zinc-500" /> Full Job Overview & Requirements
                                       </p>
+                                      <div className="bg-zinc-50 rounded-xl p-3.5 border border-zinc-200 text-xs text-zinc-700 leading-relaxed max-h-56 overflow-y-auto whitespace-pre-line font-normal select-text">
+                                        {job.description}
+                                      </div>
                                     </div>
                                   )}
                                 </div>
