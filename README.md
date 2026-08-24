@@ -408,6 +408,6 @@ Data Scientist & Research
 
 <p align="center">
 
-### 🏆 Built at Nagarjuna College of Engineering and Technology
+### 🏆 Built at Nagarjuna College of Engineering and Technology Hackathon
 
 </p>
