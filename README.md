@@ -22,7 +22,7 @@
 <p align="center">
 
 🌐 **Live Platform**
-https://t7skillup.vercel.app
+(https://t7learninghub.vercel.app/)
 
 🎥 **Demo Video**
 (https://youtu.be/ii0ZhFK8xOU?si=r9UxTAMu5Z9MLDtn)
