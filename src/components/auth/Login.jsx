@@ -44,18 +44,22 @@ const Login = () => {
     try {
       await login(email, password);
     } catch (err) {
-      if (err.code === 'auth/user-not-found') {
+      const errMsg = err.message || '';
+      if (
+        err.code === 'auth/user-not-found' ||
+        errMsg.toLowerCase().includes('invalid login credentials') ||
+        errMsg.toLowerCase().includes('user-not-found') ||
+        err.code === 'auth/invalid-credential'
+      ) {
         setNotFoundInfo({
           email: email.trim(),
-          title: 'Account Not Found',
-          message: `We couldn't find an active account for "${email.trim()}". Please register to create your profile.`,
+          title: 'Account Not Found or Invalid Password',
+          message: `Could not sign in with "${email.trim()}". If you are a new student, please sign up first to set up your profile.`,
         });
       } else if (err.code === 'auth/wrong-password') {
         setError('Incorrect password. Please try again or reset your password.');
-      } else if (err.code === 'auth/invalid-credential') {
-        setError('Invalid email or password. If you are new to T7 Learning Hub, please sign up first.');
       } else {
-        setError(err.message || 'Failed to sign in. Please check your network and try again.');
+        setError(errMsg || 'Failed to sign in. Please check your credentials and try again.');
       }
     } finally {
       setEmailLoading(false);
@@ -66,6 +70,9 @@ const Login = () => {
     setError('');
     setNotFoundInfo(null);
     setGoogleLoading(true);
+    try {
+      localStorage.setItem('t7_oauth_origin', 'login');
+    } catch (e) {}
 
     try {
       await loginWithGoogle();
@@ -139,6 +146,20 @@ const Login = () => {
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-bold text-zinc-900">T7 Learning Hub</span>
+          </div>
+
+          {/* ── New Student Sign-up Guidance Banner ── */}
+          <div className="mb-6 p-4 bg-gradient-to-r from-blue-50/80 to-zinc-50 border-2 border-blue-100 rounded-2xl flex items-center justify-between gap-3 shadow-sm">
+            <div>
+              <p className="text-xs font-bold text-blue-900 uppercase tracking-wider">First time here?</p>
+              <p className="text-xs text-zinc-600 mt-0.5">Please sign up first to register your college & branch details.</p>
+            </div>
+            <Link
+              to="/signup"
+              className="px-3.5 py-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold rounded-xl whitespace-nowrap transition-all shadow-sm flex items-center gap-1.5 flex-shrink-0"
+            >
+              Sign up <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
 
           <div className="mb-8">

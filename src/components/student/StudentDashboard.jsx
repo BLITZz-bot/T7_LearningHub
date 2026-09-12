@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { analyzeT7LearningHub } from '../../services/geminiService';
-import { saveAnalysis, getLatestAnalysis, getVideoLearning, getVideoLearningSkills } from '../../services/firestoreService';
+import { saveAnalysis, getLatestAnalysis, getVideoLearning, getVideoLearningSkills } from '../../services/apiService';
 import { industryRoles, allSkills } from '../../data/industrySkills';
 import { fetchJobMarketInsights } from '../../services/jobMarketService';
 import StudentProfileModal from './StudentProfileModal';
@@ -142,8 +142,14 @@ const StudentDashboard = () => {
       if (userProfile.career_interest && !careerInterest) {
         setCareerInterest(userProfile.career_interest);
       }
+      // Auto-prompt first-time students to complete required profile details
+      const isMissingRequired = !userProfile.college || !userProfile.branch || userProfile.college === 'Engineering College';
+      if (isMissingRequired) {
+        setProfileModalEditMode(true);
+        setIsProfileModalOpen(true);
+      }
     }
-  }, [userProfile?.uid]);
+  }, [userProfile?.uid, userProfile?.college, userProfile?.branch]);
 
   // Real-Time Job Market state (Multi-Source Feeds)
   const [jobListings, setJobListings] = useState([]);

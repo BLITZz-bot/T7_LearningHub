@@ -126,6 +126,14 @@ const StudentProfileModal = ({ isOpen, onClose, lastAnalysis, initialEditMode = 
       setErrorMessage('Branch is required.');
       return;
     }
+    if (!formData.passoutYear) {
+      setErrorMessage('Graduation / Passout year is required.');
+      return;
+    }
+    if (!formData.phone.trim()) {
+      setErrorMessage('Phone number is required.');
+      return;
+    }
 
     setSaving(true);
     setErrorMessage('');
@@ -133,6 +141,7 @@ const StudentProfileModal = ({ isOpen, onClose, lastAnalysis, initialEditMode = 
 
     try {
       await updateUserProfile(currentUser.uid, {
+        email: currentUser.email,
         name: formData.name.trim(),
         college: formData.college.trim(),
         branch: formData.branch,
@@ -255,6 +264,18 @@ const StudentProfileModal = ({ isOpen, onClose, lastAnalysis, initialEditMode = 
         {/* Modal Body */}
         <div className="p-6 sm:p-8 max-h-[70vh] overflow-y-auto">
           {/* Notification Banners */}
+          {(!userProfile?.college || !userProfile?.branch || userProfile?.college === 'Engineering College') && (
+            <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-2xl flex items-start gap-3.5 shadow-sm">
+              <Sparkles className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-bold text-amber-950">Welcome to T7 Learning Hub! 🎉</h4>
+                <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+                  Please complete your required student details (College, Branch, Passout Year, Phone) below so our AI can personalize your placement roadmaps and job market tracking.
+                </p>
+              </div>
+            </div>
+          )}
+
           {saveSuccess && (
             <div className="mb-6 p-4 bg-emerald-50 border-2 border-emerald-200 rounded-2xl flex items-center gap-3 text-emerald-800 text-sm font-semibold animate-fade-in">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />

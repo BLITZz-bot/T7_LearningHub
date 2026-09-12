@@ -20,47 +20,27 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
-async function saveToDashboard({ accountId, analysis, videoId, title, projectId }) {
+async function saveToDashboard({ accountId, analysis, videoId, title, apiBaseUrl }) {
   if (!accountId) throw new Error('Account ID is required');
 
-  const pId = projectId || 't7-learning-hub';
-  const url = `https://firestore.googleapis.com/v1/projects/${pId}/databases/(default)/documents/users/${accountId}/videoLearning`;
-
-  // Skills — up to 10 strings
+  // Top skills — up to 10 strings
   const topSkills = Array.isArray(analysis.skills)
     ? analysis.skills.filter(s => typeof s === 'string' && s.length > 1).slice(0, 10)
     : [];
 
-  // Highlights — up to 10 {time, text} objects
-  const highlights = Array.isArray(analysis.highlights)
-    ? analysis.highlights.filter(h => h && h.time && h.text).slice(0, 10)
-    : [];
+  const base = apiBaseUrl || 'http://localhost:3000';
+  const url = `${base}/api/db`;
 
-  const body = {
-    fields: {
-      videoId:          { stringValue: videoId || '' },
-      title:            { stringValue: title || '' },
-      date:             { timestampValue: new Date().toISOString() },
-      rating:           { doubleValue: parseFloat(analysis.rating) || 0 },
-      relevance:        { doubleValue: parseFloat(analysis.relevance) || 0 },
-      summary:          { stringValue: analysis.summary || '' },
-      durationSeconds:  { integerValue: parseInt(analysis.durationSeconds) || 0 },
-      topSkills: {
-        arrayValue: {
-          values: topSkills.map(s => ({ stringValue: s }))
-        }
-      },
-      highlights: {
-        arrayValue: {
-          values: highlights.map(h => ({
-            mapValue: {
-              fields: {
-                time: { stringValue: h.time },
-                text: { stringValue: h.text }
-              }
-            }
-          }))
-        }
+  const payload = {
+    action: 'syncVideo',
+    payload: {
+      t7AccountId: accountId.trim(),
+      videoData: {
+        videoId: videoId || '',
+        videoTitle: title || 'YouTube Video',
+        videoUrl: videoId ? `https://www.youtube.com/watch?v=${videoId}` : '',
+        detectedSkills: topSkills,
+        summary: analysis.summary || ''
       }
     }
   };
@@ -68,16 +48,17 @@ async function saveToDashboard({ accountId, analysis, videoId, title, projectId 
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body: JSON.stringify(payload)
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `Firestore error ${res.status}`);
+    throw new Error(err?.error || `Sync error ${res.status}`);
   }
 
   return { success: true };
 }
+
 
 
 async function callGemini({ prompt, key, systemPrompt, model }) {
