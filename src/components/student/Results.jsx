@@ -3,7 +3,7 @@
  * Handles multiple data formats from Gemini AI
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 // import LearningActivityGraph from './LearningActivityGraph';
@@ -11,18 +11,65 @@ import {
   LogOut, ArrowLeft, Check, Calendar, ChevronDown, Download, Target, Sparkles,
   Trophy, Rocket, BookOpen, Zap, Clock, Code, ExternalLink, CheckCircle,
   GraduationCap, Briefcase, Play, AlertTriangle, Linkedin, FileText,
-  Youtube, Globe, TrendingUp, Award, X, Home, Lightbulb
+  Youtube, Globe, TrendingUp, Award, X, Home, Lightbulb, Copy, ArrowRight
 } from 'lucide-react';
 import { analyzeResumeOnly } from '../../services/geminiService';
+import { getVideoLearning, getVideoLearningSkills } from '../../services/apiService';
+import YouTubeTrackerModal from './YouTubeTrackerModal';
 
 const Results = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { userProfile, logout } = useAuth();
+  const { currentUser, userProfile, logout } = useAuth();
   const [expandedMonth, setExpandedMonth] = useState(0);
   const [activeTab, setActiveTab] = useState('home');
   const [selectedRoadmap, setSelectedRoadmap] = useState(null);
   const [viewMode, setViewMode] = useState('skill'); // 'skill' or 'academic'
+
+  // YouTube Tracker & Extension Sync state
+  const [videoLearning, setVideoLearning] = useState([]);
+  const [ytSkills, setYtSkills] = useState([]);
+  const [loadingVideos, setLoadingVideos] = useState(false);
+  const [isYouTubeModalOpen, setIsYouTubeModalOpen] = useState(false);
+  const [copiedT7, setCopiedT7] = useState(false);
+
+  const loadVideoLearningData = async () => {
+    if (!currentUser?.uid && !userProfile?.t7Id) return;
+    setLoadingVideos(true);
+    try {
+      let videos = [];
+      let skills = [];
+      if (currentUser?.uid) {
+        videos = await getVideoLearning(currentUser.uid);
+        skills = await getVideoLearningSkills(currentUser.uid);
+      }
+      if (videos.length === 0 && userProfile?.t7Id) {
+        const t7Videos = await getVideoLearning(userProfile.t7Id);
+        if (t7Videos.length > 0) {
+          videos = t7Videos;
+          skills = await getVideoLearningSkills(userProfile.t7Id);
+        }
+      }
+      setVideoLearning(videos);
+      setYtSkills(skills);
+    } catch (err) {
+      console.error('Error loading video learning in Results:', err);
+    } finally {
+      setLoadingVideos(false);
+    }
+  };
+
+  useEffect(() => {
+    loadVideoLearningData();
+  }, [currentUser?.uid, userProfile?.t7Id]);
+
+  const copyT7Id = () => {
+    if (userProfile?.t7Id) {
+      navigator.clipboard.writeText(userProfile.t7Id);
+      setCopiedT7(true);
+      setTimeout(() => setCopiedT7(false), 2000);
+    }
+  };
 
 
   const { analysis, role, userSkills: passedUserSkills } = location.state || {};
@@ -587,6 +634,73 @@ const Results = () => {
           </div>
         </div>
 
+        {/* Compact YouTube Learning Tracker & T7 Sync Banner */}
+        <div className="mb-6 p-4 sm:p-5 bg-gradient-to-r from-zinc-900 via-zinc-850 to-zinc-900 rounded-2xl shadow-xl border border-zinc-800 text-white transition-all hover:border-zinc-700">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-red-600/30 flex-shrink-0 border border-red-500/30">
+                <Youtube className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-bold text-white text-base">YouTube Learning Tracker</h3>
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    {videoLearning.length > 0 ? 'Extension Synced' : 'Ready to Sync'}
+                  </span>
+                </div>
+                <div className="text-xs text-zinc-400 mt-1 flex items-center gap-2 flex-wrap">
+                  <span>
+                    <strong className="text-white font-bold">{videoLearning.length}</strong> videos analyzed
+                  </span>
+                  <span>•</span>
+                  <span>
+                    <strong className="text-white font-bold">{ytSkills.length}</strong> skills detected
+                  </span>
+                  {userProfile?.t7Id && (
+                    <>
+                      <span>•</span>
+                      <span>
+                        T7 ID: <strong className="text-amber-300 font-mono font-bold">{userProfile.t7Id}</strong>
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 flex-wrap">
+              {userProfile?.t7Id && (
+                <button
+                  type="button"
+                  onClick={copyT7Id}
+                  className={`px-3 py-2 font-bold rounded-xl transition-all flex items-center gap-1.5 text-xs cursor-pointer ${
+                    copiedT7 
+                      ? 'bg-emerald-500 text-white' 
+                      : 'bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white border border-white/10'
+                  }`}
+                  title="Copy T7 Account ID"
+                >
+                  {copiedT7 ? (
+                    <><CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> Copied ID</>
+                  ) : (
+                    <><Copy className="w-3.5 h-3.5" /> Copy ID</>
+                  )}
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsYouTubeModalOpen(true)}
+                className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-lg shadow-red-600/30 flex items-center gap-2 hover:-translate-y-0.5 cursor-pointer"
+              >
+                <span>View Full Tracker & Skills</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Navigation Tabs */}
         <div className="bg-white rounded-2xl p-2 mb-6 shadow-lg border border-zinc-100">
           <div className="flex gap-2 overflow-x-auto">
@@ -595,6 +709,7 @@ const Results = () => {
               { id: 'roadmap', icon: Rocket, label: 'Roadmap' },
               { id: 'skills', icon: Target, label: 'Skills' },
               { id: 'ats', icon: FileText, label: 'ATS Resume' },
+              { id: 'youtube', icon: Youtube, label: 'YouTube Tracker' },
               { id: 'tips', icon: Briefcase, label: 'Career Tips' },
               { id: 'portfolio', icon: Code, label: 'Portfolio' }
             ].map(tab => (
@@ -1685,8 +1800,165 @@ const Results = () => {
                     ))}
                   </div>
                 </div>
+
+                {/* Bridge ATS Gaps with YouTube Learning */}
+                <div className="bg-gradient-to-r from-zinc-900 via-zinc-850 to-zinc-900 rounded-2xl p-5 text-white border border-zinc-700 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-11 h-11 bg-red-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-red-600/30">
+                      <Youtube className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-base text-white">Bridge ATS Keyword Gaps with YouTube Learning</h4>
+                      <p className="text-xs text-zinc-400 mt-0.5">
+                        Watch video tutorials for your missing skills using your T7 ID (<span className="font-mono text-amber-300 font-bold">{userProfile?.t7Id || 'T7-XXXXXX'}</span>) to automatically credit verified skills to your profile!
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsYouTubeModalOpen(true)}
+                    className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold rounded-xl transition flex items-center gap-1.5 self-start sm:self-auto cursor-pointer flex-shrink-0"
+                  >
+                    <span>Track Video Skills</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* TAB: YouTube Learning Tracker */}
+        {activeTab === 'youtube' && (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-zinc-900 via-zinc-850 to-zinc-900 rounded-3xl p-8 shadow-2xl border border-zinc-800 text-white">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-red-600 rounded-2xl flex items-center justify-center shadow-lg shadow-red-600/30 flex-shrink-0 border border-red-500/30">
+                    <Youtube className="w-8 h-8 text-white" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-2xl font-black text-white">YouTube Learning & Skill Sync</h2>
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-full border border-emerald-500/30">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        {videoLearning.length > 0 ? 'Extension Synced' : 'Ready to Sync'}
+                      </span>
+                    </div>
+                    <p className="text-zinc-400 text-sm mt-1 max-w-xl">
+                      Watch technical tutorials on YouTube — the T7 Chrome Extension auto-extracts skills and synchronizes them directly into your career readiness score.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 flex-wrap">
+                  {userProfile?.t7Id && (
+                    <div className="flex items-center gap-2 bg-white/10 px-4 py-2.5 rounded-xl border border-white/15">
+                      <span className="text-xs text-zinc-400 font-medium">Your T7 ID:</span>
+                      <span className="font-mono font-black text-amber-300 text-base">{userProfile.t7Id}</span>
+                      <button
+                        type="button"
+                        onClick={copyT7Id}
+                        className="ml-1 text-xs bg-white/10 hover:bg-white/20 text-white px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1"
+                        title="Copy ID"
+                      >
+                        {copiedT7 ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedT7 ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setIsYouTubeModalOpen(true)}
+                    className="px-5 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-red-600/30 flex items-center gap-2 cursor-pointer"
+                  >
+                    <span>Open Full YT Dashboard</span>
+                    <ExternalLink className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-zinc-800">
+                <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
+                  <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Videos Analyzed</p>
+                  <p className="text-3xl font-black text-white mt-1">{videoLearning.length}</p>
+                </div>
+                <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
+                  <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Skills Extracted</p>
+                  <p className="text-3xl font-black text-emerald-400 mt-1">{ytSkills.length}</p>
+                </div>
+                <div className="bg-white/5 rounded-2xl p-4 border border-white/10 col-span-2 sm:col-span-1">
+                  <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Pairing Status</p>
+                  <p className="text-base font-bold text-amber-300 mt-1">Chrome Extension Ready</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Video Learning Activity List */}
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-zinc-900 text-lg flex items-center gap-2">
+                  <Youtube className="w-5 h-5 text-red-600" />
+                  Recent Synced Videos
+                </h3>
+                <button
+                  onClick={() => setIsYouTubeModalOpen(true)}
+                  className="text-xs font-bold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <span>View All in Hub</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {videoLearning.length > 0 ? (
+                <div className="space-y-3">
+                  {videoLearning.slice(0, 5).map((vid, idx) => (
+                    <div key={idx} className="p-4 bg-zinc-50 rounded-xl border border-zinc-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h4 className="font-bold text-zinc-900 text-sm">{vid.title || 'Educational Video'}</h4>
+                        {vid.topSkills && vid.topSkills.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {vid.topSkills.map((s, si) => (
+                              <span key={si} className="px-2 py-0.5 bg-white border border-zinc-200 text-zinc-700 text-xs rounded-md font-medium">
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {vid.videoId && (
+                        <a
+                          href={`https://www.youtube.com/watch?v=${vid.videoId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-lg border border-red-200 flex items-center gap-1 self-start sm:self-auto flex-shrink-0"
+                        >
+                          <span>Watch</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-10">
+                  <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-red-100">
+                    <Youtube className="w-7 h-7 text-red-600" />
+                  </div>
+                  <h4 className="font-bold text-zinc-900 text-base">No YouTube videos synced yet</h4>
+                  <p className="text-xs text-zinc-500 max-w-md mx-auto mt-1 mb-4">
+                    Install the T7 Chrome Extension, pair with your T7 ID (<span className="font-mono font-bold text-zinc-800">{userProfile?.t7Id || 'T7-XXXXXX'}</span>), and click "Sync to Dashboard" while watching videos!
+                  </p>
+                  <button
+                    onClick={() => setIsYouTubeModalOpen(true)}
+                    className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold rounded-xl shadow transition cursor-pointer"
+                  >
+                    How to Pair Extension
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -2113,6 +2385,18 @@ const Results = () => {
             </div>
           </div>
         )}
+
+        {/* Full-Screen YouTube Learning Tracker & Extension Sync Modal */}
+        <YouTubeTrackerModal
+          isOpen={isYouTubeModalOpen}
+          onClose={() => setIsYouTubeModalOpen(false)}
+          videoLearning={videoLearning}
+          ytSkills={ytSkills}
+          loadingVideos={loadingVideos}
+          refreshVideoLearning={loadVideoLearningData}
+          t7Id={userProfile?.t7Id}
+          userProfile={userProfile}
+        />
       </main>
     </div>
   );
