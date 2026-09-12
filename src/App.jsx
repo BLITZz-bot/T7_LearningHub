@@ -34,7 +34,7 @@ import CompleteProfileOnboarding from './components/auth/CompleteProfileOnboardi
  * Ensures first-time users complete required details before accessing the dashboard.
  */
 const DashboardRouter = () => {
-  const { userProfile } = useAuth();
+  const { currentUser, userProfile } = useAuth();
 
   if (userProfile?.role === 'admin') {
     return <Navigate to="/admin" replace />;
@@ -52,6 +52,15 @@ const DashboardRouter = () => {
 
   if (isProfileIncomplete) {
     return <CompleteProfileOnboarding />;
+  }
+
+  // Restore where student left off:
+  if (currentUser?.uid) {
+    const savedView = localStorage.getItem(`t7_student_view_${currentUser.uid}`);
+    const hasAnalysis = Boolean(userProfile?.lastAnalysis || userProfile?.last_analysis);
+    if (savedView === 'results' || (!savedView && hasAnalysis)) {
+      return <Navigate to="/results" replace />;
+    }
   }
 
   return <StudentDashboard />;

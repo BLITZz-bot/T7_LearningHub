@@ -207,13 +207,31 @@ const StudentDashboard = () => {
 
   useEffect(() => {
     const loadLastAnalysis = async () => {
-      if (currentUser) {
+      if (currentUser?.uid) {
         const analysis = await getLatestAnalysis(currentUser.uid);
         setLastAnalysis(analysis);
+        if (analysis) {
+          // If careerInterest isn't selected, pre-select the one from last analysis
+          if (!careerInterest) {
+            const roleMatch = industryRoles.find(
+              r => r.role_name === analysis.career_role || r.id === analysis.career_role
+            );
+            if (roleMatch) setCareerInterest(roleMatch.id);
+          }
+
+          // Check if student left off on results view
+          const savedView = localStorage.getItem(`t7_student_view_${currentUser.uid}`);
+          if (savedView === 'results' || (!savedView && analysis)) {
+            const selectedRole = industryRoles.find(
+              r => r.role_name === analysis.career_role || r.id === analysis.career_role
+            ) || industryRoles[0];
+            navigate('/results', { state: { analysis, role: selectedRole, userSkills: selectedSkills } });
+          }
+        }
       }
     };
     loadLastAnalysis();
-  }, [currentUser]);
+  }, [currentUser?.uid]);
 
   // Fetch YouTube learning data and auto-merge skills (supports both Auth UID & T7 ID)
   const loadVideoLearningData = async () => {
@@ -325,6 +343,10 @@ const StudentDashboard = () => {
         ...analysisResult
       });
 
+      if (currentUser?.uid) {
+        localStorage.setItem(`t7_student_view_${currentUser.uid}`, 'results');
+      }
+
       navigate('/results', { state: { analysis: analysisResult, role: selectedRole, userSkills: selectedSkills } });
     } catch (err) {
       console.error('Analysis error:', err);
@@ -358,7 +380,10 @@ const StudentDashboard = () => {
 
   const viewPreviousResults = () => {
     if (lastAnalysis) {
-      const selectedRole = industryRoles.find(r => r.role_name === lastAnalysis.career_role) || industryRoles[0];
+      if (currentUser?.uid) {
+        localStorage.setItem(`t7_student_view_${currentUser.uid}`, 'results');
+      }
+      const selectedRole = industryRoles.find(r => r.role_name === lastAnalysis.career_role || r.id === lastAnalysis.career_role) || industryRoles[0];
       navigate('/results', { state: { analysis: lastAnalysis, role: selectedRole, userSkills: selectedSkills } });
     }
   };

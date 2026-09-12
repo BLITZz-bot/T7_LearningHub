@@ -14,7 +14,8 @@ import {
   Youtube, Globe, TrendingUp, Award, X, Home, Lightbulb, Copy, ArrowRight
 } from 'lucide-react';
 import { analyzeResumeOnly } from '../../services/geminiService';
-import { getVideoLearning, getVideoLearningSkills } from '../../services/apiService';
+import { getLatestAnalysis, getVideoLearning, getVideoLearningSkills } from '../../services/apiService';
+import { industryRoles } from '../../data/industrySkills';
 import YouTubeTrackerModal from './YouTubeTrackerModal';
 
 const Results = () => {
@@ -71,17 +72,84 @@ const Results = () => {
     }
   };
 
+  const locationState = location.state || {};
+  const [analysis, setAnalysis] = useState(locationState.analysis || null);
+  const [role, setRole] = useState(locationState.role || null);
+  const [loadingAnalysis, setLoadingAnalysis] = useState(!locationState.analysis);
 
-  const { analysis, role, userSkills: passedUserSkills } = location.state || {};
+  // Keep track that student is currently on the Results page
+  useEffect(() => {
+    if (currentUser?.uid) {
+      localStorage.setItem(`t7_student_view_${currentUser.uid}`, 'results');
+    }
+  }, [currentUser?.uid]);
+
+  // If no analysis was passed via location.state (e.g. reload or direct navigation), fetch latest from Supabase
+  useEffect(() => {
+    const fetchLatestIfMissing = async () => {
+      if (!analysis && currentUser?.uid) {
+        setLoadingAnalysis(true);
+        try {
+          const latest = await getLatestAnalysis(currentUser.uid);
+          if (latest) {
+            setAnalysis(latest);
+            const foundRole = industryRoles.find(
+              r => r.role_name === latest.career_role || r.id === latest.career_role
+            ) || { role_name: latest.career_role || 'Target Role', description: '' };
+            setRole(foundRole);
+          }
+        } catch (err) {
+          console.error('Error loading latest analysis in Results:', err);
+        } finally {
+          setLoadingAnalysis(false);
+        }
+      }
+    };
+    fetchLatestIfMissing();
+  }, [currentUser?.uid, analysis]);
+
+  // Back to setup handler: sets student view to 'setup' so next reload/login opens setup
+  const handleBackToSetup = () => {
+    if (currentUser?.uid) {
+      localStorage.setItem(`t7_student_view_${currentUser.uid}`, 'setup');
+    }
+    navigate('/dashboard');
+  };
+
+  // Local state for standalone ATS testing within the Results page
+  const [localAtsAnalysis, setLocalAtsAnalysis] = useState(null);
+  const [localResumeMeta, setLocalResumeMeta] = useState(null);
+  const [isParsingResume, setIsParsingResume] = useState(false);
+  const [resumeError, setResumeError] = useState('');
+
+  useEffect(() => {
+    if (analysis) {
+      if (analysis.ats_analysis && !localAtsAnalysis) setLocalAtsAnalysis(analysis.ats_analysis);
+      if (analysis.resume_meta && !localResumeMeta) setLocalResumeMeta(analysis.resume_meta);
+    }
+  }, [analysis]);
+
+  if (loadingAnalysis) {
+    return (
+      <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
+        <div className="text-center p-8 bg-white rounded-2xl shadow-xl border border-zinc-100 flex flex-col items-center">
+          <div className="w-10 h-10 border-4 border-zinc-900 border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-zinc-800 font-bold text-lg">Loading your career roadmap...</p>
+          <p className="text-zinc-500 text-sm mt-1">Retrieving your personalized learning plan</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!analysis) {
     return (
       <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
-        <div className="text-center p-8 bg-white rounded-2xl shadow-xl border border-zinc-100">
-          <div className="text-6xl mb-4">🤔</div>
-          <p className="text-zinc-700 mb-4 font-medium">No analysis data found</p>
-          <button onClick={() => navigate('/dashboard')} className="px-6 py-3 bg-zinc-900 text-white font-bold rounded-xl shadow-lg">
-            Go to Dashboard
+        <div className="text-center p-8 bg-white rounded-2xl shadow-xl border border-zinc-100 max-w-md">
+          <div className="text-6xl mb-4">🎯</div>
+          <p className="text-zinc-800 text-xl font-bold mb-2">No analysis completed yet</p>
+          <p className="text-zinc-500 mb-6 text-sm">Select your dream role and skills on the dashboard to generate your AI roadmap.</p>
+          <button onClick={handleBackToSetup} className="px-6 py-3 bg-zinc-900 text-white font-bold rounded-xl shadow-lg hover:bg-zinc-800 transition cursor-pointer">
+            Go to Career Setup
           </button>
         </div>
       </div>
@@ -89,7 +157,7 @@ const Results = () => {
   }
 
   // Use passed skills, or fall back to profile skills, or analysis matched skills
-  const userSkills = passedUserSkills || userProfile?.skills || analysis.matched_skills || [];
+  const userSkills = locationState.userSkills || userProfile?.skills || analysis.matched_skills || [];
 
   // Extract data with fallbacks for different formats
   const readiness_score = analysis.readiness_score || 0;
@@ -104,12 +172,6 @@ const Results = () => {
   const linkedin_tips = analysis.linkedin_tips || [];
   const motivation = analysis.motivation || '';
   const final_outcome = analysis.final_outcome || analysis.final_goal || '';
-
-  // Local state for standalone ATS testing within the Results page
-  const [localAtsAnalysis, setLocalAtsAnalysis] = useState(analysis.ats_analysis || null);
-  const [localResumeMeta, setLocalResumeMeta] = useState(analysis.resume_meta || null);
-  const [isParsingResume, setIsParsingResume] = useState(false);
-  const [resumeError, setResumeError] = useState('');
 
   const ats_analysis = localAtsAnalysis;
   const resume_meta = localResumeMeta;
@@ -514,7 +576,11 @@ const Results = () => {
       <header className="bg-white/90 backdrop-blur-md border-b border-zinc-100 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-18 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/dashboard')} className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-colors">
+            <button 
+              onClick={handleBackToSetup} 
+              title="Back to Career Setup"
+              className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-colors cursor-pointer"
+            >
               <ArrowLeft className="w-6 h-6" />
             </button>
             <div className="flex items-center gap-3">
@@ -552,10 +618,13 @@ const Results = () => {
                 🎓 T7 Tutor
               </button>
             </div>
-            <button onClick={() => navigate('/dashboard')} className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold rounded-lg shadow-sm transition">
-              Update Skills
+            <button 
+              onClick={handleBackToSetup} 
+              className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold rounded-lg shadow-sm transition cursor-pointer flex items-center gap-1.5"
+            >
+              Update Skills / Setup
             </button>
-            <button onClick={logout} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+            <button onClick={logout} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors cursor-pointer">
               <LogOut className="w-6 h-6" />
             </button>
           </div>
