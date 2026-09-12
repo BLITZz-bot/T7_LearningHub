@@ -6,7 +6,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-// import LearningActivityGraph from './LearningActivityGraph';
 import { 
   LogOut, ArrowLeft, Check, Calendar, ChevronDown, Download, Target, Sparkles,
   Trophy, Rocket, BookOpen, Zap, Clock, Code, ExternalLink, CheckCircle,
