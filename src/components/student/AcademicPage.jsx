@@ -2,10 +2,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ArrowLeft, Trophy } from 'lucide-react';
 import AcademicMode from './AcademicMode';
-import ModelSelector from '../common/ModelSelector';
 
 const AcademicPage = () => {
-  const { currentUser, userProfile, updateUserProfile } = useAuth();
+  const { userProfile } = useAuth();
   const navigate = useNavigate();
 
   const goBackToResults = () => {
@@ -20,6 +19,7 @@ const AcademicPage = () => {
     <div className="min-h-screen bg-zinc-50">
       <header className="bg-white/90 backdrop-blur-md border-b border-zinc-100 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-18 py-4 flex items-center justify-between">
+          {/* Left: Back + Title */}
           <div className="flex items-center gap-4">
             <button
               type="button"
@@ -34,41 +34,26 @@ const AcademicPage = () => {
               </div>
               <div>
                 <p className="font-bold text-zinc-900 text-lg">T7 Tutor</p>
-                <p className="text-sm text-zinc-500">AI Academic Mentor & DeepTutor</p>
+                <p className="text-sm text-zinc-500">AI Academic Mentor &amp; DeepTutor</p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 ml-auto">
-            {/* Live Model Selector Pill */}
-            <div className="hidden sm:block">
-              <ModelSelector
-                variant="pill"
-                currentModel={userProfile?.geminiModel || 'auto'}
-                onModelChange={(modelId) => {
-                  if (currentUser?.uid) {
-                    updateUserProfile(currentUser.uid, { geminiModel: modelId });
-                  }
-                }}
-                apiKey={userProfile?.geminiApiKey}
-              />
-            </div>
-
-            <div className="hidden md:flex items-center bg-zinc-100/60 backdrop-blur-sm p-1 rounded-2xl border border-zinc-200/70 shadow-inner">
-              <button
-                type="button"
-                onClick={goBackToResults}
-                className="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider text-zinc-400 hover:text-zinc-600"
-              >
-                SKILL LAB
-              </button>
-              <button
-                type="button"
-                className="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider bg-violet-600 text-white shadow-lg shadow-violet-600/25"
-              >
-                🎓 T7 TUTOR
-              </button>
-            </div>
+          {/* Right: Tab Pills */}
+          <div className="hidden md:flex items-center bg-zinc-100/60 backdrop-blur-sm p-1 rounded-2xl border border-zinc-200/70 shadow-inner">
+            <button
+              type="button"
+              onClick={goBackToResults}
+              className="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider text-zinc-400 hover:text-zinc-600"
+            >
+              SKILL LAB
+            </button>
+            <button
+              type="button"
+              className="px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider bg-violet-600 text-white shadow-lg shadow-violet-600/25"
+            >
+              🎓 T7 TUTOR
+            </button>
           </div>
         </div>
       </header>

@@ -13,7 +13,7 @@ import {
   GraduationCap, Briefcase, Play, AlertTriangle, Linkedin, FileText,
   Youtube, Globe, TrendingUp, Award, X, Home, Lightbulb, Copy, ArrowRight
 } from 'lucide-react';
-import { analyzeResumeOnly } from '../../services/geminiService';
+import { analyzeResumeLyzr } from '../../services/lyzrAgentService';
 import { getLatestAnalysis, getVideoLearning, getVideoLearningSkills } from '../../services/apiService';
 import { industryRoles } from '../../data/industrySkills';
 import YouTubeTrackerModal from './YouTubeTrackerModal';
@@ -190,8 +190,17 @@ const Results = () => {
     setIsParsingResume(true);
 
     try {
-      // customApiKey is null → server uses GEMINI_API_KEY from env (never exposed to browser)
-      const result = await analyzeResumeOnly(file, role, null);
+      // Uses LYZR ResumeOptimizerAgent (role-based — tied to student's selected role).
+      // If LYZR not configured yet, automatically falls back to Gemini.
+      const result = await analyzeResumeLyzr({
+        resumeFile: file,
+        targetRole: role?.role_name || 'Software Developer',
+        userId: currentUser?.uid,
+        // Gemini fallback params
+        roleObject: role,
+        customApiKey: null,
+        preferredModel: null,
+      });
       setLocalAtsAnalysis(result.ats_analysis);
       setLocalResumeMeta(result.resume_meta);
     } catch (err) {

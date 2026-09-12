@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { buildSystemPrompt, callGemini, detectIntent, getQuickReplies } from "./chatbot";
-import ModelSelector from "../common/ModelSelector";
+import { buildSystemPrompt, callLyzrTutor, detectIntent, getQuickReplies } from "./chatbot";
 import "./chatbot.css";
 
 const TypingIndicator = () => (
@@ -12,9 +11,8 @@ const TypingIndicator = () => (
   </div>
 );
 
-const ChatbotWidget = ({ geminiApiKey, userProfile, onOpenKeySettings = null }) => {
+const ChatbotWidget = ({ userProfile, onOpenKeySettings = null }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedModel, setSelectedModel] = useState(userProfile?.geminiModel || 'auto');
   const [messages, setMessages] = useState([
     {
       role: "assistant",
@@ -35,14 +33,6 @@ What would you like to know about your progress or career path today?`,
   
   const formatTime = (date) => date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-  // User's personal key from profile settings (forwarded securely in HTTPS body to /api/gemini)
-  const activeApiKey = userProfile?.geminiApiKey || null;
-
-  useEffect(() => {
-    if (userProfile?.geminiModel) {
-      setSelectedModel(userProfile.geminiModel);
-    }
-  }, [userProfile?.geminiModel]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -84,7 +74,19 @@ What would you like to know about your progress or career path today?`
 
     try {
       const systemPrompt = buildSystemPrompt(userProfile);
-      const reply = await callGemini(activeApiKey, updatedMessages, systemPrompt, selectedModel);
+      // Uses LYZR TutorBotAgent (persistent memory, personalized tutoring).
+      // Falls back to Gemini automatically if LYZR not yet configured.
+      const studentContext = userProfile
+        ? {
+            uid: userProfile.uid,
+            name: userProfile.name,
+            career_interest: userProfile.career_interest,
+            branch: userProfile.branch,
+            year: userProfile.passoutYear || userProfile.year,
+            readiness_score: userProfile.readiness_score || 0,
+          }
+        : null;
+      const reply = await callLyzrTutor(updatedMessages, systemPrompt, studentContext);
       const botMsg = { role: "assistant", content: reply, timestamp: new Date() };
       setMessages((prev) => [...prev, botMsg]);
       const intent = detectIntent(text);
@@ -123,15 +125,7 @@ What would you like to know about your progress or career path today?`
               <div className="sf-header__status"><span className="sf-status-dot"></span>AI Mentor Online</div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <ModelSelector 
-              currentModel={selectedModel} 
-              onModelChange={setSelectedModel} 
-              apiKey={activeApiKey}
-              onOpenKeySettings={onOpenKeySettings}
-            />
-            <button className="sf-header__close" onClick={() => setIsOpen(false)}>✕</button>
-          </div>
+          <button className="sf-header__close" onClick={() => setIsOpen(false)}>✕</button>
         </div>
 
         <div className="sf-contextbar">
