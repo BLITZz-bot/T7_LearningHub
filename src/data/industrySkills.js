@@ -972,7 +972,7 @@ export const BRANCH_CAREER_MAP = {
 // ─────────────────────────────────────────────────────────────────────────────
 // ALL SKILLS (deduplicated union — used for the skill selector UI)
 // ─────────────────────────────────────────────────────────────────────────────
-export const allSkills = [
+export const allSkills = Array.from(new Set([
   // Programming Languages
   'Python', 'Java', 'JavaScript', 'TypeScript', 'C++', 'C', 'Go', 'Kotlin', 'Swift', 'R', 'PHP',
   // Web Dev
@@ -997,7 +997,7 @@ export const allSkills = [
   'Hyperparameter Tuning', 'GPU Training', 'MLflow', 'Experiment Tracking (Wandb/MLflow)',
   'Model Monitoring & Drift Detection', 'Feature Stores', 'Neural Networks', 'CUDA',
   // Data & Analytics
-  'SQL', 'Power BI / Tableau', 'Power BI/Tableau', 'Excel', 'Data Cleaning & Wrangling',
+  'Power BI / Tableau', 'Power BI/Tableau', 'Excel', 'Data Cleaning & Wrangling',
   'Statistics', 'Statistics & Probability', 'Data Visualization', 'A/B Testing',
   'Google Analytics', 'Time Series Analysis', 'Financial Modelling', 'DAX / MDX',
   'Data Modelling', 'Statistical Analysis', 'Business Storytelling',
@@ -1033,7 +1033,7 @@ export const allSkills = [
   'Stochastic Calculus', 'Monte Carlo Simulation', 'Algorithmic Trading',
   'Risk Management', 'Actuarial Analysis', 'Quantitative Analysis',
   'Econometrics', 'Literature Review',
-];
+]));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BRANCH OPTIONS (only the 9 supported branches)

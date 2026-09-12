@@ -668,14 +668,37 @@ const StudentDashboard = () => {
               <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">From your roadmap</span>
             </div>
             <div className="space-y-2">
-              {todayTasks.map((task, i) => (
-                <div key={i} className={`flex items-start gap-2.5 p-2.5 rounded-xl ${
-                  darkMode ? 'bg-zinc-800' : 'bg-zinc-50'
-                }`}>
-                  <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
-                  <span className={`text-sm ${darkMode ? 'text-zinc-300' : 'text-zinc-700'}`}>{task}</span>
-                </div>
-              ))}
+              {todayTasks.map((taskItem, i) => {
+                const isObj = typeof taskItem === 'object' && taskItem !== null;
+                const taskText = isObj ? (taskItem.task || taskItem.title || taskItem.action || JSON.stringify(taskItem)) : taskItem;
+                const taskTime = isObj ? taskItem.time : null;
+                const taskImpact = isObj ? taskItem.impact : null;
+
+                return (
+                  <div key={i} className={`flex items-start justify-between gap-3 p-3 rounded-xl border ${
+                    darkMode ? 'bg-zinc-800/80 border-zinc-700/60' : 'bg-zinc-50 border-zinc-200/60'
+                  }`}>
+                    <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                      <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-semibold leading-snug ${darkMode ? 'text-zinc-200' : 'text-zinc-800'}`}>
+                          {taskText}
+                        </p>
+                        {taskImpact && (
+                          <p className={`text-xs mt-1 font-medium ${darkMode ? 'text-amber-400' : 'text-amber-700'}`}>
+                            💡 {taskImpact}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    {taskTime && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100/80 text-amber-800 border border-amber-200 flex-shrink-0 whitespace-nowrap">
+                        ⏱️ {taskTime}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -895,11 +918,11 @@ const StudentDashboard = () => {
               {selectedSkills.length > 0 && (
                 <div className="mb-3 pb-3 border-b-2 border-zinc-100 max-h-24 overflow-y-auto">
                   <div className="flex flex-wrap gap-1.5">
-                    {selectedSkills.map(skill => {
+                    {Array.from(new Set(selectedSkills)).map((skill, idx) => {
                       const isFromYt = ytSkills.some(ys => ys.toLowerCase() === skill.toLowerCase());
                       return (
                         <span
-                          key={skill}
+                          key={`selected-${skill}-${idx}`}
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${
                             isFromYt 
                               ? 'bg-red-600 text-white' 
@@ -925,9 +948,9 @@ const StudentDashboard = () => {
               {/* All Skills Cloud */}
               <div className="flex-1 overflow-y-auto pr-1">
                 <div className="flex flex-wrap gap-1.5">
-                  {filteredSkills.map(skill => (
+                  {Array.from(new Set(filteredSkills)).map((skill, idx) => (
                     <button
-                      key={skill}
+                      key={`all-${skill}-${idx}`}
                       type="button"
                       onClick={() => toggleSkill(skill)}
                       disabled={selectedSkills.includes(skill)}
@@ -1219,8 +1242,8 @@ const StudentDashboard = () => {
                                   <div>
                                     <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">✅ Skills You Have</p>
                                     <div className="flex flex-wrap gap-1.5">
-                                      {matchedJobSkills.length > 0 ? matchedJobSkills.map(skill => (
-                                        <span key={skill} className="text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-md flex items-center gap-1">
+                                      {matchedJobSkills.length > 0 ? matchedJobSkills.map((skill, idx) => (
+                                        <span key={`match-${skill}-${idx}`} className="text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-md flex items-center gap-1">
                                           <CheckCircle2 className="w-3 h-3" /> {skill}
                                         </span>
                                       )) : <span className="text-xs text-zinc-400 font-medium italic">No matching skills selected yet</span>}
@@ -1230,9 +1253,9 @@ const StudentDashboard = () => {
                                   <div>
                                     <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">❌ Skills Missing (Click to Learn)</p>
                                     <div className="flex flex-wrap gap-1.5">
-                                      {missingJobSkills.length > 0 ? missingJobSkills.map(skill => (
+                                      {missingJobSkills.length > 0 ? missingJobSkills.map((skill, idx) => (
                                         <a
-                                          key={skill}
+                                          key={`miss-${skill}-${idx}`}
                                           href={`https://www.youtube.com/results?search_query=${encodeURIComponent(skill + ' tutorial full course')}`}
                                           target="_blank"
                                           rel="noopener noreferrer"
