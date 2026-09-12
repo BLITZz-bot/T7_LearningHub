@@ -101,10 +101,18 @@ const StudentDashboard = () => {
     });
   };
 
-  // Earned skill badges — pulled from lastAnalysis.matched_skills (Phase 2: from Supabase after quiz)
-  const earnedBadges = lastAnalysis?.matched_skills?.slice(0, 6) || [];
+  // Current selected role object
+  const selectedRole = industryRoles.find(r => r.id === careerInterest);
+
+  // Check if current selected role matches the last analyzed role
+  const isMatchingRole = Boolean(
+    lastAnalysis && (!careerInterest || !lastAnalysis.career_role || selectedRole?.role_name === lastAnalysis.career_role || selectedRole?.id === lastAnalysis.career_role)
+  );
+
+  // Earned skill badges & today's focus — displayed for the active analyzed role
+  const earnedBadges = (isMatchingRole ? lastAnalysis?.matched_skills : null)?.slice(0, 6) || [];
   const atsScore = lastAnalysis?.ats_analysis?.score || null;
-  const todayTasks = lastAnalysis?.quick_wins?.slice(0, 3) || [];
+  const todayTasks = (isMatchingRole ? lastAnalysis?.quick_wins : null)?.slice(0, 3) || [];
 
   // Sync userProfile skills and career interest when user profile loads
   useEffect(() => {
@@ -337,7 +345,11 @@ const StudentDashboard = () => {
       navigate('/results', { state: { analysis: analysisResult, role: selectedRole, userSkills: selectedSkills } });
     } catch (err) {
       console.error('Analysis error:', err);
-      setError('Analysis failed. Please try again.');
+      if (err?.message?.includes('LYZR_NOT_CONFIGURED')) {
+        setError('Lyzr AI agents are pending configuration. Please add LYZR_API_KEY and LYZR_AGENT_PROFILE to your .env file.');
+      } else {
+        setError(err?.message || 'Analysis failed. Please try again.');
+      }
     } finally {
       setAnalyzing(false);
     }
