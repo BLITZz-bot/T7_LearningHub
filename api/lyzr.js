@@ -83,14 +83,12 @@ export default async function handler(req, res) {
   try {
 
     // ── ACTION: analyzeProfile ────────────────────────────────────────────
-    // Replaces: analyzeT7LearningHub() in geminiService.js
-    // Called from: lyzrAgentService.analyzeStudentProfile()
+    // Agent A: ProfileAnalyzerAgent
     // ─────────────────────────────────────────────────────────────────────
     if (action === 'analyzeProfile') {
       if (!AGENT_PROFILE) return res.status(503).json({ error: 'LYZR_NOT_CONFIGURED' });
 
       const { skills, role, branch, year, cgpa, resumeBase64, mimeType, sessionId } = payload;
-
       const isBeginnerMode = !skills || skills.length === 0;
 
       const message = JSON.stringify({
@@ -99,57 +97,18 @@ export default async function handler(req, res) {
           branch: branch || 'Not specified',
           year: year || 'Not specified',
           cgpa: cgpa || 'Not specified',
-          // NOTE: YouTube watch history is NOT an input here.
-          // It is tracked separately AFTER roadmap starts (ProgressTrackerAgent - Phase 2)
           current_skills: isBeginnerMode ? [] : (skills || []),
           is_beginner: isBeginnerMode,
         },
         target_role: {
-          // Role drives everything — no hardcoded company names
           role_name: role?.role_name || 'Software Developer',
           description: role?.description || '',
           required_skills: role?.required_skills || [],
           priority_skills: role?.priority_skills || [],
         },
-        resume_provided: !!resumeBase64,
+        resume_provided: Boolean(resumeBase64),
         resume_base64: resumeBase64 || null,
         mime_type: mimeType || null,
-        output_instructions: `
-Return ONLY a valid JSON object with EXACTLY these fields (no markdown, no explanation):
-{
-  "career_role": "<role name>",
-  "readiness_score": <0-100>,
-  "score_breakdown": {
-    "technical_skills": <0-100>,
-    "resume_quality": <0-100>,
-    "market_fit": <0-100>,
-    "profile_completeness": <0-100>
-  },
-  "honest_assessment": "<2-3 sentences honest evaluation>",
-  "matched_skills": ["<skill>", ...],
-  "missing_skills": ["<skill>", ...],
-  "recommended_skills": ["<skill>", ...],
-  "skill_priority_order": ["<learn this first>", "<then this>", ...],
-  "learning_roadmap": [
-    {
-      "phase": "<e.g. Month 1>",
-      "duration": "<e.g. 4 weeks>",
-      "focus": "<main topic>",
-      "skills": ["<skill>", ...],
-      "milestone": "<what student achieves by end of this phase>"
-    }
-  ],
-  "quick_wins": ["<action 1>", "<action 2>", "<action 3>"],
-  "resume_tips": ["<tip>", ...],
-  "motivation": "<short encouraging message>",
-  "final_outcome": "<what they can achieve after completing roadmap>"
-}
-
-${isBeginnerMode
-  ? 'IMPORTANT: Student is starting from scratch (0 skills). Generate a complete 6-month Zero-to-Hero foundational roadmap for their target role. Start from the very basics.'
-  : 'Analyze the gap between their current skills and the target role requirements. Be honest and specific.'}
-Base your analysis on current industry standards and job market expectations for the target role.
-`.trim()
       });
 
       const response = await callLyzrAgent(
@@ -161,12 +120,80 @@ Base your analysis on current industry standards and job market expectations for
       );
 
       const parsed = safeParseJson(response);
-      return res.status(200).json({ result: parsed, agent: 'ProfileAnalyzerAgent' });
+
+      // Support user's exact Lyzr Studio Agent A schema:
+      // readiness_score: { overall, technical, resume, market_fit, profile_completeness, reason_if_null }
+      const overallScore = typeof parsed.readiness_score === 'object' && parsed.readiness_score !== null
+        ? (parsed.readiness_score.overall ?? 0)
+        : (typeof parsed.readiness_score === 'number' ? parsed.readiness_score : (parsed.score || 0));
+
+      const scoreBreakdown = typeof parsed.readiness_score === 'object' && parsed.readiness_score !== null
+        ? {
+            technical_skills: parsed.readiness_score.technical ?? parsed.readiness_score.overall ?? 0,
+            resume_quality: parsed.readiness_score.resume ?? parsed.readiness_score.overall ?? 0,
+            market_fit: parsed.readiness_score.market_fit ?? parsed.readiness_score.overall ?? 0,
+            profile_completeness: parsed.readiness_score.profile_completeness ?? parsed.readiness_score.overall ?? 0,
+          }
+        : (parsed.score_breakdown || {});
+
+      // Extract skills have / matched
+      const matchedSkills = parsed.skills_have || parsed.matched_skills || [];
+
+      // Extract missing skills (handles array of objects { skill, relevance_pct, reason } or array of strings)
+      const rawMissing = parsed.skills_missing || parsed.missing_skills || [];
+      const missingSkills = rawMissing.map(item => (
+        typeof item === 'object' && item !== null ? (item.skill || item.name || '') : item
+      )).filter(Boolean);
+
+      // Extract roadmap (handles user's schema { phase, duration_weeks, milestone, skills_covered } and legacy)
+      const rawRoadmap = parsed.roadmap || parsed.learning_roadmap || [];
+      const learningRoadmap = rawRoadmap.map((p, idx) => ({
+        phase: p.phase || `Phase ${idx + 1}`,
+        month: p.phase || `Month ${idx + 1}`,
+        title: p.milestone || p.title || p.focus || `Phase ${idx + 1}`,
+        focus: p.milestone || p.focus || p.theme || '',
+        milestone: p.milestone || '',
+        duration: p.duration_weeks ? `${p.duration_weeks} weeks` : (p.duration || '4 weeks'),
+        duration_weeks: p.duration_weeks || 4,
+        skills_covered: p.skills_covered || p.skills || [],
+        skills: p.skills_covered || p.skills || [],
+      }));
+
+      const quickWins = parsed.quick_wins || [];
+
+      const honestAssessment = parsed.honest_assessment || (
+        parsed.readiness_score?.reason_if_null || (
+          overallScore > 0
+            ? `Profile assessed for ${role?.role_name || 'target role'}. Placement readiness score is ${overallScore}%. Focus on key missing competencies in your roadmap.`
+            : 'Assessment completed based on your provided academic profile and skills.'
+        )
+      );
+
+      const normalized = {
+        ...parsed,
+        career_role: parsed.career_role || role?.role_name || 'Software Developer',
+        readiness_score: overallScore,
+        raw_readiness_score: parsed.readiness_score,
+        score_breakdown: scoreBreakdown,
+        matched_skills: matchedSkills,
+        skills_have: matchedSkills,
+        missing_skills: missingSkills,
+        skills_missing: rawMissing,
+        learning_roadmap: learningRoadmap,
+        roadmap: learningRoadmap,
+        quick_wins: quickWins,
+        honest_assessment: honestAssessment,
+        clarification_needed: parsed.clarification_needed || null,
+        resume_tips: parsed.resume_tips || (quickWins.length > 0 ? quickWins.slice(0, 2) : []),
+        motivation: parsed.motivation || 'Stay consistent with your roadmap milestones to achieve placement success.',
+        final_outcome: parsed.final_outcome || `Placement ready for ${role?.role_name || 'your target role'}`,
+      };
+
+      return res.status(200).json({ result: normalized, agent: 'ProfileAnalyzerAgent' });
     }
 
     // ── ACTION: analyzeResume ─────────────────────────────────────────────
-    // Replaces: analyzeResumeOnly() in geminiService.js
-    // Called from: lyzrAgentService.analyzeResumeLyzr()
+    // Agent B: ResumeOptimizerAgent
     // ─────────────────────────────────────────────────────────────────────
     if (action === 'analyzeResume') {
       if (!AGENT_RESUME) return res.status(503).json({ error: 'LYZR_NOT_CONFIGURED' });
@@ -175,34 +202,10 @@ Base your analysis on current industry standards and job market expectations for
       if (!resumeBase64) return res.status(400).json({ error: 'resumeBase64 is required' });
 
       const message = JSON.stringify({
-        task: 'ANALYZE_RESUME_FOR_ROLE',
+        task: 'AUDIT_RESUME_FOR_ROLE',
         target_role: targetRole || 'Software Developer',
-        // Analysis is ROLE-BASED — what does THIS role require?
-        // No hardcoded companies — the role itself defines the requirements
         resume_base64: resumeBase64,
         mime_type: mimeType || 'application/pdf',
-        output_instructions: `
-Analyze the resume for the target role: "${targetRole || 'Software Developer'}".
-Return ONLY a valid JSON object (no markdown, no extra text):
-{
-  "ats_score": <0-100>,
-  "summary": "<2-sentence overall assessment>",
-  "what_student_has": [
-    { "section": "<e.g. Projects>", "content": "<what it contains>", "quality": "good|average|weak" }
-  ],
-  "what_is_missing": [
-    { "item": "<missing item>", "importance": "critical|important|nice_to_have", "why": "<why it matters for this role>" }
-  ],
-  "rewrite_suggestions": [
-    { "original": "<exact text from resume>", "improved": "<rewritten version>", "reason": "<why this is better>" }
-  ],
-  "keyword_gaps": ["<keyword missing for this role>", ...],
-  "strengths": ["<strength>", ...],
-  "issues": ["<issue>", ...]
-}
-Be SPECIFIC and ROLE-FOCUSED. Every suggestion must directly relate to the target role.
-Do NOT give generic resume advice. Tie everything to: "${targetRole || 'Software Developer'}".
-`.trim()
       });
 
       const response = await callLyzrAgent(
@@ -215,20 +218,50 @@ Do NOT give generic resume advice. Tie everything to: "${targetRole || 'Software
 
       const parsed = safeParseJson(response);
 
-      // Map to existing Results.jsx ats_analysis format for backward compatibility
+      // Support user's exact Lyzr Studio Agent B schema:
+      // { clarification_needed, ats_score, audit: { strengths, present_sections }, gaps: [{ issue, severity, why_it_matters }], rewrites: [{ original, improved, reason }], ats_keyword_gaps }
+      const atsScore = parsed.ats_score ?? parsed.score ?? 0;
+      const strengths = parsed.audit?.strengths || parsed.strengths || [];
+      const presentSections = parsed.audit?.present_sections || [];
+      const rawGaps = parsed.gaps || [];
+      const issues = rawGaps.map(g => (
+        typeof g === 'object' && g !== null ? `${g.issue || ''}${g.why_it_matters ? ` — ${g.why_it_matters}` : ''}` : g
+      )).filter(Boolean);
+      const rewrites = parsed.rewrites || parsed.rewrite_suggestions || [];
+      const keywordGaps = parsed.ats_keyword_gaps || parsed.keyword_gaps || [];
+
+      const whatStudentHas = presentSections.length > 0
+        ? presentSections.map(s => ({ section: s, content: 'Included in resume', quality: 'good' }))
+        : (parsed.what_student_has || strengths.map(s => ({ section: 'Strength', content: s, quality: 'good' })));
+
+      const whatIsMissing = rawGaps.length > 0
+        ? rawGaps.map(g => ({ item: g.issue || '', importance: g.severity || 'important', why: g.why_it_matters || '' }))
+        : (parsed.what_is_missing || []);
+
+      const summary = parsed.summary || (
+        rawGaps.length > 0
+          ? `${rawGaps.length} critical improvement areas identified for your target role.`
+          : `Resume audit complete with an ATS score of ${atsScore}%.`
+      );
+
       const normalized = {
-        ats_score: parsed.ats_score || 0,
-        summary: parsed.summary || '',
-        what_student_has: parsed.what_student_has || [],
-        what_is_missing: parsed.what_is_missing || [],
-        rewrite_suggestions: parsed.rewrite_suggestions || [],
-        keyword_gaps: parsed.keyword_gaps || [],
-        strengths: parsed.strengths || [],
-        issues: parsed.issues || [],
-        // Legacy fields for backward compat with Results.jsx
-        score: parsed.ats_score || 0,
-        suggested_keywords: parsed.keyword_gaps || [],
-        section_scores: {},
+        ...parsed,
+        ats_score: atsScore,
+        score: atsScore,
+        summary: summary,
+        audit: parsed.audit || { strengths, present_sections: presentSections },
+        strengths: strengths,
+        gaps: rawGaps,
+        issues: issues.length > 0 ? issues : (parsed.issues || []),
+        rewrites: rewrites,
+        rewrite_suggestions: rewrites,
+        ats_keyword_gaps: keywordGaps,
+        keyword_gaps: keywordGaps,
+        suggested_keywords: keywordGaps,
+        what_student_has: whatStudentHas,
+        what_is_missing: whatIsMissing,
+        clarification_needed: parsed.clarification_needed || null,
+        section_scores: parsed.section_scores || {},
       };
 
       return res.status(200).json({ result: normalized, agent: 'ResumeOptimizerAgent' });
@@ -272,38 +305,15 @@ Do NOT give generic resume advice. Tie everything to: "${targetRole || 'Software
 
       const message = answers
         ? JSON.stringify({
-            task: 'GRADE_SKILL_QUIZ',
-            skill,
-            student_level: level || 'intermediate',
+            task: 'SCORE_SKILL_VALIDATION_ANSWERS',
+            skill: skill || 'General',
+            level: (level || 'INTERMEDIATE').toUpperCase(),
             student_answers: answers,
-            output_instructions: `
-Grade the student's answers and return ONLY valid JSON:
-{
-  "validation_score": <0-100>,
-  "verified_level": "BEGINNER|INTERMEDIATE|ADVANCED|NOT_VERIFIED",
-  "passed": <true|false>,
-  "feedback": "<specific feedback on what they got right/wrong>",
-  "next_steps": ["<what to study next>"]
-}
-`.trim()
           })
         : JSON.stringify({
-            task: 'GENERATE_SKILL_QUIZ',
-            skill,
-            student_level: level || 'intermediate',
-            output_instructions: `
-Generate exactly 3 MCQ questions to validate the student's knowledge of "${skill}".
-Return ONLY valid JSON:
-{
-  "questions": [
-    {
-      "q": "<question text>",
-      "options": ["<A>", "<B>", "<C>", "<D>"],
-      "correct": <0-3 index>
-    }
-  ]
-}
-`.trim()
+            task: 'GENERATE_VALIDATION_QUESTIONS',
+            skill: skill || 'General',
+            level: (level || 'INTERMEDIATE').toUpperCase(),
           });
 
       const response = await callLyzrAgent(
@@ -315,7 +325,15 @@ Return ONLY valid JSON:
       );
 
       const parsed = safeParseJson(response);
-      return res.status(200).json({ result: parsed, agent: 'SkillValidatorAgent' });
+      const normalized = {
+        ...parsed,
+        clarification_needed: parsed.clarification_needed || null,
+        skill: parsed.skill || skill,
+        questions: parsed.questions || [],
+        validation_score: parsed.validation_score ?? null,
+        verified_level: parsed.verified_level || 'NOT_VERIFIED',
+      };
+      return res.status(200).json({ result: normalized, agent: 'SkillValidatorAgent' });
     }
 
     return res.status(400).json({ error: `Unknown action: "${action}"` });

@@ -76,20 +76,25 @@ export const analyzeStudentProfile = async ({
   const result = data.result;
 
   return {
+    ...result,
     career_role: result.career_role || selectedRole.role_name,
     readiness_score: Math.min(100, Math.max(0, result.readiness_score || 0)),
     score_breakdown: result.score_breakdown || {},
     honest_assessment: result.honest_assessment || '',
-    matched_skills: result.matched_skills || [],
+    matched_skills: result.matched_skills || result.skills_have || [],
+    skills_have: result.skills_have || result.matched_skills || [],
     missing_skills: result.missing_skills || [],
-    recommended_skills: result.recommended_skills || [],
-    skill_priority_order: result.skill_priority_order || result.recommended_skills || [],
-    learning_roadmap: result.learning_roadmap || [],
+    skills_missing: result.skills_missing || [],
+    recommended_skills: result.recommended_skills || result.missing_skills || [],
+    skill_priority_order: result.skill_priority_order || result.missing_skills || [],
+    learning_roadmap: result.learning_roadmap || result.roadmap || [],
+    roadmap: result.roadmap || result.learning_roadmap || [],
     quick_wins: result.quick_wins || [],
     resume_tips: result.resume_tips || [],
     linkedin_tips: result.linkedin_tips || [],
     motivation: result.motivation || '',
     final_outcome: result.final_outcome || '',
+    clarification_needed: result.clarification_needed || null,
     ats_analysis: result.ats_analysis || null,
     resume_meta: resumeFile
       ? { file_name: resumeFile.name, file_type: resumeFile.type || 'application/pdf' }
@@ -122,17 +127,25 @@ export const analyzeResumeLyzr = async ({
   const result = data.result;
 
   return {
+    ...result,
     ats_analysis: {
-      score: result.ats_score || result.score || 0,
+      ...result,
+      score: result.ats_score ?? result.score ?? 0,
+      ats_score: result.ats_score ?? result.score ?? 0,
       summary: result.summary || '',
-      strengths: result.strengths || [],
+      strengths: result.strengths || result.audit?.strengths || [],
+      audit: result.audit || {},
+      gaps: result.gaps || [],
       issues: result.issues || [],
-      keyword_gaps: result.keyword_gaps || [],
-      suggested_keywords: result.keyword_gaps || [],
-      rewrite_suggestions: result.rewrite_suggestions || [],
+      keyword_gaps: result.keyword_gaps || result.ats_keyword_gaps || [],
+      ats_keyword_gaps: result.ats_keyword_gaps || result.keyword_gaps || [],
+      suggested_keywords: result.suggested_keywords || result.ats_keyword_gaps || result.keyword_gaps || [],
+      rewrites: result.rewrites || result.rewrite_suggestions || [],
+      rewrite_suggestions: result.rewrite_suggestions || result.rewrites || [],
       section_scores: result.section_scores || {},
       what_student_has: result.what_student_has || [],
       what_is_missing: result.what_is_missing || [],
+      clarification_needed: result.clarification_needed || null,
     },
     resume_meta: {
       file_name: resumeFile.name,

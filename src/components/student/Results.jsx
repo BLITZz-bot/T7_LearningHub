@@ -159,13 +159,39 @@ const Results = () => {
   const userSkills = locationState.userSkills || userProfile?.skills || analysis.matched_skills || [];
 
   // Extract data with fallbacks for different formats
-  const readiness_score = analysis.readiness_score || 0;
-  const score_breakdown = analysis.score_breakdown || {};
+  const readiness_score = typeof analysis.readiness_score === 'number'
+    ? analysis.readiness_score
+    : (typeof analysis.readiness_score === 'object' && analysis.readiness_score !== null
+        ? (analysis.readiness_score.overall ?? 0)
+        : 0);
+
+  const score_breakdown = typeof analysis.readiness_score === 'object' && analysis.readiness_score !== null
+    ? {
+        technical_skills: analysis.readiness_score.technical ?? analysis.readiness_score.overall ?? 0,
+        resume_quality: analysis.readiness_score.resume ?? analysis.readiness_score.overall ?? 0,
+        market_fit: analysis.readiness_score.market_fit ?? analysis.readiness_score.overall ?? 0,
+        profile_completeness: analysis.readiness_score.profile_completeness ?? analysis.readiness_score.overall ?? 0,
+      }
+    : (analysis.score_breakdown || {});
+
   const honest_assessment = analysis.honest_assessment || '';
-  const matched_skills = analysis.matched_skills || [];
-  const missing_skills = analysis.missing_skills || [];
-  const skill_priority_order = analysis.skill_priority_order || analysis.recommended_skills || [];
-  const learning_roadmap = analysis.learning_roadmap || [];
+  const matched_skills = analysis.matched_skills || analysis.skills_have || [];
+  const raw_missing = analysis.missing_skills || analysis.skills_missing || [];
+  const missing_skills = raw_missing.map(s => typeof s === 'string' ? s : (s?.skill || s?.name || '')).filter(Boolean);
+  const skill_priority_order = analysis.skill_priority_order || missing_skills || [];
+  const raw_roadmap = analysis.learning_roadmap || analysis.roadmap || [];
+  const learning_roadmap = raw_roadmap.map((p, idx) => ({
+    phase: p.phase || `Phase ${idx + 1}`,
+    month: p.phase || `Phase ${idx + 1}`,
+    title: p.milestone || p.title || p.focus || `Phase ${idx + 1}`,
+    focus: p.milestone || p.focus || p.theme || '',
+    milestone: p.milestone || '',
+    duration: p.duration_weeks ? `${p.duration_weeks} weeks` : (p.duration || '4 weeks'),
+    duration_weeks: p.duration_weeks || 4,
+    skills_covered: p.skills_covered || p.skills || [],
+    skills: p.skills_covered || p.skills || [],
+    ...p
+  }));
   const quick_wins = analysis.quick_wins || [];
   const resume_tips = analysis.resume_tips || [];
   const linkedin_tips = analysis.linkedin_tips || [];
