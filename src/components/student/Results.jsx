@@ -10,7 +10,8 @@ import {
   LogOut, ArrowLeft, Check, Calendar, ChevronDown, Download, Target, Sparkles,
   Trophy, Rocket, BookOpen, Zap, Clock, Code, ExternalLink, CheckCircle,
   GraduationCap, Briefcase, Play, AlertTriangle, Linkedin, FileText,
-  Youtube, Globe, TrendingUp, Award, X, Home, Lightbulb, Copy, ArrowRight
+  Youtube, Globe, TrendingUp, Award, X, Home, Lightbulb, Copy, ArrowRight,
+  Upload, RefreshCw
 } from 'lucide-react';
 import { analyzeResumeLyzr } from '../../services/lyzrAgentService';
 import { getLatestAnalysis, getVideoLearning, getVideoLearningSkills } from '../../services/apiService';
@@ -123,11 +124,31 @@ const Results = () => {
   const [resumeError, setResumeError] = useState('');
 
   useEffect(() => {
-    if (analysis) {
-      if (analysis.ats_analysis && !localAtsAnalysis) setLocalAtsAnalysis(analysis.ats_analysis);
-      if (analysis.resume_meta && !localResumeMeta) setLocalResumeMeta(analysis.resume_meta);
+    const storageKey = currentUser?.uid ? `t7_ats_analysis_${currentUser.uid}` : 't7_ats_analysis_guest';
+    const metaKey = currentUser?.uid ? `t7_resume_meta_${currentUser.uid}` : 't7_resume_meta_guest';
+
+    if (analysis?.ats_analysis && !localAtsAnalysis) {
+      setLocalAtsAnalysis(analysis.ats_analysis);
+    } else if (!localAtsAnalysis) {
+      const cached = localStorage.getItem(storageKey);
+      if (cached) {
+        try {
+          setLocalAtsAnalysis(JSON.parse(cached));
+        } catch (_) {}
+      }
     }
-  }, [analysis]);
+
+    if (analysis?.resume_meta && !localResumeMeta) {
+      setLocalResumeMeta(analysis.resume_meta);
+    } else if (!localResumeMeta) {
+      const cachedMeta = localStorage.getItem(metaKey);
+      if (cachedMeta) {
+        try {
+          setLocalResumeMeta(JSON.parse(cachedMeta));
+        } catch (_) {}
+      }
+    }
+  }, [analysis, currentUser?.uid]);
 
   if (loadingAnalysis) {
     return (
@@ -229,6 +250,16 @@ const Results = () => {
       });
       setLocalAtsAnalysis(result.ats_analysis);
       setLocalResumeMeta(result.resume_meta);
+
+      // Persist to localStorage immediately so analyzed data is permanently stored
+      const storageKey = currentUser?.uid ? `t7_ats_analysis_${currentUser.uid}` : 't7_ats_analysis_guest';
+      const metaKey = currentUser?.uid ? `t7_resume_meta_${currentUser.uid}` : 't7_resume_meta_guest';
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(result.ats_analysis));
+        localStorage.setItem(metaKey, JSON.stringify(result.resume_meta));
+      } catch (cacheErr) {
+        console.warn('Failed to cache ATS analysis:', cacheErr);
+      }
     } catch (err) {
       console.error('Standalone ATS Error', err);
       setResumeError(`Analysis failed: ${err.message}`);
@@ -1801,15 +1832,24 @@ const Results = () => {
                       </h2>
                       <p className="text-zinc-600 mt-2">{ats_analysis.summary}</p>
                     </div>
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <label className="cursor-pointer bg-white px-5 py-2.5 rounded-xl text-sm font-bold text-emerald-600 border border-emerald-200 hover:bg-emerald-50 transition-colors flex items-center gap-2">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {resumeError && (
+                        <div className="w-full text-xs text-red-600 bg-red-50 py-1.5 px-3 rounded-lg border border-red-200">
+                          {resumeError}
+                        </div>
+                      )}
+
+                      <label className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md shadow-emerald-600/20 flex items-center gap-2">
                         {isParsingResume ? (
                           <>
-                            <div className="w-4 h-4 rounded-full border-2 border-emerald-200 border-t-emerald-600 animate-spin"></div>
-                            Analyzing...
+                            <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin"></div>
+                            <span>Analyzing...</span>
                           </>
                         ) : (
-                          "Test Another Resume"
+                          <>
+                            <Upload className="w-4 h-4" />
+                            <span>Re-upload Resume</span>
+                          </>
                         )}
                         <input
                           type="file"
@@ -1819,6 +1859,24 @@ const Results = () => {
                           disabled={isParsingResume}
                         />
                       </label>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const storageKey = currentUser?.uid ? `t7_ats_analysis_${currentUser.uid}` : 't7_ats_analysis_guest';
+                          const metaKey = currentUser?.uid ? `t7_resume_meta_${currentUser.uid}` : 't7_resume_meta_guest';
+                          localStorage.removeItem(storageKey);
+                          localStorage.removeItem(metaKey);
+                          setLocalAtsAnalysis(null);
+                          setLocalResumeMeta(null);
+                        }}
+                        className="cursor-pointer bg-white px-3.5 py-2.5 rounded-xl text-xs font-semibold text-zinc-600 border border-zinc-200 hover:bg-zinc-50 hover:text-zinc-900 transition-colors flex items-center gap-1.5"
+                        title="Clear current resume test and upload fresh"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5 text-zinc-400" />
+                        <span>Clear</span>
+                      </button>
+
                       <div className={`rounded-3xl px-8 py-6 text-center ${getAtsTone(typeof ats_analysis.score === 'object' ? ats_analysis.score?.score : ats_analysis.score).bg} ${getAtsTone(typeof ats_analysis.score === 'object' ? ats_analysis.score?.score : ats_analysis.score).border} border`}>
                         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-1">ATS Score</p>
                         <p className={`text-5xl font-black ${getAtsTone(typeof ats_analysis.score === 'object' ? ats_analysis.score?.score : ats_analysis.score).text}`}>
