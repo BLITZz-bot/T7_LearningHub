@@ -14,7 +14,7 @@
  *   { action: 'validateSkill',  payload: { skill, level, answers, userId } }
  */
 
-const LYZR_BASE = 'https://agent.api.lyzr.ai/v3/inference/chat/';
+const LYZR_BASE = process.env.LYZR_ENDPOINT || 'https://agent-prod.studio.lyzr.ai/v3/inference/chat/';
 
 /**
  * Core LYZR agent caller — sends a message to a specific agent
@@ -64,10 +64,10 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed. Use POST.' });
 
-  const LYZR_API_KEY    = process.env.LYZR_API_KEY || '';
-  const AGENT_PROFILE   = process.env.LYZR_AGENT_PROFILE || '';
-  const AGENT_RESUME    = process.env.LYZR_AGENT_RESUME || '';
-  const AGENT_TUTOR     = process.env.LYZR_AGENT_TUTOR || '';
+  const LYZR_API_KEY = process.env.LYZR_API_KEY || '';
+  const AGENT_PROFILE = process.env.LYZR_AGENT_PROFILE || '';
+  const AGENT_RESUME = process.env.LYZR_AGENT_RESUME || '';
+  const AGENT_TUTOR = process.env.LYZR_AGENT_TUTOR || '';
   const AGENT_VALIDATOR = process.env.LYZR_AGENT_VALIDATOR || '';
 
   if (!LYZR_API_KEY) {
@@ -129,11 +129,11 @@ export default async function handler(req, res) {
 
       const scoreBreakdown = typeof parsed.readiness_score === 'object' && parsed.readiness_score !== null
         ? {
-            technical_skills: parsed.readiness_score.technical ?? parsed.readiness_score.overall ?? 0,
-            resume_quality: parsed.readiness_score.resume ?? parsed.readiness_score.overall ?? 0,
-            market_fit: parsed.readiness_score.market_fit ?? parsed.readiness_score.overall ?? 0,
-            profile_completeness: parsed.readiness_score.profile_completeness ?? parsed.readiness_score.overall ?? 0,
-          }
+          technical_skills: parsed.readiness_score.technical ?? parsed.readiness_score.overall ?? 0,
+          resume_quality: parsed.readiness_score.resume ?? parsed.readiness_score.overall ?? 0,
+          market_fit: parsed.readiness_score.market_fit ?? parsed.readiness_score.overall ?? 0,
+          profile_completeness: parsed.readiness_score.profile_completeness ?? parsed.readiness_score.overall ?? 0,
+        }
         : (parsed.score_breakdown || {});
 
       // Extract skills have / matched
@@ -305,16 +305,16 @@ export default async function handler(req, res) {
 
       const message = answers
         ? JSON.stringify({
-            task: 'SCORE_SKILL_VALIDATION_ANSWERS',
-            skill: skill || 'General',
-            level: (level || 'INTERMEDIATE').toUpperCase(),
-            student_answers: answers,
-          })
+          task: 'SCORE_SKILL_VALIDATION_ANSWERS',
+          skill: skill || 'General',
+          level: (level || 'INTERMEDIATE').toUpperCase(),
+          student_answers: answers,
+        })
         : JSON.stringify({
-            task: 'GENERATE_VALIDATION_QUESTIONS',
-            skill: skill || 'General',
-            level: (level || 'INTERMEDIATE').toUpperCase(),
-          });
+          task: 'GENERATE_VALIDATION_QUESTIONS',
+          skill: skill || 'General',
+          level: (level || 'INTERMEDIATE').toUpperCase(),
+        });
 
       const response = await callLyzrAgent(
         AGENT_VALIDATOR,

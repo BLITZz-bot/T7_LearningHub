@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { 
+import {
   LogOut, ArrowLeft, Check, Calendar, ChevronDown, Download, Target, Sparkles,
   Trophy, Rocket, BookOpen, Zap, Clock, Code, ExternalLink, CheckCircle,
   GraduationCap, Briefcase, Play, AlertTriangle, Linkedin, FileText,
@@ -162,16 +162,16 @@ const Results = () => {
   const readiness_score = typeof analysis.readiness_score === 'number'
     ? analysis.readiness_score
     : (typeof analysis.readiness_score === 'object' && analysis.readiness_score !== null
-        ? (analysis.readiness_score.overall ?? 0)
-        : 0);
+      ? (analysis.readiness_score.overall ?? 0)
+      : 0);
 
   const score_breakdown = typeof analysis.readiness_score === 'object' && analysis.readiness_score !== null
     ? {
-        technical_skills: analysis.readiness_score.technical ?? analysis.readiness_score.overall ?? 0,
-        resume_quality: analysis.readiness_score.resume ?? analysis.readiness_score.overall ?? 0,
-        market_fit: analysis.readiness_score.market_fit ?? analysis.readiness_score.overall ?? 0,
-        profile_completeness: analysis.readiness_score.profile_completeness ?? analysis.readiness_score.overall ?? 0,
-      }
+      technical_skills: analysis.readiness_score.technical ?? analysis.readiness_score.overall ?? 0,
+      resume_quality: analysis.readiness_score.resume ?? analysis.readiness_score.overall ?? 0,
+      market_fit: analysis.readiness_score.market_fit ?? analysis.readiness_score.overall ?? 0,
+      profile_completeness: analysis.readiness_score.profile_completeness ?? analysis.readiness_score.overall ?? 0,
+    }
     : (analysis.score_breakdown || {});
 
   const honest_assessment = analysis.honest_assessment || '';
@@ -410,7 +410,7 @@ const Results = () => {
       'computer science': 'computer-science',
       'ai': 'ai-engineer'
     };
-    
+
     const normalizedSkill = skill.toLowerCase().trim();
     const roadmapPath = skillMap[normalizedSkill];
     if (roadmapPath) {
@@ -468,7 +468,7 @@ const Results = () => {
       <div key={index} className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100 mb-4">
         <h5 className="font-bold text-purple-900 text-xl mb-3">🛠️ {project.name}</h5>
         {project.description && <p className="text-purple-800 text-base mb-4">{project.description}</p>}
-        
+
         {project.features?.length > 0 && (
           <div className="mb-4">
             <p className="text-sm font-semibold text-purple-600 mb-2">FEATURES:</p>
@@ -545,7 +545,7 @@ const Results = () => {
           <span className="px-4 py-1.5 bg-zinc-900 text-white text-base font-bold rounded-lg">{weekLabel}</span>
           {theme && <span className="font-semibold text-zinc-800 text-lg">{theme}</span>}
         </div>
-        
+
         {/* Daily Tasks - handles both formats */}
         {tasks.length > 0 && (
           <div className="space-y-2 mb-4">
@@ -610,8 +610,8 @@ const Results = () => {
       <header className="bg-white/90 backdrop-blur-md border-b border-zinc-100 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-18 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button 
-              onClick={handleBackToSetup} 
+            <button
+              onClick={handleBackToSetup}
               title="Back to Career Setup"
               className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-colors cursor-pointer"
             >
@@ -633,27 +633,25 @@ const Results = () => {
             <div className="hidden md:flex items-center bg-zinc-100/60 backdrop-blur-sm p-1 rounded-2xl border border-zinc-200/70 shadow-inner">
               <button
                 onClick={() => setViewMode('skill')}
-                className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 ${
-                  viewMode === 'skill'
-                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/25'
-                    : 'text-zinc-400 hover:text-zinc-600'
-                }`}
+                className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 ${viewMode === 'skill'
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/25'
+                  : 'text-zinc-400 hover:text-zinc-600'
+                  }`}
               >
                 Skill Lab
               </button>
               <button
                 onClick={() => navigate('/academic')}
-                className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 ${
-                  viewMode === 'academic'
-                    ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/25'
-                    : 'text-zinc-500 hover:text-violet-600'
-                }`}
+                className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300 ${viewMode === 'academic'
+                  ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/25'
+                  : 'text-zinc-500 hover:text-violet-600'
+                  }`}
               >
                 🎓 T7 Tutor
               </button>
             </div>
-            <button 
-              onClick={handleBackToSetup} 
+            <button
+              onClick={handleBackToSetup}
               className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold rounded-lg shadow-sm transition cursor-pointer flex items-center gap-1.5"
             >
               Update Skills / Setup
@@ -669,7 +667,7 @@ const Results = () => {
         {/* Score Hero */}
         <div className="bg-zinc-900 rounded-3xl p-8 mb-8 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-zinc-800 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-          
+
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center gap-8">
             {/* Score Circle */}
             <div className="flex-shrink-0">
@@ -694,7 +692,7 @@ const Results = () => {
             {/* Details */}
             <div className="flex-1 text-white">
               <h1 className="text-3xl font-black mb-3">{role?.role_name || analysis.career_role}</h1>
-              
+
               {honest_assessment && (
                 <p className="text-zinc-300 mb-5 text-base bg-zinc-800/50 p-4 rounded-xl">💬 {honest_assessment}</p>
               )}
@@ -777,11 +775,10 @@ const Results = () => {
                 <button
                   type="button"
                   onClick={copyT7Id}
-                  className={`px-3 py-2 font-bold rounded-xl transition-all flex items-center gap-1.5 text-xs cursor-pointer ${
-                    copiedT7 
-                      ? 'bg-emerald-500 text-white' 
-                      : 'bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white border border-white/10'
-                  }`}
+                  className={`px-3 py-2 font-bold rounded-xl transition-all flex items-center gap-1.5 text-xs cursor-pointer ${copiedT7
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white border border-white/10'
+                    }`}
                   title="Copy T7 Account ID"
                 >
                   {copiedT7 ? (
@@ -819,11 +816,10 @@ const Results = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-base transition-all whitespace-nowrap flex-1 justify-center ${
-                  activeTab === tab.id
-                    ? 'bg-zinc-900 text-white shadow-md'
-                    : 'bg-transparent text-zinc-600 hover:bg-zinc-50'
-                }`}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-base transition-all whitespace-nowrap flex-1 justify-center ${activeTab === tab.id
+                  ? 'bg-zinc-900 text-white shadow-md'
+                  : 'bg-transparent text-zinc-600 hover:bg-zinc-50'
+                  }`}
               >
                 <tab.icon className="w-5 h-5" />
                 {tab.label}
@@ -838,466 +834,466 @@ const Results = () => {
             {/* Learning Activity Graph - Compact Version */}
             <div className="lg:col-span-2 bg-white rounded-2xl p-4 shadow-lg border border-zinc-100">
               {/* Header with Stats */}
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="font-bold text-zinc-900 text-lg flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-emerald-600" />
-                  Learning Activity
-                </h2>
-                <p className="text-xs text-zinc-500 mt-1">
-                  Track your daily progress
-                </p>
-              </div>
-              
-              {/* Compact Stats */}
-              <div className="flex gap-3">
-                <div className="text-center">
-                  <p className="text-xl font-bold text-emerald-600">
-                    {(() => {
-                      let total = 0;
-                      for (let i = 0; i < 365; i++) {
-                        total += Math.random() > 0.7 ? Math.floor(Math.random() * 5) : 0;
-                      }
-                      return total;
-                    })()}
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="font-bold text-zinc-900 text-lg flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-emerald-600" />
+                    Learning Activity
+                  </h2>
+                  <p className="text-xs text-zinc-500 mt-1">
+                    Track your daily progress
                   </p>
-                  <p className="text-[10px] text-zinc-500">Hours</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-xl font-bold text-blue-600">
-                    {(() => {
-                      let days = 0;
-                      for (let i = 0; i < 365; i++) {
-                        if (Math.random() > 0.7) days++;
-                      }
-                      return days;
-                    })()}
-                  </p>
-                  <p className="text-[10px] text-zinc-500">Days</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xl font-bold text-amber-600">
-                    {Math.floor(Math.random() * 15)}
-                  </p>
-                  <p className="text-[10px] text-zinc-500">Streak</p>
-                </div>
-              </div>
-            </div>
 
-            {/* Legend */}
-            <div className="flex items-center justify-end gap-2 mb-3 text-[10px] text-zinc-500">
-              <span>Less</span>
-              <div className="flex gap-1">
-                <div className="w-2.5 h-2.5 rounded-sm bg-zinc-100 border border-zinc-200"></div>
-                <div className="w-2.5 h-2.5 rounded-sm bg-emerald-200 border border-emerald-300"></div>
-                <div className="w-2.5 h-2.5 rounded-sm bg-emerald-400 border border-emerald-500"></div>
-                <div className="w-2.5 h-2.5 rounded-sm bg-emerald-600 border border-emerald-700"></div>
-                <div className="w-2.5 h-2.5 rounded-sm bg-emerald-800 border border-emerald-900"></div>
-              </div>
-              <span>More</span>
-            </div>
-            
-            {/* Activity Grid - Compact */}
-            <div className="overflow-x-auto pb-2">
-              <div className="inline-flex gap-0.5 min-w-full">
-                {(() => {
-                  const weeks = [];
-                  const today = new Date();
-                  const startDate = new Date(today);
-                  startDate.setDate(today.getDate() - 364);
-                  
-                  let dayCounter = 0;
-                  
-                  for (let week = 0; week < 53; week++) {
-                    const weekDays = [];
-                    
-                    for (let day = 0; day < 7; day++) {
-                      if (dayCounter >= 365) break;
-                      
-                      const currentDate = new Date(startDate);
-                      currentDate.setDate(startDate.getDate() + dayCounter);
-                      
-                      if (week === 0 && day < startDate.getDay()) {
-                        weekDays.push(null);
-                        continue;
-                      }
-                      
-                      const hours = Math.random() > 0.7 ? Math.floor(Math.random() * 5) : 0;
-                      const level = hours === 0 ? 0 : hours <= 1 ? 1 : hours <= 2 ? 2 : hours <= 3 ? 3 : 4;
-                      
-                      weekDays.push({
-                        date: currentDate.toISOString().split('T')[0],
-                        hours: hours,
-                        level: level,
-                        activity: hours > 0 ? ['Coding', 'Reading', 'Practice'][Math.floor(Math.random() * 3)] : null
-                      });
-                      
-                      dayCounter++;
-                    }
-                    
-                    weeks.push(weekDays);
-                    if (dayCounter >= 365) break;
-                  }
-                  
-                  return weeks.map((week, weekIndex) => (
-                    <div key={weekIndex} className="flex flex-col gap-0.5">
-                      {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
-                        const day = week[dayIndex];
-                        
-                        if (!day) {
-                          return <div key={dayIndex} className="w-2.5 h-2.5"></div>;
+                {/* Compact Stats */}
+                <div className="flex gap-3">
+                  <div className="text-center">
+                    <p className="text-xl font-bold text-emerald-600">
+                      {(() => {
+                        let total = 0;
+                        for (let i = 0; i < 365; i++) {
+                          total += Math.random() > 0.7 ? Math.floor(Math.random() * 5) : 0;
                         }
-                        
-                        const levelColors = {
-                          0: 'bg-zinc-100 border border-zinc-200',
-                          1: 'bg-emerald-200 border border-emerald-300',
-                          2: 'bg-emerald-400 border border-emerald-500',
-                          3: 'bg-emerald-600 border border-emerald-700',
-                          4: 'bg-emerald-800 border border-emerald-900'
-                        };
-                        
-                        const dateObj = new Date(day.date);
-                        const formattedDate = dateObj.toLocaleDateString('en-US', { 
-                          weekday: 'short',
-                          month: 'short', 
-                          day: 'numeric'
-                        });
-                        
-                        return (
-                          <div
-                            key={dayIndex}
-                            className={`w-2.5 h-2.5 rounded-sm ${levelColors[day.level]} transition-all hover:ring-1 hover:ring-emerald-500 cursor-pointer group relative`}
-                            title={`${day.hours} hours - ${formattedDate}`}
-                          >
-                            {/* Compact Tooltip */}
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-20">
-                              {day.hours}h · {formattedDate}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ));
-                })()}
-              </div>
-            </div>
-
-            {/* Month Labels - Compact */}
-            <div className="flex justify-between mt-2 text-[10px] text-zinc-400 px-1">
-              <span>Jan</span>
-              <span>Mar</span>
-              <span>May</span>
-              <span>Jul</span>
-              <span>Sep</span>
-              <span>Nov</span>
-            </div>
-
-            {/* Compact Learning Snapshot */}
-            <div className="mt-4 border-t border-zinc-100 pt-4">
-              <h4 className="font-semibold text-zinc-800 mb-3">Learning Snapshot</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="bg-zinc-50 rounded-xl p-3 border border-zinc-100">
-                  <p className="text-xs text-zinc-500 mb-1">Recommended focus</p>
-                  <p className="font-semibold text-zinc-900">{missing_skills[0] ? `Improve ${missing_skills[0]}` : 'Strengthen your fundamentals'}</p>
-                </div>
-                <div className="bg-zinc-50 rounded-xl p-3 border border-zinc-100">
-                  <p className="text-xs text-zinc-500 mb-1">Matched skills</p>
-                  <p className="font-semibold text-zinc-900">{matched_skills.length} skills</p>
-                </div>
-                <div className="bg-zinc-50 rounded-xl p-3 border border-zinc-100">
-                  <p className="text-xs text-zinc-500 mb-1">Missing skills</p>
-                  <p className="font-semibold text-zinc-900">{missing_skills.length} skills</p>
-                </div>
-                <div className="bg-zinc-50 rounded-xl p-3 border border-zinc-100">
-                  <p className="text-xs text-zinc-500 mb-1">Next milestone</p>
-                  <p className="font-semibold text-zinc-900">Complete {missing_skills.slice(0, 2).join(' + ') || 'your roadmap'}</p>
-                </div>
-              </div>
-            </div>
-
-            {ats_analysis && (
-              <div className={`mt-4 rounded-2xl border p-4 ${getAtsTone(ats_analysis.score).bg} ${getAtsTone(ats_analysis.score).border}`}>
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h4 className="font-semibold text-zinc-900 flex items-center gap-2">
-                      <FileText className="w-5 h-5" />
-                      ATS Resume Snapshot
-                    </h4>
-                    <p className="text-sm text-zinc-600 mt-1">
-                      {resume_meta?.file_name || 'Uploaded resume'} checked against {role?.role_name || analysis.career_role}
+                        return total;
+                      })()}
                     </p>
+                    <p className="text-[10px] text-zinc-500">Hours</p>
                   </div>
-                  <div className={`text-3xl font-black ${getAtsTone(ats_analysis.score).text}`}>
-                    {ats_analysis.score}%
+                  <div className="text-center">
+                    <p className="text-xl font-bold text-blue-600">
+                      {(() => {
+                        let days = 0;
+                        for (let i = 0; i < 365; i++) {
+                          if (Math.random() > 0.7) days++;
+                        }
+                        return days;
+                      })()}
+                    </p>
+                    <p className="text-[10px] text-zinc-500">Days</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xl font-bold text-amber-600">
+                      {Math.floor(Math.random() * 15)}
+                    </p>
+                    <p className="text-[10px] text-zinc-500">Streak</p>
                   </div>
                 </div>
-                <p className="text-sm text-zinc-700 mt-3">{ats_analysis.summary}</p>
-                {ats_analysis.keyword_gaps?.length > 0 && (
-                  <div className="mt-3">
-                    <p className="text-xs font-bold uppercase tracking-wide text-zinc-500 mb-2">Top keyword gaps</p>
-                    <div className="flex flex-wrap gap-2">
-                      {ats_analysis.keyword_gaps.slice(0, 4).map((gap, index) => (
-                        <span key={index} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-zinc-700 border border-zinc-200">
-                          {gap}
-                        </span>
-                      ))}
+              </div>
+
+              {/* Legend */}
+              <div className="flex items-center justify-end gap-2 mb-3 text-[10px] text-zinc-500">
+                <span>Less</span>
+                <div className="flex gap-1">
+                  <div className="w-2.5 h-2.5 rounded-sm bg-zinc-100 border border-zinc-200"></div>
+                  <div className="w-2.5 h-2.5 rounded-sm bg-emerald-200 border border-emerald-300"></div>
+                  <div className="w-2.5 h-2.5 rounded-sm bg-emerald-400 border border-emerald-500"></div>
+                  <div className="w-2.5 h-2.5 rounded-sm bg-emerald-600 border border-emerald-700"></div>
+                  <div className="w-2.5 h-2.5 rounded-sm bg-emerald-800 border border-emerald-900"></div>
+                </div>
+                <span>More</span>
+              </div>
+
+              {/* Activity Grid - Compact */}
+              <div className="overflow-x-auto pb-2">
+                <div className="inline-flex gap-0.5 min-w-full">
+                  {(() => {
+                    const weeks = [];
+                    const today = new Date();
+                    const startDate = new Date(today);
+                    startDate.setDate(today.getDate() - 364);
+
+                    let dayCounter = 0;
+
+                    for (let week = 0; week < 53; week++) {
+                      const weekDays = [];
+
+                      for (let day = 0; day < 7; day++) {
+                        if (dayCounter >= 365) break;
+
+                        const currentDate = new Date(startDate);
+                        currentDate.setDate(startDate.getDate() + dayCounter);
+
+                        if (week === 0 && day < startDate.getDay()) {
+                          weekDays.push(null);
+                          continue;
+                        }
+
+                        const hours = Math.random() > 0.7 ? Math.floor(Math.random() * 5) : 0;
+                        const level = hours === 0 ? 0 : hours <= 1 ? 1 : hours <= 2 ? 2 : hours <= 3 ? 3 : 4;
+
+                        weekDays.push({
+                          date: currentDate.toISOString().split('T')[0],
+                          hours: hours,
+                          level: level,
+                          activity: hours > 0 ? ['Coding', 'Reading', 'Practice'][Math.floor(Math.random() * 3)] : null
+                        });
+
+                        dayCounter++;
+                      }
+
+                      weeks.push(weekDays);
+                      if (dayCounter >= 365) break;
+                    }
+
+                    return weeks.map((week, weekIndex) => (
+                      <div key={weekIndex} className="flex flex-col gap-0.5">
+                        {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
+                          const day = week[dayIndex];
+
+                          if (!day) {
+                            return <div key={dayIndex} className="w-2.5 h-2.5"></div>;
+                          }
+
+                          const levelColors = {
+                            0: 'bg-zinc-100 border border-zinc-200',
+                            1: 'bg-emerald-200 border border-emerald-300',
+                            2: 'bg-emerald-400 border border-emerald-500',
+                            3: 'bg-emerald-600 border border-emerald-700',
+                            4: 'bg-emerald-800 border border-emerald-900'
+                          };
+
+                          const dateObj = new Date(day.date);
+                          const formattedDate = dateObj.toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric'
+                          });
+
+                          return (
+                            <div
+                              key={dayIndex}
+                              className={`w-2.5 h-2.5 rounded-sm ${levelColors[day.level]} transition-all hover:ring-1 hover:ring-emerald-500 cursor-pointer group relative`}
+                              title={`${day.hours} hours - ${formattedDate}`}
+                            >
+                              {/* Compact Tooltip */}
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-20">
+                                {day.hours}h · {formattedDate}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+
+              {/* Month Labels - Compact */}
+              <div className="flex justify-between mt-2 text-[10px] text-zinc-400 px-1">
+                <span>Jan</span>
+                <span>Mar</span>
+                <span>May</span>
+                <span>Jul</span>
+                <span>Sep</span>
+                <span>Nov</span>
+              </div>
+
+              {/* Compact Learning Snapshot */}
+              <div className="mt-4 border-t border-zinc-100 pt-4">
+                <h4 className="font-semibold text-zinc-800 mb-3">Learning Snapshot</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="bg-zinc-50 rounded-xl p-3 border border-zinc-100">
+                    <p className="text-xs text-zinc-500 mb-1">Recommended focus</p>
+                    <p className="font-semibold text-zinc-900">{missing_skills[0] ? `Improve ${missing_skills[0]}` : 'Strengthen your fundamentals'}</p>
+                  </div>
+                  <div className="bg-zinc-50 rounded-xl p-3 border border-zinc-100">
+                    <p className="text-xs text-zinc-500 mb-1">Matched skills</p>
+                    <p className="font-semibold text-zinc-900">{matched_skills.length} skills</p>
+                  </div>
+                  <div className="bg-zinc-50 rounded-xl p-3 border border-zinc-100">
+                    <p className="text-xs text-zinc-500 mb-1">Missing skills</p>
+                    <p className="font-semibold text-zinc-900">{missing_skills.length} skills</p>
+                  </div>
+                  <div className="bg-zinc-50 rounded-xl p-3 border border-zinc-100">
+                    <p className="text-xs text-zinc-500 mb-1">Next milestone</p>
+                    <p className="font-semibold text-zinc-900">Complete {missing_skills.slice(0, 2).join(' + ') || 'your roadmap'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {ats_analysis && (
+                <div className={`mt-4 rounded-2xl border p-4 ${getAtsTone(ats_analysis.score).bg} ${getAtsTone(ats_analysis.score).border}`}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h4 className="font-semibold text-zinc-900 flex items-center gap-2">
+                        <FileText className="w-5 h-5" />
+                        ATS Resume Snapshot
+                      </h4>
+                      <p className="text-sm text-zinc-600 mt-1">
+                        {resume_meta?.file_name || 'Uploaded resume'} checked against {role?.role_name || analysis.career_role}
+                      </p>
+                    </div>
+                    <div className={`text-3xl font-black ${getAtsTone(ats_analysis.score).text}`}>
+                      {ats_analysis.score}%
+                    </div>
+                  </div>
+                  <p className="text-sm text-zinc-700 mt-3">{ats_analysis.summary}</p>
+                  {ats_analysis.keyword_gaps?.length > 0 && (
+                    <div className="mt-3">
+                      <p className="text-xs font-bold uppercase tracking-wide text-zinc-500 mb-2">Top keyword gaps</p>
+                      <div className="flex flex-wrap gap-2">
+                        {ats_analysis.keyword_gaps.slice(0, 4).map((gap, index) => (
+                          <span key={index} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-zinc-700 border border-zinc-200">
+                            {gap}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Course Manager Section */}
+            <div className="bg-white rounded-2xl p-4 shadow-lg border border-zinc-100">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-bold text-zinc-900 text-base flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-blue-600" />
+                  Recommended Courses
+                </h2>
+              </div>
+
+              <div className="space-y-3">
+                {/* Generate course recommendations based on missing skills */}
+                {(() => {
+                  // Course database with real links
+                  const courseDatabase = {
+                    'react': {
+                      name: 'React - The Complete Guide',
+                      platform: 'Udemy',
+                      url: 'https://www.udemy.com/course/react-the-complete-guide-incl-redux/',
+                      icon: '⚛️',
+                      color: 'blue'
+                    },
+                    'javascript': {
+                      name: 'JavaScript: Complete Course',
+                      platform: 'freeCodeCamp',
+                      url: 'https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/',
+                      icon: '📜',
+                      color: 'yellow'
+                    },
+                    'node.js': {
+                      name: 'Node.js Developer Course',
+                      platform: 'Udemy',
+                      url: 'https://www.udemy.com/course/the-complete-nodejs-developer-course-2/',
+                      icon: '🟢',
+                      color: 'green'
+                    },
+                    'nodejs': {
+                      name: 'Node.js Developer Course',
+                      platform: 'Udemy',
+                      url: 'https://www.udemy.com/course/the-complete-nodejs-developer-course-2/',
+                      icon: '🟢',
+                      color: 'green'
+                    },
+                    'python': {
+                      name: 'Python for Everybody',
+                      platform: 'Coursera',
+                      url: 'https://www.coursera.org/specializations/python',
+                      icon: '🐍',
+                      color: 'emerald'
+                    },
+                    'dsa': {
+                      name: 'Data Structures & Algorithms',
+                      platform: 'freeCodeCamp',
+                      url: 'https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/',
+                      icon: '🧩',
+                      color: 'purple'
+                    },
+                    'data structures': {
+                      name: 'Data Structures & Algorithms',
+                      platform: 'freeCodeCamp',
+                      url: 'https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/',
+                      icon: '🧩',
+                      color: 'purple'
+                    },
+                    'algorithms': {
+                      name: 'Algorithms Specialization',
+                      platform: 'Coursera',
+                      url: 'https://www.coursera.org/specializations/algorithms',
+                      icon: '🧮',
+                      color: 'purple'
+                    },
+                    'system design': {
+                      name: 'System Design Interview',
+                      platform: 'ByteByteGo',
+                      url: 'https://bytebytego.com/',
+                      icon: '🏗️',
+                      color: 'pink'
+                    },
+                    'typescript': {
+                      name: 'TypeScript Complete Course',
+                      platform: 'Scrimba',
+                      url: 'https://scrimba.com/learn/typescript',
+                      icon: '📘',
+                      color: 'blue'
+                    },
+                    'mongodb': {
+                      name: 'MongoDB University',
+                      platform: 'MongoDB',
+                      url: 'https://learn.mongodb.com/',
+                      icon: '🍃',
+                      color: 'green'
+                    },
+                    'sql': {
+                      name: 'SQL for Data Science',
+                      platform: 'Coursera',
+                      url: 'https://www.coursera.org/learn/sql-for-data-science',
+                      icon: '🗄️',
+                      color: 'blue'
+                    },
+                    'docker': {
+                      name: 'Docker Mastery',
+                      platform: 'Udemy',
+                      url: 'https://www.udemy.com/course/docker-mastery/',
+                      icon: '🐳',
+                      color: 'cyan'
+                    },
+                    'git': {
+                      name: 'Git & GitHub Crash Course',
+                      platform: 'freeCodeCamp',
+                      url: 'https://www.freecodecamp.org/news/git-and-github-crash-course/',
+                      icon: '📦',
+                      color: 'orange'
+                    },
+                    'aws': {
+                      name: 'AWS Certified Developer',
+                      platform: 'AWS Training',
+                      url: 'https://aws.amazon.com/training/',
+                      icon: '☁️',
+                      color: 'amber'
+                    },
+                    'express': {
+                      name: 'Express.js Fundamentals',
+                      platform: 'freeCodeCamp',
+                      url: 'https://www.freecodecamp.org/news/free-8-hour-node-express-course/',
+                      icon: '🚂',
+                      color: 'zinc'
+                    },
+                    'html': {
+                      name: 'Learn HTML',
+                      platform: 'YouTube',
+                      url: 'https://www.youtube.com/results?search_query=html+tutorial',
+                      icon: '📺',
+                      color: 'red'
+                    },
+                    'css': {
+                      name: 'Learn CSS',
+                      platform: 'YouTube',
+                      url: 'https://www.youtube.com/results?search_query=css+tutorial',
+                      icon: '📺',
+                      color: 'red'
+                    }
+                  };
+
+                  // Map missing skills to courses
+                  const recommendedCourses = missing_skills
+                    .slice(0, 4) // Show top 4
+                    .map(skill => {
+                      const normalizedSkill = skill.toLowerCase().trim();
+                      const course = courseDatabase[normalizedSkill] || {
+                        name: `Learn ${skill}`,
+                        platform: 'YouTube',
+                        url: `https://www.youtube.com/results?search_query=${encodeURIComponent(skill + ' tutorial')}`,
+                        icon: '📺',
+                        color: 'red'
+                      };
+                      return { ...course, skill };
+                    });
+
+                  const colorClasses = {
+                    blue: 'bg-blue-50 border-blue-100 hover:bg-blue-100',
+                    yellow: 'bg-yellow-50 border-yellow-100 hover:bg-yellow-100',
+                    green: 'bg-green-50 border-green-100 hover:bg-green-100',
+                    emerald: 'bg-emerald-50 border-emerald-100 hover:bg-emerald-100',
+                    purple: 'bg-purple-50 border-purple-100 hover:bg-purple-100',
+                    pink: 'bg-pink-50 border-pink-100 hover:bg-pink-100',
+                    cyan: 'bg-cyan-50 border-cyan-100 hover:bg-cyan-100',
+                    orange: 'bg-orange-50 border-orange-100 hover:bg-orange-100',
+                    amber: 'bg-amber-50 border-amber-100 hover:bg-amber-100',
+                    zinc: 'bg-zinc-50 border-zinc-100 hover:bg-zinc-100',
+                    red: 'bg-red-50 border-red-100 hover:bg-red-100'
+                  };
+
+                  return recommendedCourses.length > 0 ? (
+                    <div>
+                      <p className="text-xs font-semibold text-zinc-500 mb-2">FOR YOUR MISSING SKILLS</p>
+                      <div className="space-y-2">
+                        {recommendedCourses.map((course, idx) => (
+                          <a
+                            key={idx}
+                            href={course.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`block p-3 rounded-lg border transition-all cursor-pointer ${colorClasses[course.color]}`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 flex items-start gap-2">
+                                <span className="text-xl">{course.icon}</span>
+                                <div className="flex-1">
+                                  <p className="font-semibold text-sm text-zinc-900 mb-0.5">{course.name}</p>
+                                  <p className="text-xs text-zinc-600">{course.platform}</p>
+                                  <p className="text-xs text-zinc-500 mt-1">Learn: {course.skill}</p>
+                                </div>
+                              </div>
+                              <ExternalLink className="w-4 h-4 text-zinc-400 flex-shrink-0 ml-2" />
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Trophy className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+                      <p className="font-semibold text-zinc-900">All caught up!</p>
+                      <p className="text-sm text-zinc-500">You have all the required skills</p>
+                    </div>
+                  );
+                })()}
+
+                {/* Additional Resources */}
+                {missing_skills.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-zinc-100">
+                    <p className="text-xs font-semibold text-zinc-500 mb-2">MORE PLATFORMS</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <a
+                        href="https://www.udemy.com/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-100 transition-colors text-center"
+                      >
+                        <p className="text-xs font-semibold text-purple-900">Udemy</p>
+                      </a>
+                      <a
+                        href="https://www.coursera.org/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-100 transition-colors text-center"
+                      >
+                        <p className="text-xs font-semibold text-blue-900">Coursera</p>
+                      </a>
+                      <a
+                        href="https://www.freecodecamp.org/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 bg-green-50 hover:bg-green-100 rounded-lg border border-green-100 transition-colors text-center"
+                      >
+                        <p className="text-xs font-semibold text-green-900">freeCodeCamp</p>
+                      </a>
+                      <a
+                        href="https://scrimba.com/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 bg-orange-50 hover:bg-orange-100 rounded-lg border border-orange-100 transition-colors text-center"
+                      >
+                        <p className="text-xs font-semibold text-orange-900">Scrimba</p>
+                      </a>
                     </div>
                   </div>
                 )}
               </div>
-            )}
-          </div>
-
-          {/* Course Manager Section */}
-          <div className="bg-white rounded-2xl p-4 shadow-lg border border-zinc-100">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-bold text-zinc-900 text-base flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-blue-600" />
-                Recommended Courses
-              </h2>
-            </div>
-
-            <div className="space-y-3">
-              {/* Generate course recommendations based on missing skills */}
-              {(() => {
-                // Course database with real links
-                const courseDatabase = {
-                  'react': {
-                    name: 'React - The Complete Guide',
-                    platform: 'Udemy',
-                    url: 'https://www.udemy.com/course/react-the-complete-guide-incl-redux/',
-                    icon: '⚛️',
-                    color: 'blue'
-                  },
-                  'javascript': {
-                    name: 'JavaScript: Complete Course',
-                    platform: 'freeCodeCamp',
-                    url: 'https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/',
-                    icon: '📜',
-                    color: 'yellow'
-                  },
-                  'node.js': {
-                    name: 'Node.js Developer Course',
-                    platform: 'Udemy',
-                    url: 'https://www.udemy.com/course/the-complete-nodejs-developer-course-2/',
-                    icon: '🟢',
-                    color: 'green'
-                  },
-                  'nodejs': {
-                    name: 'Node.js Developer Course',
-                    platform: 'Udemy',
-                    url: 'https://www.udemy.com/course/the-complete-nodejs-developer-course-2/',
-                    icon: '🟢',
-                    color: 'green'
-                  },
-                  'python': {
-                    name: 'Python for Everybody',
-                    platform: 'Coursera',
-                    url: 'https://www.coursera.org/specializations/python',
-                    icon: '🐍',
-                    color: 'emerald'
-                  },
-                  'dsa': {
-                    name: 'Data Structures & Algorithms',
-                    platform: 'freeCodeCamp',
-                    url: 'https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/',
-                    icon: '🧩',
-                    color: 'purple'
-                  },
-                  'data structures': {
-                    name: 'Data Structures & Algorithms',
-                    platform: 'freeCodeCamp',
-                    url: 'https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/',
-                    icon: '🧩',
-                    color: 'purple'
-                  },
-                  'algorithms': {
-                    name: 'Algorithms Specialization',
-                    platform: 'Coursera',
-                    url: 'https://www.coursera.org/specializations/algorithms',
-                    icon: '🧮',
-                    color: 'purple'
-                  },
-                  'system design': {
-                    name: 'System Design Interview',
-                    platform: 'ByteByteGo',
-                    url: 'https://bytebytego.com/',
-                    icon: '🏗️',
-                    color: 'pink'
-                  },
-                  'typescript': {
-                    name: 'TypeScript Complete Course',
-                    platform: 'Scrimba',
-                    url: 'https://scrimba.com/learn/typescript',
-                    icon: '📘',
-                    color: 'blue'
-                  },
-                  'mongodb': {
-                    name: 'MongoDB University',
-                    platform: 'MongoDB',
-                    url: 'https://learn.mongodb.com/',
-                    icon: '🍃',
-                    color: 'green'
-                  },
-                  'sql': {
-                    name: 'SQL for Data Science',
-                    platform: 'Coursera',
-                    url: 'https://www.coursera.org/learn/sql-for-data-science',
-                    icon: '🗄️',
-                    color: 'blue'
-                  },
-                  'docker': {
-                    name: 'Docker Mastery',
-                    platform: 'Udemy',
-                    url: 'https://www.udemy.com/course/docker-mastery/',
-                    icon: '🐳',
-                    color: 'cyan'
-                  },
-                  'git': {
-                    name: 'Git & GitHub Crash Course',
-                    platform: 'freeCodeCamp',
-                    url: 'https://www.freecodecamp.org/news/git-and-github-crash-course/',
-                    icon: '📦',
-                    color: 'orange'
-                  },
-                  'aws': {
-                    name: 'AWS Certified Developer',
-                    platform: 'AWS Training',
-                    url: 'https://aws.amazon.com/training/',
-                    icon: '☁️',
-                    color: 'amber'
-                  },
-                  'express': {
-                    name: 'Express.js Fundamentals',
-                    platform: 'freeCodeCamp',
-                    url: 'https://www.freecodecamp.org/news/free-8-hour-node-express-course/',
-                    icon: '🚂',
-                    color: 'zinc'
-                  },
-                  'html': {
-                    name: 'Learn HTML',
-                    platform: 'YouTube',
-                    url: 'https://www.youtube.com/results?search_query=html+tutorial',
-                    icon: '📺',
-                    color: 'red'
-                  },
-                  'css': {
-                    name: 'Learn CSS',
-                    platform: 'YouTube',
-                    url: 'https://www.youtube.com/results?search_query=css+tutorial',
-                    icon: '📺',
-                    color: 'red'
-                  }
-                };
-
-                // Map missing skills to courses
-                const recommendedCourses = missing_skills
-                  .slice(0, 4) // Show top 4
-                  .map(skill => {
-                    const normalizedSkill = skill.toLowerCase().trim();
-                    const course = courseDatabase[normalizedSkill] || {
-                      name: `Learn ${skill}`,
-                      platform: 'YouTube',
-                      url: `https://www.youtube.com/results?search_query=${encodeURIComponent(skill + ' tutorial')}`,
-                      icon: '📺',
-                      color: 'red'
-                    };
-                    return { ...course, skill };
-                  });
-
-                const colorClasses = {
-                  blue: 'bg-blue-50 border-blue-100 hover:bg-blue-100',
-                  yellow: 'bg-yellow-50 border-yellow-100 hover:bg-yellow-100',
-                  green: 'bg-green-50 border-green-100 hover:bg-green-100',
-                  emerald: 'bg-emerald-50 border-emerald-100 hover:bg-emerald-100',
-                  purple: 'bg-purple-50 border-purple-100 hover:bg-purple-100',
-                  pink: 'bg-pink-50 border-pink-100 hover:bg-pink-100',
-                  cyan: 'bg-cyan-50 border-cyan-100 hover:bg-cyan-100',
-                  orange: 'bg-orange-50 border-orange-100 hover:bg-orange-100',
-                  amber: 'bg-amber-50 border-amber-100 hover:bg-amber-100',
-                  zinc: 'bg-zinc-50 border-zinc-100 hover:bg-zinc-100',
-                  red: 'bg-red-50 border-red-100 hover:bg-red-100'
-                };
-
-                return recommendedCourses.length > 0 ? (
-                  <div>
-                    <p className="text-xs font-semibold text-zinc-500 mb-2">FOR YOUR MISSING SKILLS</p>
-                    <div className="space-y-2">
-                      {recommendedCourses.map((course, idx) => (
-                        <a
-                          key={idx}
-                          href={course.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={`block p-3 rounded-lg border transition-all cursor-pointer ${colorClasses[course.color]}`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1 flex items-start gap-2">
-                              <span className="text-xl">{course.icon}</span>
-                              <div className="flex-1">
-                                <p className="font-semibold text-sm text-zinc-900 mb-0.5">{course.name}</p>
-                                <p className="text-xs text-zinc-600">{course.platform}</p>
-                                <p className="text-xs text-zinc-500 mt-1">Learn: {course.skill}</p>
-                              </div>
-                            </div>
-                            <ExternalLink className="w-4 h-4 text-zinc-400 flex-shrink-0 ml-2" />
-                          </div>
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Trophy className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
-                    <p className="font-semibold text-zinc-900">All caught up!</p>
-                    <p className="text-sm text-zinc-500">You have all the required skills</p>
-                  </div>
-                );
-              })()}
-
-              {/* Additional Resources */}
-              {missing_skills.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-zinc-100">
-                  <p className="text-xs font-semibold text-zinc-500 mb-2">MORE PLATFORMS</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <a
-                      href="https://www.udemy.com/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-100 transition-colors text-center"
-                    >
-                      <p className="text-xs font-semibold text-purple-900">Udemy</p>
-                    </a>
-                    <a
-                      href="https://www.coursera.org/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-100 transition-colors text-center"
-                    >
-                      <p className="text-xs font-semibold text-blue-900">Coursera</p>
-                    </a>
-                    <a
-                      href="https://www.freecodecamp.org/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 bg-green-50 hover:bg-green-100 rounded-lg border border-green-100 transition-colors text-center"
-                    >
-                      <p className="text-xs font-semibold text-green-900">freeCodeCamp</p>
-                    </a>
-                    <a
-                      href="https://scrimba.com/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-2 bg-orange-50 hover:bg-orange-100 rounded-lg border border-orange-100 transition-colors text-center"
-                    >
-                      <p className="text-xs font-semibold text-orange-900">Scrimba</p>
-                    </a>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
-        </div>
         )}
 
 
@@ -1320,9 +1316,9 @@ const Results = () => {
                 <h2 className="font-bold text-zinc-900 text-lg flex items-center gap-2">
                   <Globe className="w-5 h-5 text-blue-500" /> Explore Detailed Roadmaps
                 </h2>
-                <a 
-                  href="https://roadmap.sh" 
-                  target="_blank" 
+                <a
+                  href="https://roadmap.sh"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs text-blue-600 hover:underline flex items-center gap-1"
                 >
@@ -1331,31 +1327,31 @@ const Results = () => {
               </div>
               <p className="text-base text-zinc-600 mb-5">📚 Interactive learning paths created by the community. Click to explore in-depth roadmaps:</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {[
-                { name: 'Frontend', path: 'frontend', color: 'bg-blue-500', pdf: '/roadmaps/frontend.pdf' },
-                { name: 'Backend', path: 'backend', color: 'bg-emerald-500', pdf: '/roadmaps/backend.pdf' },
-                { name: 'React', path: 'react', color: 'bg-cyan-500', pdf: '/roadmaps/react.pdf' },
-                { name: 'JavaScript', path: 'javascript', color: 'bg-yellow-500', pdf: '/roadmaps/javascript.pdf' },
-                { name: 'Python', path: 'python', color: 'bg-green-500', pdf: '/roadmaps/python.pdf' },
-                { name: 'Node.js', path: 'nodejs', color: 'bg-lime-600', pdf: '/roadmaps/nodejs.pdf' },
-                { name: 'DSA', path: 'datastructures-and-algorithms', color: 'bg-purple-500', pdf: '/roadmaps/datastructures-and-algorithms.pdf' },
-                { name: 'System Design', path: 'system-design', color: 'bg-pink-500', pdf: '/roadmaps/system-design.pdf' },
-              ].map((item) => (
-                <button
-                  key={item.path}
-                  onClick={() => setSelectedRoadmap({ name: item.name, path: item.path, pdf: item.pdf })}
-                  className="flex items-center gap-3 p-4 bg-zinc-50 hover:bg-zinc-100 rounded-xl border border-zinc-200 transition-all hover:shadow-md group"
-                >
-                  <div className={`w-10 h-10 ${item.color} rounded-lg flex items-center justify-center`}>
-                    <BookOpen className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-zinc-800 text-base">{item.name}</p>
-                  </div>
-                  <ExternalLink className="w-4 h-4 text-zinc-400 group-hover:text-zinc-600" />
-                </button>
-              ))}
-                
+                {[
+                  { name: 'Frontend', path: 'frontend', color: 'bg-blue-500', pdf: '/roadmaps/frontend.pdf' },
+                  { name: 'Backend', path: 'backend', color: 'bg-emerald-500', pdf: '/roadmaps/backend.pdf' },
+                  { name: 'React', path: 'react', color: 'bg-cyan-500', pdf: '/roadmaps/react.pdf' },
+                  { name: 'JavaScript', path: 'javascript', color: 'bg-yellow-500', pdf: '/roadmaps/javascript.pdf' },
+                  { name: 'Python', path: 'python', color: 'bg-green-500', pdf: '/roadmaps/python.pdf' },
+                  { name: 'Node.js', path: 'nodejs', color: 'bg-lime-600', pdf: '/roadmaps/nodejs.pdf' },
+                  { name: 'DSA', path: 'datastructures-and-algorithms', color: 'bg-purple-500', pdf: '/roadmaps/datastructures-and-algorithms.pdf' },
+                  { name: 'System Design', path: 'system-design', color: 'bg-pink-500', pdf: '/roadmaps/system-design.pdf' },
+                ].map((item) => (
+                  <button
+                    key={item.path}
+                    onClick={() => setSelectedRoadmap({ name: item.name, path: item.path, pdf: item.pdf })}
+                    className="flex items-center gap-3 p-4 bg-zinc-50 hover:bg-zinc-100 rounded-xl border border-zinc-200 transition-all hover:shadow-md group"
+                  >
+                    <div className={`w-10 h-10 ${item.color} rounded-lg flex items-center justify-center`}>
+                      <BookOpen className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-zinc-800 text-base">{item.name}</p>
+                    </div>
+                    <ExternalLink className="w-4 h-4 text-zinc-400 group-hover:text-zinc-600" />
+                  </button>
+                ))}
+
               </div>
             </div>
 
@@ -1470,9 +1466,8 @@ const Results = () => {
                       className="w-full p-6 hover:bg-zinc-50 transition-colors flex items-center justify-between text-left"
                     >
                       <div className="flex items-center gap-5">
-                        <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-white font-bold text-xl ${
-                          index === 0 ? 'bg-zinc-900' : 'bg-zinc-400'
-                        }`}>
+                        <div className={`w-16 h-16 rounded-xl flex items-center justify-center text-white font-bold text-xl ${index === 0 ? 'bg-zinc-900' : 'bg-zinc-400'
+                          }`}>
                           {index + 1}
                         </div>
                         <div>
@@ -1590,7 +1585,7 @@ const Results = () => {
                             <h4 className="font-bold text-amber-800 text-lg mb-4 flex items-center gap-2">
                               <Briefcase className="w-5 h-5" /> Interview Preparation
                             </h4>
-                            
+
                             {typeof interviewPrep === 'string' ? (
                               <p className="text-base text-amber-700">{interviewPrep}</p>
                             ) : (
@@ -1758,7 +1753,7 @@ const Results = () => {
                 <p className="text-zinc-500 mt-2 mb-6 text-sm">
                   Upload your resume here to instantly compare it against the <span className="font-semibold text-zinc-800">{role?.role_name || 'selected'}</span> role requirements and get an ATS score and missing keywords.
                 </p>
-                
+
                 {resumeError && (
                   <div className="mb-4 text-sm text-red-600 bg-red-50 py-2 px-3 rounded-lg border border-red-100">
                     {resumeError}
