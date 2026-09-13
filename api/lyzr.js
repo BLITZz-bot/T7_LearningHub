@@ -57,12 +57,36 @@ function safeParseJson(response) {
 }
 
 /**
- * Extracts clean readable plain text from a Base64 encoded file (PDF or TXT)
+ * Extracts clean readable plain text from a Base64 encoded file (PDF, DOCX, DOC, or TXT)
  */
 async function extractTextFromBase64(base64Data, mimeType = '') {
   if (!base64Data) return '';
+  const buffer = Buffer.from(base64Data, 'base64');
+  const lowerMime = String(mimeType).toLowerCase();
+
+  const isWordDoc = lowerMime.includes('word') ||
+                    lowerMime.includes('officedocument') ||
+                    lowerMime.includes('msword') ||
+                    lowerMime.includes('docx') ||
+                    lowerMime.includes('doc');
+
+  // 1. If it's identified as Word document, extract with mammoth
+  if (isWordDoc) {
+    try {
+      const mammoth = await import('mammoth');
+      const extractor = mammoth.default || mammoth;
+      const res = await extractor.extractRawText({ buffer });
+      if (res?.value && res.value.trim().length > 20) {
+        return res.value.trim();
+      }
+    } catch (docxErr) {
+      console.warn('Mammoth Word extraction failed, trying PDF/text fallback:', docxErr.message);
+    }
+  }
+
+  // 2. Try PDF extraction with PDFParse
   try {
-    const bytes = new Uint8Array(Buffer.from(base64Data, 'base64'));
+    const bytes = new Uint8Array(buffer);
     const { PDFParse } = await import('pdf-parse');
     const parser = new PDFParse(bytes);
     const parsedDoc = await parser.getText();
@@ -70,12 +94,20 @@ async function extractTextFromBase64(base64Data, mimeType = '') {
       return parsedDoc.text.trim();
     }
   } catch (err) {
-    console.warn('PDFParse extraction failed, falling back to string decode:', err.message);
+    // If PDF parse failed, try mammoth (in case a docx was uploaded with generic/missing mimeType)
+    try {
+      const mammoth = await import('mammoth');
+      const extractor = mammoth.default || mammoth;
+      const res = await extractor.extractRawText({ buffer });
+      if (res?.value && res.value.trim().length > 20) {
+        return res.value.trim();
+      }
+    } catch (_) {}
   }
 
-  // Fallback for plaintext, .txt, or markdown
+  // 3. Fallback for plaintext, .txt, or markdown
   try {
-    const raw = Buffer.from(base64Data, 'base64').toString('utf-8');
+    const raw = buffer.toString('utf-8');
     const printable = raw.replace(/[^\x20-\x7E\n\r\t]/g, '');
     if (printable.length > 50) {
       return printable.trim();
