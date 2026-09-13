@@ -82,7 +82,10 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), apiDevMiddlewarePlugin(env)],
     server: {
       port: 3000,
-      open: true
+      open: true,
+      watch: {
+        ignored: ['**/dist/**', '**/node_modules/**', '**/.git/**']
+      }
     }
   };
 });
