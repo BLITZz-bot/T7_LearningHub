@@ -661,7 +661,7 @@ const Results = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 ml-auto mr-14 sm:mr-16">
+          <div className="flex items-center gap-2 ml-auto">
             {/* Toggle Switch - right side, green active */}
             <div className="hidden md:flex items-center bg-zinc-100/60 backdrop-blur-sm p-1 rounded-2xl border border-zinc-200/70 shadow-inner">
               <button
