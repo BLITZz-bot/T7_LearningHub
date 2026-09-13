@@ -81,7 +81,9 @@ const StudentDashboard = () => {
   const userBranch = userProfile?.branch || '';
   const userYear = userProfile?.passoutYear || userProfile?.year || '';
   const [selectedSkills, setSelectedSkills] = useState(userProfile?.skills || []);
-  const [careerInterest, setCareerInterest] = useState(userProfile?.career_interest || '');
+  const [careerInterest, setCareerInterest] = useState(
+    userProfile?.career_interest || userProfile?.targetRole || userProfile?.target_role || ''
+  );
   const [resumeFile, setResumeFile] = useState(null);
   
   // UI state
@@ -120,8 +122,9 @@ const StudentDashboard = () => {
       if (userProfile.skills?.length > 0 && selectedSkills.length === 0) {
         setSelectedSkills(userProfile.skills);
       }
-      if (userProfile.career_interest && !careerInterest) {
-        setCareerInterest(userProfile.career_interest);
+      const savedCareer = userProfile.career_interest || userProfile.targetRole || userProfile.target_role;
+      if (savedCareer && !careerInterest) {
+        setCareerInterest(savedCareer);
       }
       // Auto-prompt first-time students to complete required profile details
       const isMissingRequired = !userProfile.college || !userProfile.branch || userProfile.college === 'Engineering College';
@@ -130,7 +133,7 @@ const StudentDashboard = () => {
         setIsProfileModalOpen(true);
       }
     }
-  }, [userProfile?.uid, userProfile?.college, userProfile?.branch]);
+  }, [userProfile?.uid, userProfile?.id, userProfile?.college, userProfile?.branch]);
 
   // Real-Time Job Market state (Multi-Source Feeds)
   const [jobListings, setJobListings] = useState([]);

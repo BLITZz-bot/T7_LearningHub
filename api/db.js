@@ -86,6 +86,8 @@ export default async function handler(req, res) {
         // Normalize DB columns to frontend structure
         const normalized = {
           ...data,
+          id: data.id || userId,
+          uid: data.id || userId,
           name: data.full_name || data.name || '',
           branch: data.department || data.branch || '',
           college: data.college || '',
@@ -97,6 +99,7 @@ export default async function handler(req, res) {
           geminiModel: data.gemini_model || data.geminiModel || 'auto',
           targetRole: data.target_role || data.targetRole || '',
           targetRoleName: data.target_role_name || data.targetRoleName || '',
+          career_interest: data.target_role || data.targetRole || data.career_interest || '',
           lastAnalysis: data.last_analysis || data.lastAnalysis || null
         };
         return res.status(200).json({ profile: normalized });
@@ -133,7 +136,7 @@ export default async function handler(req, res) {
           gemini_api_key: profileData.geminiApiKey !== undefined ? profileData.geminiApiKey : profileData.gemini_api_key,
           gemini_model: profileData.geminiModel !== undefined ? profileData.geminiModel : profileData.gemini_model,
           skills: profileData.skills,
-          target_role: profileData.targetRole || profileData.target_role,
+          target_role: profileData.targetRole !== undefined ? profileData.targetRole : (profileData.target_role !== undefined ? profileData.target_role : profileData.career_interest),
           target_role_name: profileData.targetRoleName || profileData.target_role_name,
           updated_at: new Date().toISOString()
         };
@@ -151,6 +154,8 @@ export default async function handler(req, res) {
 
         const normalized = {
           ...data,
+          id: data.id || userId,
+          uid: data.id || userId,
           name: data.full_name || '',
           branch: data.department || '',
           college: data.college || '',
@@ -162,6 +167,7 @@ export default async function handler(req, res) {
           geminiModel: data.gemini_model || data.geminiModel || 'auto',
           targetRole: data.target_role || data.targetRole || '',
           targetRoleName: data.target_role_name || data.targetRoleName || '',
+          career_interest: data.target_role || data.targetRole || data.career_interest || '',
           lastAnalysis: data.last_analysis || data.lastAnalysis || null
         };
         return res.status(200).json({ profile: normalized });
@@ -595,15 +601,25 @@ function handleDevFallback(action, payload, res) {
   switch (action) {
     case 'getProfile': {
       const profile = devDb.profiles.get(userId) || null;
+      if (profile) {
+        profile.id = profile.id || userId;
+        profile.uid = profile.uid || userId;
+        profile.career_interest = profile.career_interest || profile.targetRole || profile.target_role || '';
+      }
       return res.status(200).json({ profile, devMode: true });
     }
 
     case 'updateProfile': {
       const existing = devDb.profiles.get(userId) || {};
+      const targetRoleVal = payload.profileData.targetRole || payload.profileData.target_role || payload.profileData.career_interest || existing.target_role || existing.targetRole || '';
       const updated = {
         ...existing,
         ...payload.profileData,
         id: userId,
+        uid: userId,
+        target_role: targetRoleVal,
+        targetRole: targetRoleVal,
+        career_interest: payload.profileData.career_interest || targetRoleVal,
         geminiApiKey: payload.profileData.geminiApiKey || existing.geminiApiKey || '',
         geminiModel: payload.profileData.geminiModel || existing.geminiModel || 'auto',
         updated_at: now

@@ -78,9 +78,9 @@ What would you like to know about your progress or career path today?`
       // Falls back to Gemini automatically if LYZR not yet configured.
       const studentContext = userProfile
         ? {
-            uid: userProfile.uid,
+            uid: userProfile.uid || userProfile.id,
             name: userProfile.name,
-            career_interest: userProfile.career_interest,
+            career_interest: userProfile.career_interest || userProfile.targetRole || userProfile.target_role || '',
             branch: userProfile.branch,
             year: userProfile.passoutYear || userProfile.year,
             readiness_score: userProfile.readiness_score || 0,
