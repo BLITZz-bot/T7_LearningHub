@@ -26,7 +26,7 @@
 
 .sf-fab {
   position: fixed;
-  top: 0.85rem;
+  top: 38rem;
   right: 1.25rem;
   width: 46px;
   height: 46px;
@@ -53,7 +53,7 @@
 .sf-fab__badge {
   position: absolute;
   top: -3px;
-  right: -3px;
+  right: -1px;
   background: var(--sf-accent);
   color: white;
   font-size: 9px;
