@@ -5,14 +5,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { analyzeT7LearningHub } from '../../services/geminiService';
-import { saveAnalysis, getLatestAnalysis, getVideoLearning, getVideoLearningSkills } from '../../services/firestoreService';
-import { industryRoles, allSkills } from '../../data/industrySkills';
+import { analyzeStudentProfile } from '../../services/lyzrAgentService';
+import { saveAnalysis, getLatestAnalysis, getVideoLearning, getVideoLearningSkills } from '../../services/apiService';
+import { industryRoles, allSkills, BRANCH_CAREER_MAP } from '../../data/industrySkills';
 import { fetchJobMarketInsights } from '../../services/jobMarketService';
 import StudentProfileModal from './StudentProfileModal';
 import YouTubeTrackerModal from './YouTubeTrackerModal';
 import FullJobMarketView from './FullJobMarketView';
-import ModelSelector from '../common/ModelSelector';
+// ModelSelector removed — LYZR manages AI models internally
 import { 
   LogOut,
   Search,
@@ -47,56 +47,13 @@ import {
   Settings,
   Globe,
   Key,
-  FileText
+  FileText,
+  Moon,
+  Sun,
+  Lightbulb,
+  Trophy
 } from 'lucide-react';
 
-// Branch → relevant real-world career roles mapping
-const BRANCH_CAREER_MAP = {
-  // Computer Science & IT
-  'Computer Science Engineering': ['frontend-developer', 'backend-developer', 'fullstack-developer', 'data-analyst', 'ai-ml-engineer', 'devops-engineer', 'mobile-developer', 'cloud-engineer', 'iot-architect'],
-  'Computer Science': ['frontend-developer', 'backend-developer', 'fullstack-developer', 'data-analyst', 'ai-ml-engineer', 'devops-engineer', 'mobile-developer', 'cloud-engineer', 'iot-architect'],
-  'Information Technology': ['frontend-developer', 'backend-developer', 'fullstack-developer', 'data-analyst', 'ai-ml-engineer', 'devops-engineer', 'mobile-developer', 'cloud-engineer', 'iot-architect'],
-  'Artificial Intelligence & Machine Learning': ['ai-ml-engineer', 'data-analyst', 'backend-developer', 'fullstack-developer', 'robotics-engineer', 'cloud-engineer'],
-  'Data Science': ['data-analyst', 'ai-ml-engineer', 'backend-developer', 'fullstack-developer', 'cloud-engineer'],
-  'Cyber Security': ['cloud-engineer', 'devops-engineer', 'backend-developer', 'fullstack-developer', 'telecom-engineer', 'iot-architect'],
-  'Cloud Computing': ['cloud-engineer', 'devops-engineer', 'backend-developer', 'fullstack-developer', 'data-analyst'],
-  'Internet of Things (IoT)': ['iot-architect', 'embedded-systems-engineer', 'robotics-engineer', 'telecom-engineer', 'backend-developer', 'cloud-engineer'],
-  'Robotics & Automation': ['robotics-engineer', 'embedded-systems-engineer', 'control-systems-engineer', 'iot-architect', 'ai-ml-engineer', 'manufacturing-engineer'],
-
-  // Electronics & Electrical
-  'Electronics & Communication Engineering': ['embedded-systems-engineer', 'vlsi-design-engineer', 'telecom-engineer', 'iot-architect', 'robotics-engineer', 'ai-ml-engineer', 'fullstack-developer', 'data-analyst'],
-  'Electronics & Communication': ['embedded-systems-engineer', 'vlsi-design-engineer', 'telecom-engineer', 'iot-architect', 'robotics-engineer', 'ai-ml-engineer', 'fullstack-developer', 'data-analyst'],
-  'Electrical Engineering': ['power-systems-engineer', 'control-systems-engineer', 'instrumentation-engineer', 'renewable-energy-engineer', 'embedded-systems-engineer', 'robotics-engineer', 'data-analyst'],
-  'Electrical & Electronics Engineering': ['power-systems-engineer', 'embedded-systems-engineer', 'vlsi-design-engineer', 'control-systems-engineer', 'renewable-energy-engineer', 'instrumentation-engineer', 'robotics-engineer', 'iot-architect'],
-  'Instrumentation Engineering': ['instrumentation-engineer', 'control-systems-engineer', 'embedded-systems-engineer', 'iot-architect', 'robotics-engineer'],
-
-  // Mechanical, Automobile, Aerospace & Industrial
-  'Mechanical Engineering': ['mechanical-design-engineer', 'automotive-engineer', 'hvac-engineer', 'manufacturing-engineer', 'quality-engineer', 'robotics-engineer', 'data-analyst'],
-  'Automobile Engineering': ['automotive-engineer', 'mechanical-design-engineer', 'manufacturing-engineer', 'quality-engineer', 'robotics-engineer', 'embedded-systems-engineer'],
-  'Aerospace Engineering': ['mechanical-design-engineer', 'automotive-engineer', 'quality-engineer', 'embedded-systems-engineer', 'robotics-engineer', 'data-analyst'],
-  'Industrial Engineering': ['manufacturing-engineer', 'quality-engineer', 'construction-manager', 'process-engineer', 'data-analyst'],
-  'Production Engineering': ['manufacturing-engineer', 'quality-engineer', 'mechanical-design-engineer', 'automotive-engineer', 'process-engineer'],
-
-  // Civil & Environmental
-  'Civil Engineering': ['structural-engineer', 'construction-manager', 'environmental-engineer', 'transportation-engineer', 'quality-engineer', 'data-analyst'],
-  'Environmental Engineering': ['environmental-engineer', 'environmental-health-safety', 'structural-engineer', 'construction-manager', 'data-analyst'],
-
-  // Chemical, Biotech, Biomedical & Materials
-  'Chemical Engineering': ['process-engineer', 'chemical-rd-scientist', 'environmental-health-safety', 'quality-engineer', 'data-analyst'],
-  'Biotechnology': ['biotech-research', 'biomedical-engineer', 'clinical-research', 'pharma-production', 'data-analyst', 'ai-ml-engineer', 'process-engineer'],
-  'Biomedical Engineering': ['biomedical-engineer', 'biotech-research', 'clinical-research', 'instrumentation-engineer', 'embedded-systems-engineer', 'data-analyst'],
-  'Petroleum Engineering': ['process-engineer', 'mechanical-design-engineer', 'environmental-health-safety', 'quality-engineer', 'data-analyst'],
-  'Mining Engineering': ['process-engineer', 'mechanical-design-engineer', 'environmental-health-safety', 'quality-engineer', 'data-analyst'],
-  'Marine Engineering': ['mechanical-design-engineer', 'power-systems-engineer', 'quality-engineer', 'embedded-systems-engineer', 'data-analyst'],
-  'Textile Engineering': ['manufacturing-engineer', 'quality-engineer', 'process-engineer', 'data-analyst'],
-
-  // Computing & Sciences
-  'Mathematics & Computing': ['data-analyst', 'ai-ml-engineer', 'backend-developer', 'fullstack-developer', 'frontend-developer', 'cloud-engineer'],
-  'Physics': ['data-analyst', 'ai-ml-engineer', 'embedded-systems-engineer', 'biotech-research'],
-  'MCA (Computer Applications)': ['fullstack-developer', 'frontend-developer', 'backend-developer', 'mobile-developer', 'data-analyst', 'cloud-engineer', 'devops-engineer'],
-  'BCA (Computer Applications)': ['fullstack-developer', 'frontend-developer', 'backend-developer', 'mobile-developer', 'data-analyst', 'cloud-engineer', 'devops-engineer'],
-  'Other': industryRoles.map(r => r.id)
-};
 
 const StudentDashboard = () => {
   const { currentUser, userProfile, updateUserProfile, logout } = useAuth();
@@ -124,7 +81,9 @@ const StudentDashboard = () => {
   const userBranch = userProfile?.branch || '';
   const userYear = userProfile?.passoutYear || userProfile?.year || '';
   const [selectedSkills, setSelectedSkills] = useState(userProfile?.skills || []);
-  const [careerInterest, setCareerInterest] = useState(userProfile?.career_interest || '');
+  const [careerInterest, setCareerInterest] = useState(
+    userProfile?.career_interest || userProfile?.targetRole || userProfile?.target_role || ''
+  );
   const [resumeFile, setResumeFile] = useState(null);
   
   // UI state
@@ -132,6 +91,30 @@ const StudentDashboard = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState('');
   const [lastAnalysis, setLastAnalysis] = useState(null);
+  const [isStartFromScratch, setIsStartFromScratch] = useState(false);
+
+  // Dark mode — persisted in localStorage
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('t7_dark_mode') === 'true');
+  const toggleDarkMode = () => {
+    setDarkMode(prev => {
+      const next = !prev;
+      localStorage.setItem('t7_dark_mode', String(next));
+      return next;
+    });
+  };
+
+  // Current selected role object
+  const selectedRole = industryRoles.find(r => r.id === careerInterest);
+
+  // Check if current selected role matches the last analyzed role
+  const isMatchingRole = Boolean(
+    lastAnalysis && (!careerInterest || !lastAnalysis.career_role || selectedRole?.role_name === lastAnalysis.career_role || selectedRole?.id === lastAnalysis.career_role)
+  );
+
+  // Earned skill badges & today's focus — displayed for the active analyzed role
+  const earnedBadges = (isMatchingRole ? lastAnalysis?.matched_skills : null)?.slice(0, 6) || [];
+  const atsScore = lastAnalysis?.ats_analysis?.score || null;
+  const todayTasks = (isMatchingRole ? lastAnalysis?.quick_wins : null)?.slice(0, 3) || [];
 
   // Sync userProfile skills and career interest when user profile loads
   useEffect(() => {
@@ -139,11 +122,18 @@ const StudentDashboard = () => {
       if (userProfile.skills?.length > 0 && selectedSkills.length === 0) {
         setSelectedSkills(userProfile.skills);
       }
-      if (userProfile.career_interest && !careerInterest) {
-        setCareerInterest(userProfile.career_interest);
+      const savedCareer = userProfile.career_interest || userProfile.targetRole || userProfile.target_role;
+      if (savedCareer && !careerInterest) {
+        setCareerInterest(savedCareer);
+      }
+      // Auto-prompt first-time students to complete required profile details
+      const isMissingRequired = !userProfile.college || !userProfile.branch || userProfile.college === 'Engineering College';
+      if (isMissingRequired) {
+        setProfileModalEditMode(true);
+        setIsProfileModalOpen(true);
       }
     }
-  }, [userProfile?.uid]);
+  }, [userProfile?.uid, userProfile?.id, userProfile?.college, userProfile?.branch]);
 
   // Real-Time Job Market state (Multi-Source Feeds)
   const [jobListings, setJobListings] = useState([]);
@@ -201,13 +191,31 @@ const StudentDashboard = () => {
 
   useEffect(() => {
     const loadLastAnalysis = async () => {
-      if (currentUser) {
+      if (currentUser?.uid) {
         const analysis = await getLatestAnalysis(currentUser.uid);
         setLastAnalysis(analysis);
+        if (analysis) {
+          // If careerInterest isn't selected, pre-select the one from last analysis
+          if (!careerInterest) {
+            const roleMatch = industryRoles.find(
+              r => r.role_name === analysis.career_role || r.id === analysis.career_role
+            );
+            if (roleMatch) setCareerInterest(roleMatch.id);
+          }
+
+          // Check if student left off on results view
+          const savedView = localStorage.getItem(`t7_student_view_${currentUser.uid}`);
+          if (savedView === 'results' || (!savedView && analysis)) {
+            const selectedRole = industryRoles.find(
+              r => r.role_name === analysis.career_role || r.id === analysis.career_role
+            ) || industryRoles[0];
+            navigate('/results', { state: { analysis, role: selectedRole, userSkills: selectedSkills } });
+          }
+        }
       }
     };
     loadLastAnalysis();
-  }, [currentUser]);
+  }, [currentUser?.uid]);
 
   // Fetch YouTube learning data and auto-merge skills (supports both Auth UID & T7 ID)
   const loadVideoLearningData = async () => {
@@ -269,6 +277,7 @@ const StudentDashboard = () => {
   );
 
   const toggleSkill = (skill) => {
+    setIsStartFromScratch(false);
     setSelectedSkills(prev =>
       prev.includes(skill)
         ? prev.filter(s => s !== skill)
@@ -290,8 +299,13 @@ const StudentDashboard = () => {
   const handleAnalyze = async () => {
     setError('');
     
-    if (selectedSkills.length === 0 || !careerInterest) {
-      setError('Please select a dream career and at least one skill before analyzing');
+    if (!careerInterest) {
+      setError('Please select your dream career role before analyzing');
+      return;
+    }
+
+    if (selectedSkills.length === 0 && !isStartFromScratch) {
+      setError('Please select at least one skill, or click "Start from scratch" if you are a beginner');
       return;
     }
 
@@ -305,24 +319,40 @@ const StudentDashboard = () => {
 
       const selectedRole = industryRoles.find(r => r.id === careerInterest);
       
-      const analysisResult = await analyzeT7LearningHub(
-        selectedSkills,
+      // Uses LYZR ProfileAnalyzerAgent (role-based, no hardcoded companies).
+      // If LYZR is not yet configured, automatically falls back to Gemini.
+      // YouTube history is NOT an input — tracked separately after roadmap starts.
+      const analysisResult = await analyzeStudentProfile({
+        studentSkills: selectedSkills,
         selectedRole,
-        industryRoles,
+        allRoles: industryRoles,
+        branch: userProfile?.branch || '',
+        year: userProfile?.passoutYear || userProfile?.year || '',
+        cgpa: userProfile?.cgpa || '',
         resumeFile,
-        userProfile?.geminiApiKey,
-        userProfile?.geminiModel
-      );
+        userId: currentUser?.uid,
+        // Gemini fallback params (used only if LYZR not yet configured)
+        customApiKey: userProfile?.geminiApiKey,
+        preferredModel: userProfile?.geminiModel,
+      });
 
       await saveAnalysis(currentUser.uid, {
         career_role: selectedRole.role_name,
         ...analysisResult
       });
 
+      if (currentUser?.uid) {
+        localStorage.setItem(`t7_student_view_${currentUser.uid}`, 'results');
+      }
+
       navigate('/results', { state: { analysis: analysisResult, role: selectedRole, userSkills: selectedSkills } });
     } catch (err) {
       console.error('Analysis error:', err);
-      setError('Analysis failed. Please try again.');
+      if (err?.message?.includes('LYZR_NOT_CONFIGURED')) {
+        setError('Lyzr AI agents are pending configuration. Please add LYZR_API_KEY and LYZR_AGENT_PROFILE to your .env file.');
+      } else {
+        setError(err?.message || 'Analysis failed. Please try again.');
+      }
     } finally {
       setAnalyzing(false);
     }
@@ -352,7 +382,10 @@ const StudentDashboard = () => {
 
   const viewPreviousResults = () => {
     if (lastAnalysis) {
-      const selectedRole = industryRoles.find(r => r.role_name === lastAnalysis.career_role) || industryRoles[0];
+      if (currentUser?.uid) {
+        localStorage.setItem(`t7_student_view_${currentUser.uid}`, 'results');
+      }
+      const selectedRole = industryRoles.find(r => r.role_name === lastAnalysis.career_role || r.id === lastAnalysis.career_role) || industryRoles[0];
       navigate('/results', { state: { analysis: lastAnalysis, role: selectedRole, userSkills: selectedSkills } });
     }
   };
@@ -369,31 +402,31 @@ const StudentDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className={`min-h-screen transition-colors duration-300 ${darkMode ? 'bg-zinc-950' : 'bg-zinc-50'}`}>
       {/* Header */}
-      <header className="bg-white border-b border-zinc-200 sticky top-0 z-40">
+      <header className={`border-b sticky top-0 z-40 transition-colors duration-300 ${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'}`}>
         <div className="max-w-6xl mx-auto px-6 h-18 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-zinc-900 text-lg">T7 Learning Hub</span>
+            <span className={`font-bold text-lg ${darkMode ? 'text-white' : 'text-zinc-900'}`}>T7 Learning Hub</span>
           </div>
           
           <div className="flex items-center gap-3 ml-auto">
-            {/* Live Gemini Model Selector Pill */}
-            <div className="hidden sm:block">
-              <ModelSelector
-                variant="pill"
-                currentModel={userProfile?.geminiModel || 'auto'}
-                onModelChange={(modelId) => updateUserProfile(currentUser.uid, { geminiModel: modelId })}
-                apiKey={userProfile?.geminiApiKey}
-                onOpenKeySettings={() => {
-                  setIsProfileModalOpen(true);
-                  setProfileModalEditMode(true);
-                }}
-              />
-            </div>
+            {/* Dark Mode Toggle */}
+            <button
+              type="button"
+              onClick={toggleDarkMode}
+              title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all border cursor-pointer ${
+                darkMode
+                  ? 'bg-zinc-800 border-zinc-700 text-yellow-400 hover:bg-zinc-700'
+                  : 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200'
+              }`}
+            >
+              {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
 
 
             {/* Top Right Profile Dropdown Menu */}
@@ -497,31 +530,105 @@ const StudentDashboard = () => {
 
       <main className="max-w-6xl mx-auto px-6 py-8">
         {/* Welcome Section */}
-        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-black text-zinc-900 mb-2 flex items-center gap-3">
-              Hey, {userProfile?.name?.split(' ')[0]}! 
+            <h1 className={`text-3xl font-black mb-1 flex items-center gap-3 ${darkMode ? 'text-white' : 'text-zinc-900'}`}>
+              Hey, {userProfile?.name?.split(' ')[0]}!
               <span className="text-3xl">👋</span>
             </h1>
-            <p className="text-zinc-600 text-lg">Let's analyze your placement readiness</p>
+            <p className={`text-lg ${darkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>Let's build your placement roadmap</p>
           </div>
-          
-          {/* Quick stats */}
-          <div className="flex gap-4">
-            <div className="px-4 py-3 bg-white rounded-xl border border-zinc-200 shadow-sm">
-              <div className="flex items-center gap-2 text-zinc-500 mb-1">
-                <Target className="w-4 h-4" />
-                <span className="text-xs font-semibold uppercase">Skills</span>
+        </div>
+
+        {/* ── Smart Status Cards ──────────────────────────────────────── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+
+          {/* Card 1: Readiness Score */}
+          <div className={`relative overflow-hidden rounded-2xl p-4 border shadow-sm ${
+            darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
+          }`}>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-emerald-600" />
               </div>
-              <p className="text-2xl font-black text-zinc-900">{selectedSkills.length}</p>
+              <span className={`text-xs font-bold uppercase tracking-wide ${darkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>Readiness</span>
             </div>
-            <div className="px-4 py-3 bg-white rounded-xl border border-zinc-200 shadow-sm">
-              <div className="flex items-center gap-2 text-emerald-600 mb-1">
-                <Star className="w-4 h-4" />
-                <span className="text-xs font-semibold uppercase">Ready</span>
+            <p className={`text-3xl font-black ${lastAnalysis?.readiness_score >= 70 ? 'text-emerald-500' : lastAnalysis?.readiness_score >= 50 ? 'text-amber-500' : lastAnalysis?.readiness_score ? 'text-red-500' : darkMode ? 'text-zinc-600' : 'text-zinc-300'}`}>
+              {lastAnalysis?.readiness_score != null ? `${lastAnalysis.readiness_score}%` : '—'}
+            </p>
+            {lastAnalysis?.readiness_score != null && (
+              <div className="mt-2 h-1.5 rounded-full bg-zinc-100 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${
+                    lastAnalysis.readiness_score >= 70 ? 'bg-emerald-500' :
+                    lastAnalysis.readiness_score >= 50 ? 'bg-amber-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${lastAnalysis.readiness_score}%` }}
+                />
               </div>
-              <p className="text-2xl font-black text-zinc-900">{lastAnalysis?.readiness_score || '—'}%</p>
+            )}
+            {!lastAnalysis && (
+              <p className={`text-xs mt-1 ${darkMode ? 'text-zinc-600' : 'text-zinc-400'}`}>Run analysis first</p>
+            )}
+          </div>
+
+          {/* Card 2: Skills Selected */}
+          <div className={`relative overflow-hidden rounded-2xl p-4 border shadow-sm ${
+            darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
+          }`}>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 bg-violet-100 rounded-lg flex items-center justify-center">
+                <Zap className="w-4 h-4 text-violet-600" />
+              </div>
+              <span className={`text-xs font-bold uppercase tracking-wide ${darkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>Skills</span>
             </div>
+            <p className={`text-3xl font-black ${darkMode ? 'text-white' : 'text-zinc-900'}`}>{selectedSkills.length}</p>
+            <p className={`text-xs mt-1 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
+              {selectedSkills.length > 0 ? `${selectedSkills.slice(0,2).join(', ')}${selectedSkills.length > 2 ? ` +${selectedSkills.length - 2}` : ''}` : 'None selected yet'}
+            </p>
+          </div>
+
+          {/* Card 3: Resume / ATS Score */}
+          <div className={`relative overflow-hidden rounded-2xl p-4 border shadow-sm ${
+            darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
+          }`}>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                <FileText className="w-4 h-4 text-blue-600" />
+              </div>
+              <span className={`text-xs font-bold uppercase tracking-wide ${darkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>Resume ATS</span>
+            </div>
+            <p className={`text-3xl font-black ${
+              atsScore >= 70 ? 'text-emerald-500' :
+              atsScore >= 50 ? 'text-amber-500' :
+              atsScore ? 'text-red-500' :
+              darkMode ? 'text-zinc-600' : 'text-zinc-300'
+            }`}>
+              {atsScore != null ? `${atsScore}/100` : '—'}
+            </p>
+            <p className={`text-xs mt-1 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
+              {atsScore != null ? (atsScore >= 70 ? 'Resume looks strong' : atsScore >= 50 ? 'Needs improvement' : 'Upload & analyze') : 'Upload resume in results'}
+            </p>
+          </div>
+
+          {/* Card 4: Target Role */}
+          <div className={`relative overflow-hidden rounded-2xl p-4 border shadow-sm ${
+            darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
+          }`}>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                <Target className="w-4 h-4 text-orange-500" />
+              </div>
+              <span className={`text-xs font-bold uppercase tracking-wide ${darkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>Target Role</span>
+            </div>
+            <p className={`text-sm font-black leading-tight ${darkMode ? 'text-white' : 'text-zinc-900'}`}>
+              {careerInterest
+                ? industryRoles.find(r => r.id === careerInterest)?.role_name || careerInterest
+                : '—'}
+            </p>
+            <p className={`text-xs mt-1 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
+              {careerInterest ? 'Selected below' : 'Pick a role below'}
+            </p>
           </div>
         </div>
 
@@ -561,72 +668,80 @@ const StudentDashboard = () => {
           </div>
         </div>
 
-        {/* Compact YouTube Learning Tracker & T7 Sync Widget */}
-        <div className="mb-6 p-4 sm:p-5 bg-gradient-to-r from-zinc-900 via-zinc-850 to-zinc-900 rounded-2xl shadow-xl border border-zinc-800 text-white transition-all hover:border-zinc-700">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-red-600/30 flex-shrink-0 border border-red-500/30">
-                <Youtube className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-bold text-white text-base">YouTube Learning Tracker</h3>
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    {videoLearning.length > 0 ? 'Extension Synced' : 'Ready to Sync'}
-                  </span>
+        {/* ── Today's Focus Card ────────────────────────────── */}
+        {todayTasks.length > 0 && (
+          <div className={`mb-6 p-5 rounded-2xl border shadow-sm ${
+            darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                  <Lightbulb className="w-4 h-4 text-amber-600" />
                 </div>
-                <div className="text-xs text-zinc-400 mt-1 flex items-center gap-2 flex-wrap">
-                  <span>
-                    <strong className="text-white font-bold">{videoLearning.length}</strong> videos analyzed
-                  </span>
-                  <span>•</span>
-                  <span>
-                    <strong className="text-white font-bold">{ytSkills.length}</strong> skills detected
-                  </span>
-                  {userProfile?.t7Id && (
-                    <>
-                      <span>•</span>
-                      <span>
-                        T7 ID: <strong className="text-amber-300 font-mono font-bold">{userProfile.t7Id}</strong>
-                      </span>
-                    </>
-                  )}
-                </div>
+                <h3 className={`font-bold text-sm ${darkMode ? 'text-white' : 'text-zinc-900'}`}>Today's Focus</h3>
               </div>
+              <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">From your roadmap</span>
             </div>
+            <div className="space-y-2">
+              {todayTasks.map((taskItem, i) => {
+                const isObj = typeof taskItem === 'object' && taskItem !== null;
+                const taskText = isObj ? (taskItem.task || taskItem.title || taskItem.action || JSON.stringify(taskItem)) : taskItem;
+                const taskTime = isObj ? taskItem.time : null;
+                const taskImpact = isObj ? taskItem.impact : null;
 
-            <div className="flex items-center gap-2.5 flex-wrap">
-              {userProfile?.t7Id && (
-                <button
-                  type="button"
-                  onClick={copyT7Id}
-                  className={`px-3 py-2 font-bold rounded-xl transition-all flex items-center gap-1.5 text-xs cursor-pointer ${
-                    copied 
-                      ? 'bg-emerald-500 text-white' 
-                      : 'bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white border border-white/10'
-                  }`}
-                  title="Copy T7 Account ID"
-                >
-                  {copied ? (
-                    <><CheckCircle className="w-3.5 h-3.5" /> Copied ID</>
-                  ) : (
-                    <><Copy className="w-3.5 h-3.5" /> Copy ID</>
-                  )}
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setIsYouTubeModalOpen(true)}
-                className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-lg shadow-red-600/30 flex items-center gap-2 hover:-translate-y-0.5 cursor-pointer"
-              >
-                <span>View Full Tracker & Skills</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+                return (
+                  <div key={i} className={`flex items-start justify-between gap-3 p-3 rounded-xl border ${
+                    darkMode ? 'bg-zinc-800/80 border-zinc-700/60' : 'bg-zinc-50 border-zinc-200/60'
+                  }`}>
+                    <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                      <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-semibold leading-snug ${darkMode ? 'text-zinc-200' : 'text-zinc-800'}`}>
+                          {taskText}
+                        </p>
+                        {taskImpact && (
+                          <p className={`text-xs mt-1 font-medium ${darkMode ? 'text-amber-400' : 'text-amber-700'}`}>
+                            💡 {taskImpact}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    {taskTime && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100/80 text-amber-800 border border-amber-200 flex-shrink-0 whitespace-nowrap">
+                        ⏱️ {taskTime}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
-        </div>
+        )}
+
+        {/* ── Skill Badges Wall ─────────────────────────────── */}
+        {earnedBadges.length > 0 && (
+          <div className={`mb-6 p-5 rounded-2xl border shadow-sm ${
+            darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-violet-100 rounded-lg flex items-center justify-center">
+                  <Trophy className="w-4 h-4 text-violet-600" />
+                </div>
+                <h3 className={`font-bold text-sm ${darkMode ? 'text-white' : 'text-zinc-900'}`}>Your Skill Badges</h3>
+              </div>
+              <span className="text-[10px] font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-200">Verified by AI</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {earnedBadges.map((skill, i) => (
+                <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-200 text-violet-800 text-xs font-bold rounded-xl shadow-sm">
+                  <CheckCircle className="w-3.5 h-3.5 text-violet-500" />
+                  {typeof skill === 'string' ? skill : skill.name || skill}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Previous Analysis Banner */}
         {lastAnalysis && (
@@ -756,13 +871,50 @@ const StudentDashboard = () => {
                   <div>
                     <h2 className="font-bold text-zinc-900 text-lg">Your Skills</h2>
                     <p className="text-sm text-zinc-500">
-                      <span className="text-zinc-900 font-bold">{selectedSkills.length}</span> selected
+                      {isStartFromScratch ? (
+                        <span className="text-emerald-600 font-semibold flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          Beginner track (Start from scratch)
+                        </span>
+                      ) : (
+                        <>
+                          <span className="text-zinc-900 font-bold">{selectedSkills.length}</span> selected
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
-                <span className="text-xs font-semibold text-zinc-400">
-                  {allSkills.length} total skills
-                </span>
+                
+                {/* Start from Scratch Button (Black button, white text) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !isStartFromScratch;
+                    setIsStartFromScratch(next);
+                    if (next) setSelectedSkills([]);
+                  }}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm active:scale-95 ${
+                    isStartFromScratch
+                      ? 'bg-zinc-900 text-white ring-2 ring-emerald-400 shadow-lg shadow-zinc-900/20'
+                      : 'bg-zinc-900 hover:bg-zinc-800 text-white'
+                  }`}
+                  title="Click if you are a beginner with no prior technical skills"
+                >
+                  {isStartFromScratch ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400 stroke-[3]" />
+                      <span>Start from scratch</span>
+                      <span className="px-1.5 py-0.5 bg-emerald-400/20 text-emerald-300 rounded text-[10px] font-black uppercase tracking-wider">
+                        Selected
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-zinc-500" />
+                      <span>Start from scratch</span>
+                    </>
+                  )}
+                </button>
               </div>
 
               {/* Search */}
@@ -781,11 +933,11 @@ const StudentDashboard = () => {
               {selectedSkills.length > 0 && (
                 <div className="mb-3 pb-3 border-b-2 border-zinc-100 max-h-24 overflow-y-auto">
                   <div className="flex flex-wrap gap-1.5">
-                    {selectedSkills.map(skill => {
+                    {Array.from(new Set(selectedSkills)).map((skill, idx) => {
                       const isFromYt = ytSkills.some(ys => ys.toLowerCase() === skill.toLowerCase());
                       return (
                         <span
-                          key={skill}
+                          key={`selected-${skill}-${idx}`}
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${
                             isFromYt 
                               ? 'bg-red-600 text-white' 
@@ -811,9 +963,9 @@ const StudentDashboard = () => {
               {/* All Skills Cloud */}
               <div className="flex-1 overflow-y-auto pr-1">
                 <div className="flex flex-wrap gap-1.5">
-                  {filteredSkills.map(skill => (
+                  {Array.from(new Set(filteredSkills)).map((skill, idx) => (
                     <button
-                      key={skill}
+                      key={`all-${skill}-${idx}`}
                       type="button"
                       onClick={() => toggleSkill(skill)}
                       disabled={selectedSkills.includes(skill)}
@@ -922,12 +1074,20 @@ const StudentDashboard = () => {
               {analyzing ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Analyzing skills{resumeFile ? ' + resume' : ''}...</span>
+                  <span>
+                    {isStartFromScratch 
+                      ? 'Generating Zero-to-Hero roadmap...' 
+                      : `Analyzing skills${resumeFile ? ' + resume' : ''}...`}
+                  </span>
                 </>
               ) : (
                 <>
                   <Rocket className="w-5 h-5" />
-                  <span>Analyze My Profile</span>
+                  <span>
+                    {isStartFromScratch 
+                      ? 'Generate Zero-to-Hero Roadmap (From Scratch)' 
+                      : 'Analyze Placement Readiness'}
+                  </span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -1097,8 +1257,8 @@ const StudentDashboard = () => {
                                   <div>
                                     <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">✅ Skills You Have</p>
                                     <div className="flex flex-wrap gap-1.5">
-                                      {matchedJobSkills.length > 0 ? matchedJobSkills.map(skill => (
-                                        <span key={skill} className="text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-md flex items-center gap-1">
+                                      {matchedJobSkills.length > 0 ? matchedJobSkills.map((skill, idx) => (
+                                        <span key={`match-${skill}-${idx}`} className="text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-md flex items-center gap-1">
                                           <CheckCircle2 className="w-3 h-3" /> {skill}
                                         </span>
                                       )) : <span className="text-xs text-zinc-400 font-medium italic">No matching skills selected yet</span>}
@@ -1108,9 +1268,9 @@ const StudentDashboard = () => {
                                   <div>
                                     <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">❌ Skills Missing (Click to Learn)</p>
                                     <div className="flex flex-wrap gap-1.5">
-                                      {missingJobSkills.length > 0 ? missingJobSkills.map(skill => (
+                                      {missingJobSkills.length > 0 ? missingJobSkills.map((skill, idx) => (
                                         <a
-                                          key={skill}
+                                          key={`miss-${skill}-${idx}`}
                                           href={`https://www.youtube.com/results?search_query=${encodeURIComponent(skill + ' tutorial full course')}`}
                                           target="_blank"
                                           rel="noopener noreferrer"

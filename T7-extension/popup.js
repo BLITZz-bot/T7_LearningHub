@@ -669,7 +669,7 @@ async function syncToDashboard() {
           },
           videoId:   state.currentVideo.videoId,
           title:     state.currentVideo.title,
-          projectId: state.projectId || 't7-learning-hub'
+          apiBaseUrl: state.projectId?.startsWith('http') ? state.projectId : 'http://localhost:3000'
         }
       }, (r) => {
         if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));

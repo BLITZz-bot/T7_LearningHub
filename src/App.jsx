@@ -25,16 +25,42 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import Landing from './components/common/Landing';
 import AuthenticatedLayout from './components/common/AuthenticatedLayout';
 
+import CompleteProfileOnboarding from './components/auth/CompleteProfileOnboarding';
+
 /**
  * Dashboard Router Component
  * 
  * Automatically redirects users to the appropriate dashboard based on their role.
+ * Ensures first-time users complete required details before accessing the dashboard.
  */
 const DashboardRouter = () => {
-  const { userProfile } = useAuth();
+  const { currentUser, userProfile } = useAuth();
 
   if (userProfile?.role === 'admin') {
     return <Navigate to="/admin" replace />;
+  }
+
+  // If a student signed in directly (e.g. via Google) and has not filled required details:
+  const isProfileIncomplete = Boolean(
+    userProfile && (
+      !userProfile.college || 
+      !userProfile.branch || 
+      !userProfile.phone || 
+      userProfile.college === 'Engineering College'
+    )
+  );
+
+  if (isProfileIncomplete) {
+    return <CompleteProfileOnboarding />;
+  }
+
+  // Restore where student left off:
+  if (currentUser?.uid) {
+    const savedView = localStorage.getItem(`t7_student_view_${currentUser.uid}`);
+    const hasAnalysis = Boolean(userProfile?.lastAnalysis || userProfile?.last_analysis);
+    if (savedView === 'results' || (!savedView && hasAnalysis)) {
+      return <Navigate to="/results" replace />;
+    }
   }
 
   return <StudentDashboard />;

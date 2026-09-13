@@ -1,6 +1,6 @@
 // ============================================================
-// Skill-Flow AI Chatbot - Core Logic
-// Powered by Google Gemini API
+// T7 AI Chatbot - Core Logic
+// Powered by LYZR TutorBotAgent (via /api/lyzr)
 // ============================================================
 
 /**
@@ -45,41 +45,35 @@ Current Readiness Score: ${userData.readiness_score || 0}%
 Respond in clean, readable text. Use bullet points and short paragraphs. Never use markdown headers like ## or **.`;
 }
 
-// All Gemini calls are securely proxied through /api/gemini — no key stored here
-
 // ============================================================
-// GEMINI API CALL
+// LYZR TUTOR AGENT CALL
 // ============================================================
 /**
- * callGemini — Securely proxies chatbot messages through /api/gemini
- * The API key is NEVER passed or stored in the browser.
- * If the user has a personal key in their profile, it is forwarded
- * in the HTTPS request body (encrypted in transit, not in the bundle).
+ * callLyzrTutor — Calls LYZR TutorBotAgent via /api/lyzr
+ * The API key is NEVER stored in the browser.
+ * LYZR provides persistent memory per student session.
  */
-export async function callGemini(userPersonalKey, messages, systemPrompt, preferredModel = null) {
-  const res = await fetch('/api/gemini', {
+export async function callLyzrTutor(messages, systemPrompt, studentContext = null, preferredModel = null) {
+  const lastMessage = messages[messages.length - 1]?.content || '';
+  const userId = studentContext?.uid || null;
+
+  const res = await fetch('/api/lyzr', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      action: 'chatMessage',
+      action: 'chatTutor',
       payload: {
-        messages,
-        systemPrompt,
-        preferredModel,
-        // Forward user's personal key if they provided one in profile settings
-        // It travels over HTTPS and is used only server-side per request
-        customApiKey: (userPersonalKey && userPersonalKey !== 'undefined') ? userPersonalKey : null,
+        message: lastMessage,
+        sessionId: `tutor_${userId || 'anon'}`,
+        studentContext,
+        userId,
       },
     }),
   });
 
   const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data?.error || 'Could not connect to Gemini API. Please check your internet connection or try again later.');
-  }
-  if (!data.text) {
-    throw new Error('Empty response from AI. Please try again.');
-  }
+  if (!res.ok) throw new Error(data?.error || 'TutorBot connection failed. Please try again.');
+  if (!data.text) throw new Error('Empty response from TutorBot. Please try again.');
   return data.text;
 }
 

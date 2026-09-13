@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getCampusAnalytics } from '../../services/firestoreService';
+import { getCampusAnalytics } from '../../services/apiService';
 import { 
   LogOut, 
   Users, 

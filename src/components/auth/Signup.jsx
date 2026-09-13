@@ -56,11 +56,20 @@ const Signup = () => {
   const [loading,       setLoading]       = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
+  const searchParams = new URLSearchParams(location.search);
+  const isUnregisteredGoogle = searchParams.get('unregistered_google') === 'true';
+
   useEffect(() => {
-    if (location.state?.email) {
-      setForm(prev => ({ ...prev, email: location.state.email }));
+    const urlEmail = searchParams.get('email');
+    const urlName = searchParams.get('name');
+    if (urlEmail || location.state?.email || urlName) {
+      setForm(prev => ({
+        ...prev,
+        email: urlEmail || location.state?.email || prev.email,
+        name: urlName || prev.name
+      }));
     }
-  }, [location.state?.email]);
+  }, [location.search, location.state?.email]);
 
   const { signup, signupWithGoogle, currentUser, userProfile } = useAuth();
 
@@ -106,11 +115,17 @@ const Signup = () => {
   /* ── Google signup ── */
   const handleGoogleSignup = async () => {
     setError('');
-    if (!form.college.trim() || !form.branch || !form.phone.trim()) {
-      setError('Please fill in College, Branch, Passout Year, and Phone before continuing with Google.');
-      return;
-    }
+    if (!form.name.trim())    return setError('Please enter your Full Name first.');
+    if (!form.college.trim()) return setError('Please enter your College or University first.');
+    if (!form.branch)         return setError('Please select your Branch / Department first.');
+    if (!form.passoutYear)    return setError('Please select your Passout Year first.');
+    if (!form.phone.trim())   return setError('Please enter your Phone Number first.');
+
     setGoogleLoading(true);
+    try {
+      localStorage.setItem('t7_oauth_origin', 'signup');
+    } catch (e) {}
+
     try {
       await signupWithGoogle({
         name: form.name.trim(),
@@ -121,13 +136,7 @@ const Signup = () => {
       });
     } catch (err) {
       console.error('Google signup error:', err);
-      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-        // User closed popup
-      } else if (err.code === 'auth/popup-blocked') {
-        setError('Popup was blocked by your browser. Please allow popups for this site.');
-      } else {
-        setError(err.message || 'Failed to sign up with Google. Please try again.');
-      }
+      setError(err.message || 'Failed to sign up with Google. Please try again.');
     } finally {
       setGoogleLoading(false);
     }
@@ -187,6 +196,23 @@ const Signup = () => {
               <Link to="/login" className="text-zinc-900 font-semibold hover:underline">Sign in</Link>
             </p>
           </div>
+
+          {/* ── Unregistered Google Account Alert ── */}
+          {isUnregisteredGoogle && (
+            <div className="mb-6 p-5 bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl shadow-sm animate-fade-in">
+              <div className="flex items-start gap-3.5">
+                <div className="w-9 h-9 bg-amber-500/20 rounded-xl flex items-center justify-center flex-shrink-0 text-amber-800 mt-0.5 border border-amber-300">
+                  <User className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-amber-950 text-base">Account Not Found for this Google Account</h4>
+                  <p className="text-amber-900/90 text-sm mt-1 leading-relaxed">
+                    We noticed you tried to sign in directly with <span className="font-bold text-amber-950">{form.email || 'your Google account'}</span>. As a new student, please complete your required details below to create your account!
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Error */}
           {error && (
@@ -266,57 +292,54 @@ const Signup = () => {
             <InputField id="phone" label="Phone Number" icon={Phone} type="tel"
               value={form.phone} onChange={set('phone')} placeholder="+91 9876543210" />
 
-            {/* Divider */}
-            <div className="border-t border-zinc-100 pt-2">
-              <p className="text-xs text-zinc-400 font-semibold uppercase tracking-wide mb-3">Account credentials</p>
+            {/* ── Section 2: Choose Registration Method ── */}
+            <div className="pt-4 border-t border-zinc-200 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Step 2: Choose account method</span>
+                <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">Details Required Above</span>
+              </div>
+
+              {/* Option A: Google Signup (Recommended) */}
+              <button
+                type="button"
+                id="google-signup-btn"
+                onClick={handleGoogleSignup}
+                disabled={googleLoading || loading}
+                className="w-full py-3.5 px-4 bg-white border-2 border-zinc-200 hover:border-zinc-900 rounded-xl font-bold text-zinc-800 hover:bg-zinc-50 transition-all flex items-center justify-center gap-3 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed group"
+              >
+                {googleLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : GOOGLE_ICON}
+                <span className="group-hover:text-zinc-950 transition-colors">
+                  {googleLoading ? 'Connecting with Google...' : 'Sign up with Google'}
+                </span>
+              </button>
+
+              <div className="flex items-center gap-3 my-4">
+                <div className="flex-1 border-t border-zinc-200" />
+                <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">or sign up with email</span>
+                <div className="flex-1 border-t border-zinc-200" />
+              </div>
+
+              {/* Option B: Email & Password */}
+              <InputField id="email" label="Email address" icon={Mail} type="email"
+                value={form.email} onChange={set('email')} placeholder="you@example.com" required={false} />
+
+              <InputField id="password" label="Password (min 6 chars)" icon={Lock} type="password"
+                value={form.password} onChange={set('password')} placeholder="••••••••" required={false} />
+
+              <button
+                id="signup-submit-btn"
+                type="submit"
+                disabled={loading || googleLoading}
+                className="w-full py-3.5 bg-zinc-900 text-white font-bold rounded-xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-900/20 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <><Loader2 className="w-5 h-5 animate-spin" /> Creating account...</>
+                ) : (
+                  <>Create account with Email <ArrowRight className="w-5 h-5" /></>
+                )}
+              </button>
             </div>
-
-            {/* Row 5: Email */}
-            <InputField id="email" label="Email address" icon={Mail} type="email"
-              value={form.email} onChange={set('email')} placeholder="you@example.com" />
-
-            {/* Row 6: Password */}
-            <InputField id="password" label="Password (min 6 chars)" icon={Lock} type="password"
-              value={form.password} onChange={set('password')} placeholder="••••••••" />
-
-            {/* Submit */}
-            <button
-              id="signup-submit-btn"
-              type="submit"
-              disabled={loading || googleLoading}
-              className="w-full py-3.5 bg-zinc-900 text-white font-bold rounded-xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-900/20 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <><Loader2 className="w-5 h-5 animate-spin" /> Creating account...</>
-              ) : (
-                <>Create account <ArrowRight className="w-5 h-5" /></>
-              )}
-            </button>
           </form>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3 my-5">
-            <div className="flex-1 border-t border-zinc-200" />
-            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">or</span>
-            <div className="flex-1 border-t border-zinc-200" />
-          </div>
-
-          {/* Google signup note */}
-          <p className="text-xs text-zinc-400 mb-3 text-center">
-            Fill College, Branch & Phone above first, then:
-          </p>
-
-          {/* Google button */}
-          <button
-            type="button"
-            id="google-signup-btn"
-            onClick={handleGoogleSignup}
-            disabled={googleLoading || loading}
-            className="w-full py-3.5 px-4 bg-white border-2 border-zinc-200 hover:border-zinc-800 rounded-xl font-semibold text-zinc-800 hover:bg-zinc-50 transition-all flex items-center justify-center gap-3 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {googleLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : GOOGLE_ICON}
-            <span>{googleLoading ? 'Connecting with Google...' : 'Sign up with Google'}</span>
-          </button>
 
           <div className="mt-6 text-center">
             <Link to="/" className="text-zinc-400 hover:text-zinc-700 text-sm font-medium transition-colors">
