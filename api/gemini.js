@@ -27,7 +27,50 @@
  *   }
  */
 
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const SUPPORTED_MODELS = {
+  'gemini-3.8-flash': {
+    id: 'gemini-3.8-flash',
+    name: 'Gemini 3.8 Flash',
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent',
+    tag: '🚀 Next-Gen Flagship',
+  },
+  'gemini-3.7-flash': {
+    id: 'gemini-3.7-flash',
+    name: 'Gemini 3.7 Flash',
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent',
+    tag: '⚡ Ultra Fast Reasoning',
+  },
+  'gemini-3.1-pro-preview': {
+    id: 'gemini-3.1-pro-preview',
+    name: 'Gemini 3.1 Pro Preview',
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent',
+    tag: '🧠 Deep Intelligence',
+  },
+  'gemini-2.5-pro': {
+    id: 'gemini-2.5-pro',
+    name: 'Gemini 2.5 Pro',
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent',
+    tag: '🏆 Advanced Reasoning',
+  },
+  'gemini-2.5-flash': {
+    id: 'gemini-2.5-flash',
+    name: 'Gemini 2.5 Flash',
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+    tag: '⚡ Instant & Thinking',
+  },
+  'gemini-2.5-flash-lite': {
+    id: 'gemini-2.5-flash-lite',
+    name: 'Gemini 2.5 Flash-Lite',
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
+    tag: '🪶 Ultra Low Latency',
+  },
+  'gemini-flash-latest': {
+    id: 'gemini-flash-latest',
+    name: 'Gemini Flash (Latest)',
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
+    tag: '🔄 Auto-Updated Flash',
+  },
+};
 
 /**
  * Build a rich, personal system prompt for the student
@@ -169,11 +212,15 @@ export default async function handler(req, res) {
     });
   }
 
-  const { message, chatHistory = [], studentContext = {} } = req.body || {};
+  const { message, chatHistory = [], studentContext = {}, model: requestedModel } = req.body || {};
 
   if (!message || !message.trim()) {
     return res.status(400).json({ error: 'message is required' });
   }
+
+  // Determine requested model or default to 3.8-flash
+  const activeModelKey = SUPPORTED_MODELS[requestedModel] ? requestedModel : 'gemini-3.8-flash';
+  let targetModel = SUPPORTED_MODELS[activeModelKey];
 
   try {
     const systemPrompt = buildSystemPrompt(studentContext);
@@ -218,11 +265,22 @@ export default async function handler(req, res) {
       ],
     };
 
-    const response = await fetch(`${GEMINI_API_BASE}?key=${GEMINI_API_KEY}`, {
+    let response = await fetch(`${targetModel.endpoint}?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody),
     });
+
+    // If selected model is not available or errors out (e.g. 404), fallback to gemini-2.5-flash
+    if (!response.ok && activeModelKey !== 'gemini-2.5-flash') {
+      console.warn(`[/api/gemini] Model ${activeModelKey} failed with status ${response.status}. Falling back to gemini-2.5-flash.`);
+      targetModel = SUPPORTED_MODELS['gemini-2.5-flash'];
+      response = await fetch(`${targetModel.endpoint}?key=${GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+    }
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
@@ -233,7 +291,11 @@ export default async function handler(req, res) {
     const data = await response.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not generate a response. Please try again.';
 
-    return res.status(200).json({ text, model: 'gemini-1.5-flash' });
+    return res.status(200).json({
+      text,
+      model: targetModel.id,
+      modelName: targetModel.name,
+    });
 
   } catch (err) {
     console.error('[/api/gemini] Unhandled error:', err);
