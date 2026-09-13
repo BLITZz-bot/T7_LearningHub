@@ -17,6 +17,7 @@ import { analyzeResumeLyzr } from '../../services/lyzrAgentService';
 import { getLatestAnalysis, getVideoLearning, getVideoLearningSkills } from '../../services/apiService';
 import { industryRoles } from '../../data/industrySkills';
 import YouTubeTrackerModal from './YouTubeTrackerModal';
+import T7AiMentor from './T7AiMentor';
 
 const Results = () => {
   const location = useLocation();
@@ -2662,6 +2663,44 @@ const Results = () => {
           refreshVideoLearning={loadVideoLearningData}
           t7Id={userProfile?.t7Id}
           userProfile={userProfile}
+        />
+
+        {/* ── T7 AI MENTOR ─────────────────────────────────────────────────
+             Floating AI chat available on EVERY tab.
+             Knows the student's full profile, ATS results, roadmap & YouTube data.
+             Powered by Google Gemini Flash via /api/gemini
+        ──────────────────────────────────────────────────────────────────── */}
+        <T7AiMentor
+          studentContext={{
+            // Identity
+            name: userProfile?.displayName || userProfile?.name || currentUser?.displayName || '',
+            branch: userProfile?.branch || analysis?.branch || '',
+            year: userProfile?.year || analysis?.year || '',
+            cgpa: userProfile?.cgpa || analysis?.cgpa || '',
+
+            // Career profile (from Lyzr Agent A)
+            targetRole: role?.role_name || analysis?.career_role || 'Software Developer',
+            readinessScore: readiness_score,
+            honestAssessment: honest_assessment,
+            finalOutcome: final_outcome,
+            matchedSkills: matched_skills,
+            missingSkills: missing_skills,
+            roadmap: learning_roadmap,
+            quickWins: quick_wins,
+
+            // ATS resume data (from Lyzr Agent B)
+            atsScore: ats_analysis?.ats_score ?? ats_analysis?.score ?? null,
+            atsSummary: typeof ats_analysis?.summary === 'string' ? ats_analysis.summary : null,
+            atsStrengths: ats_analysis?.strengths || [],
+            atsGaps: ats_analysis?.gaps || ats_analysis?.issues || [],
+            atsKeywordGaps: ats_analysis?.keyword_gaps || ats_analysis?.ats_keyword_gaps || [],
+            atsRewrites: ats_analysis?.rewrites || ats_analysis?.rewrite_suggestions || [],
+            resumeFileName: resume_meta?.file_name || null,
+
+            // YouTube learning
+            videoCount: videoLearning?.length || 0,
+            ytSkills: ytSkills || [],
+          }}
         />
       </main>
     </div>
