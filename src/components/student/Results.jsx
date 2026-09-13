@@ -32,6 +32,7 @@ const Results = () => {
   const [loadingVideos, setLoadingVideos] = useState(false);
   const [isYouTubeModalOpen, setIsYouTubeModalOpen] = useState(false);
   const [copiedT7, setCopiedT7] = useState(false);
+  const [copiedRewriteIndex, setCopiedRewriteIndex] = useState(null);
 
   const loadVideoLearningData = async () => {
     if (!currentUser?.uid && !userProfile?.t7Id) return;
@@ -1012,7 +1013,7 @@ const Results = () => {
               </div>
 
               {ats_analysis && (
-                <div className={`mt-4 rounded-2xl border p-4 ${getAtsTone(ats_analysis.score).bg} ${getAtsTone(ats_analysis.score).border}`}>
+                <div className={`mt-4 rounded-2xl border p-4 ${getAtsTone(typeof ats_analysis.score === 'object' ? ats_analysis.score?.score : ats_analysis.score).bg} ${getAtsTone(typeof ats_analysis.score === 'object' ? ats_analysis.score?.score : ats_analysis.score).border}`}>
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h4 className="font-semibold text-zinc-900 flex items-center gap-2">
@@ -1023,20 +1024,25 @@ const Results = () => {
                         {resume_meta?.file_name || 'Uploaded resume'} checked against {role?.role_name || analysis.career_role}
                       </p>
                     </div>
-                    <div className={`text-3xl font-black ${getAtsTone(ats_analysis.score).text}`}>
-                      {ats_analysis.score}%
+                    <div className={`text-3xl font-black ${getAtsTone(typeof ats_analysis.score === 'object' ? ats_analysis.score?.score : ats_analysis.score).text}`}>
+                      {typeof ats_analysis.score === 'object' ? (ats_analysis.score?.score ?? 0) : ats_analysis.score}%
                     </div>
                   </div>
-                  <p className="text-sm text-zinc-700 mt-3">{ats_analysis.summary}</p>
+                  <p className="text-sm text-zinc-700 mt-3">
+                    {typeof ats_analysis.summary === 'object' && ats_analysis.summary !== null ? JSON.stringify(ats_analysis.summary) : String(ats_analysis.summary || '')}
+                  </p>
                   {ats_analysis.keyword_gaps?.length > 0 && (
                     <div className="mt-3">
                       <p className="text-xs font-bold uppercase tracking-wide text-zinc-500 mb-2">Top keyword gaps</p>
                       <div className="flex flex-wrap gap-2">
-                        {ats_analysis.keyword_gaps.slice(0, 4).map((gap, index) => (
-                          <span key={index} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-zinc-700 border border-zinc-200">
-                            {gap}
-                          </span>
-                        ))}
+                        {ats_analysis.keyword_gaps.slice(0, 4).map((gap, index) => {
+                          const gapText = typeof gap === 'object' && gap !== null ? (gap.keyword || gap.name || gap.skill || JSON.stringify(gap)) : String(gap);
+                          return (
+                            <span key={index} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-zinc-700 border border-zinc-200">
+                              {gapText}
+                            </span>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -1813,23 +1819,28 @@ const Results = () => {
                           disabled={isParsingResume}
                         />
                       </label>
-                      <div className={`rounded-3xl px-8 py-6 text-center ${getAtsTone(ats_analysis.score).bg} ${getAtsTone(ats_analysis.score).border} border`}>
+                      <div className={`rounded-3xl px-8 py-6 text-center ${getAtsTone(typeof ats_analysis.score === 'object' ? ats_analysis.score?.score : ats_analysis.score).bg} ${getAtsTone(typeof ats_analysis.score === 'object' ? ats_analysis.score?.score : ats_analysis.score).border} border`}>
                         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-1">ATS Score</p>
-                        <p className={`text-5xl font-black ${getAtsTone(ats_analysis.score).text}`}>{ats_analysis.score}%</p>
+                        <p className={`text-5xl font-black ${getAtsTone(typeof ats_analysis.score === 'object' ? ats_analysis.score?.score : ats_analysis.score).text}`}>
+                          {typeof ats_analysis.score === 'object' ? (ats_analysis.score?.score ?? 0) : ats_analysis.score}%
+                        </p>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {Object.entries(ats_analysis.section_scores || {}).map(([key, value]) => (
-                    <div key={key} className="bg-white rounded-2xl p-5 shadow-lg border border-zinc-100">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                        {key.replace('_', ' ')}
-                      </p>
-                      <p className={`text-3xl font-black mt-2 ${getScoreColor(value)}`}>{value}%</p>
-                    </div>
-                  ))}
+                  {Object.entries(ats_analysis.section_scores || {}).map(([key, value]) => {
+                    const scoreVal = typeof value === 'object' && value !== null ? (value.score ?? value.value ?? 0) : Number(value) || 0;
+                    return (
+                      <div key={key} className="bg-white rounded-2xl p-5 shadow-lg border border-zinc-100">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                          {key.replace('_', ' ')}
+                        </p>
+                        <p className={`text-3xl font-black mt-2 ${getScoreColor(scoreVal)}`}>{scoreVal}%</p>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 <div className="grid lg:grid-cols-2 gap-6">
@@ -1839,12 +1850,17 @@ const Results = () => {
                       What is working
                     </h3>
                     <ul className="space-y-3">
-                      {(ats_analysis.strengths || []).map((item, index) => (
-                        <li key={index} className="flex items-start gap-3 text-zinc-700">
-                          <span className="text-emerald-500">•</span>
-                          {item}
-                        </li>
-                      ))}
+                      {(ats_analysis.strengths || []).map((item, index) => {
+                        const text = typeof item === 'object' && item !== null
+                          ? (item.point || item.title || item.strength || item.text || JSON.stringify(item))
+                          : String(item);
+                        return (
+                          <li key={index} className="flex items-start gap-3 text-zinc-700">
+                            <span className="text-emerald-500 mt-0.5">•</span>
+                            <span>{text}</span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
 
@@ -1854,12 +1870,22 @@ const Results = () => {
                       Fix next
                     </h3>
                     <ul className="space-y-3">
-                      {(ats_analysis.issues || []).map((item, index) => (
-                        <li key={index} className="flex items-start gap-3 text-zinc-700">
-                          <span className="text-amber-500">•</span>
-                          {item}
-                        </li>
-                      ))}
+                      {(ats_analysis.issues || []).map((item, index) => {
+                        const isObj = typeof item === 'object' && item !== null;
+                        const text = isObj
+                          ? (item.issue || item.description || item.point || item.title || item.text || JSON.stringify(item))
+                          : String(item);
+                        const why = isObj ? (item.why_it_matters || item.severity) : null;
+                        return (
+                          <li key={index} className="flex items-start gap-3 text-zinc-700">
+                            <span className="text-amber-500 mt-0.5">•</span>
+                            <div>
+                              <span>{text}</span>
+                              {why && <span className="text-xs text-zinc-500 block mt-0.5">{why}</span>}
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 </div>
@@ -1868,34 +1894,118 @@ const Results = () => {
                   <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100">
                     <h3 className="font-bold text-zinc-900 text-xl mb-4">Missing Keywords</h3>
                     <div className="flex flex-wrap gap-3">
-                      {(ats_analysis.keyword_gaps || []).map((keyword, index) => (
-                        <span key={index} className="px-4 py-2 bg-red-50 text-red-700 rounded-xl text-sm font-semibold border border-red-100">
-                          {keyword}
-                        </span>
-                      ))}
+                      {(ats_analysis.keyword_gaps || []).map((keyword, index) => {
+                        const kwText = typeof keyword === 'object' && keyword !== null
+                          ? (keyword.keyword || keyword.name || keyword.skill || JSON.stringify(keyword))
+                          : String(keyword);
+                        return (
+                          <span key={index} className="px-4 py-2 bg-red-50 text-red-700 rounded-xl text-sm font-semibold border border-red-100">
+                            {kwText}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
 
                   <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100">
                     <h3 className="font-bold text-zinc-900 text-xl mb-4">Suggested Keywords</h3>
                     <div className="flex flex-wrap gap-3">
-                      {(ats_analysis.suggested_keywords || []).map((keyword, index) => (
-                        <span key={index} className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-sm font-semibold border border-emerald-100">
-                          {keyword}
-                        </span>
-                      ))}
+                      {(ats_analysis.suggested_keywords || []).map((keyword, index) => {
+                        const kwText = typeof keyword === 'object' && keyword !== null
+                          ? (keyword.keyword || keyword.name || keyword.skill || JSON.stringify(keyword))
+                          : String(keyword);
+                        return (
+                          <span key={index} className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-sm font-semibold border border-emerald-100">
+                            {kwText}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
 
                 <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100">
-                  <h3 className="font-bold text-zinc-900 text-xl mb-4">Rewrite Suggestions</h3>
-                  <div className="space-y-3">
-                    {(ats_analysis.rewrite_suggestions || []).map((suggestion, index) => (
-                      <div key={index} className="rounded-xl border border-zinc-100 bg-zinc-50 p-4 text-zinc-700">
-                        {suggestion}
-                      </div>
-                    ))}
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <h3 className="font-bold text-zinc-900 text-xl flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-indigo-500" />
+                        Rewrite Suggestions
+                      </h3>
+                      <p className="text-xs text-zinc-500 mt-1">
+                        High-impact bullet points generated using the <strong>Action Verb + Context + Result</strong> formula.
+                      </p>
+                    </div>
+                    {(ats_analysis.rewrite_suggestions || ats_analysis.rewrites || []).length > 0 && (
+                      <span className="text-xs font-semibold px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100">
+                        {(ats_analysis.rewrite_suggestions || ats_analysis.rewrites || []).length} Suggestions
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-4">
+                    {(ats_analysis.rewrite_suggestions || ats_analysis.rewrites || []).map((suggestion, index) => {
+                      const isObject = typeof suggestion === 'object' && suggestion !== null;
+                      const originalText = isObject ? suggestion.original : null;
+                      const improvedText = isObject ? (suggestion.improved || suggestion.rewrite || suggestion.text) : String(suggestion);
+                      const reasonText = isObject ? suggestion.reason : null;
+
+                      return (
+                        <div key={index} className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-5 hover:border-indigo-200 hover:bg-white transition-all shadow-sm">
+                          {originalText && (
+                            <div className="mb-3">
+                              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-red-600 mb-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                                Original Resume Bullet
+                              </div>
+                              <p className="text-sm text-zinc-600 line-through bg-red-50/60 p-2.5 rounded-xl border border-red-100/80 font-mono">
+                                {originalText}
+                              </p>
+                            </div>
+                          )}
+
+                          <div>
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                ATS-Optimized Version
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(improvedText);
+                                  setCopiedRewriteIndex(index);
+                                  setTimeout(() => setCopiedRewriteIndex(null), 2000);
+                                }}
+                                className="flex items-center gap-1 text-xs font-semibold text-zinc-600 hover:text-emerald-700 bg-white px-2.5 py-1 rounded-lg border border-zinc-200 hover:border-emerald-300 transition-colors cursor-pointer"
+                                title="Copy to clipboard"
+                              >
+                                {copiedRewriteIndex === index ? (
+                                  <>
+                                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span className="text-emerald-600 font-medium">Copied!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3.5 h-3.5 text-zinc-500" />
+                                    <span>Copy Bullet</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                            <p className="text-sm font-semibold text-emerald-950 bg-emerald-50/80 p-3 rounded-xl border border-emerald-200/90">
+                              {improvedText}
+                            </p>
+                          </div>
+
+                          {reasonText && (
+                            <div className="mt-2.5 flex items-start gap-1.5 text-xs text-zinc-500">
+                              <Lightbulb className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+                              <span><strong className="text-zinc-700 font-medium">Recruiter / ATS insight:</strong> {reasonText}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -2147,7 +2257,7 @@ const Results = () => {
                 <ul className="space-y-3">
                   {resume_tips.map((tip, i) => (
                     <li key={i} className="flex items-start gap-3 text-zinc-700 text-base">
-                      <span className="text-blue-500">•</span> {tip}
+                      <span className="text-blue-500">•</span> {typeof tip === 'object' && tip !== null ? (tip.tip || tip.text || tip.suggestion || JSON.stringify(tip)) : String(tip)}
                     </li>
                   ))}
                 </ul>
@@ -2191,7 +2301,7 @@ const Results = () => {
                 <ul className="space-y-3">
                   {linkedin_tips.map((tip, i) => (
                     <li key={i} className="flex items-start gap-3 text-zinc-700 text-base">
-                      <span className="text-blue-600">•</span> {tip}
+                      <span className="text-blue-600">•</span> {typeof tip === 'object' && tip !== null ? (tip.tip || tip.text || tip.suggestion || JSON.stringify(tip)) : String(tip)}
                     </li>
                   ))}
                 </ul>
