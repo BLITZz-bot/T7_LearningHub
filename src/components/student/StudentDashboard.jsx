@@ -413,7 +413,7 @@ const StudentDashboard = () => {
             <span className={`font-bold text-lg ${darkMode ? 'text-white' : 'text-zinc-900'}`}>T7 Learning Hub</span>
           </div>
           
-          <div className="flex items-center gap-3 ml-auto">
+          <div className="flex items-center gap-3 ml-auto mr-14 sm:mr-16">
             {/* Dark Mode Toggle */}
             <button
               type="button"
@@ -524,6 +524,16 @@ const StudentDashboard = () => {
                 </div>
               )}
             </div>
+
+            {/* Direct Sign Out / Logout Button */}
+            <button
+              type="button"
+              onClick={logout}
+              title="Sign Out"
+              className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition-colors cursor-pointer"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </header>
