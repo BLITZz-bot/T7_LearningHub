@@ -321,6 +321,6 @@ npm run build
 ---
 
 <p align="center">
-  <strong>🏆 Developed at Nagarjuna College of Engineering and Technology</strong><br/>
+  <strong>🏆 Built at Nagarjuna College of Engineering and Technology Hackathon</strong><br/>
   <em>Empowering engineering students with industry-validated career readiness.</em>
 </p>
