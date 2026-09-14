@@ -25,11 +25,17 @@ test_gemini_api.js
 
 # Debug output text files
 *.txt
+!requirements.txt
+!**/requirements.txt
 available_models.txt
 full_models_list*.txt
 models_output.txt
 models_structure.txt
 
+# Supabase CLI temp
+supabase/.temp/
+
 # Build artifacts
 dist/
+
 
