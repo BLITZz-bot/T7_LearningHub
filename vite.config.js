@@ -4,6 +4,7 @@ import jobsHandler from './api/jobs.js'
 import lyzrHandler from './api/lyzr.js'
 import dbHandler from './api/db.js'
 import authHandler from './api/auth.js'
+import geminiHandler from './api/gemini.js'
 
 function apiDevMiddlewarePlugin(env) {
   return {
@@ -67,6 +68,11 @@ function apiDevMiddlewarePlugin(env) {
 
         if (urlObj.pathname === '/api/auth') {
           handleBodyRequest(authHandler);
+          return;
+        }
+
+        if (urlObj.pathname === '/api/gemini') {
+          handleBodyRequest(geminiHandler);
           return;
         }
 

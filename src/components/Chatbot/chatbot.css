@@ -26,10 +26,10 @@
 
 .sf-fab {
   position: fixed;
-  bottom: 2rem;
-  right: 2rem;
-  width: 60px;
-  height: 60px;
+  top: 38rem;
+  right: 1.25rem;
+  width: 46px;
+  height: 46px;
   border-radius: 9999px;
   background: var(--sf-primary);
   border: none;
@@ -37,13 +37,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 9998;
   color: white;
 }
 
-.sf-fab svg { width: 26px; height: 26px; }
+.sf-fab svg { width: 22px; height: 22px; }
 
 .sf-fab:hover {
   transform: scale(1.05) translateY(-2px);
@@ -52,13 +52,13 @@
 
 .sf-fab__badge {
   position: absolute;
-  top: -4px;
-  right: -4px;
+  top: -3px;
+  right: -1px;
   background: var(--sf-accent);
   color: white;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
-  padding: 2px 6px;
+  padding: 1px 5px;
   border-radius: 20px;
   letter-spacing: 0.5px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
@@ -66,10 +66,10 @@
 
 .sf-chatwindow {
   position: fixed;
-  bottom: 6.5rem;
-  right: 2rem;
+  top: 4.5rem;
+  right: 1.25rem;
   width: var(--sf-window-width);
-  height: var(--sf-window-height);
+  height: min(var(--sf-window-height), calc(100vh - 85px));
   background: var(--sf-bg);
   border-radius: var(--sf-radius);
   box-shadow: var(--sf-shadow);
@@ -80,7 +80,8 @@
   font-family: var(--sf-font);
   border: 1px solid var(--sf-border);
   opacity: 0;
-  transform: translateY(20px) scale(0.95);
+  transform: translateY(-10px) scale(0.95);
+  transform-origin: top right;
   pointer-events: none;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -202,6 +203,6 @@
 
 @media (max-width: 480px) {
   :root { --sf-window-width: 100vw; --sf-window-height: 100dvh; }
-  .sf-chatwindow { bottom: 0; right: 0; border-radius: 0; }
-  .sf-fab { bottom: 1rem; right: 1rem; }
+  .sf-chatwindow { top: 0; right: 0; border-radius: 0; height: 100dvh; }
+  .sf-fab { top: 0.75rem; right: 0.75rem; width: 40px; height: 40px; }
 }
