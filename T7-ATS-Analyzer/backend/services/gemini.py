@@ -19,17 +19,21 @@ from config import get_env
 
 _client: genai.Client | None = None
 
-# ── Model constants (per implementation plan) ────────────────────────────────
-DEFAULT_GENERATION_MODEL = "gemini-3.8-flash"
+# ── Model constants ──────────────────────────────────────────────────────────
+DEFAULT_GENERATION_MODEL = "gemini-3.6-flash"
+FALLBACK_MODELS = [
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.1-flash-lite",
+]
 GENERATION_MODELS = {
-    "gemini-3.8-flash": "Gemini 3.8 Flash — Recommended",
+    "gemini-3.6-flash": "Gemini 3.6 Flash — Default (Balanced)",
+    "gemini-3.5-flash": "Gemini 3.5 Flash — Stable Fallback",
+    "gemini-3.1-flash-lite": "Gemini 3.1 Flash Lite — Fast & High Quota",
     "gemini-3.7-flash": "Gemini 3.7 Flash",
-    "gemini-3.6-flash": "Gemini 3.6 Flash",
-    "gemini-3.5-flash": "Gemini 3.5 Flash",
-    "gemini-3.1-flash-lite": "Gemini 3.1 Flash Lite — Lowest cost",
+    "gemini-3.8-flash": "Gemini 3.8 Flash (High Demand)",
     "gemini-2.5-flash": "Gemini 2.5 Flash",
-    "gemini-2.5-pro": "Gemini 2.5 Pro",
-    "gemini-3.1-pro-preview": "Gemini 3.1 Pro Preview",
+    "gemini-3.1-pro-preview": "Gemini 3.1 Pro Preview (Paid Tier)",
 }
 MODEL_EMBED    = "gemini-embedding-001"     # embeddings — always free
 EMBED_DIMS     = 768
@@ -182,21 +186,38 @@ def _generate_json(
     model: str | None = None,
 ) -> dict:
     """
-    Call gemini-3.1-pro-preview with structured JSON output.
+    Call Gemini with structured JSON output, with automatic fallback across models.
+    Tries requested model -> gemini-3.6-flash -> gemini-3.5-flash -> gemini-3.1-flash-lite.
     """
     client = _get_client()
     if retry_delay > 0:
         time.sleep(retry_delay)
-    response = client.models.generate_content(
-        model=_resolve_model(model),
-        contents=contents,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=schema,
-            temperature=temperature,
-        ),
-    )
-    return json.loads(response.text)
+
+    primary = _resolve_model(model)
+    candidates = [primary]
+    for fb in FALLBACK_MODELS:
+        if fb not in candidates:
+            candidates.append(fb)
+
+    last_error = None
+    for candidate in candidates:
+        try:
+            response = client.models.generate_content(
+                model=candidate,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=schema,
+                    temperature=temperature,
+                ),
+            )
+            return json.loads(response.text)
+        except Exception as e:
+            last_error = e
+            print(f"[gemini] Model '{candidate}' failed: {e}. Attempting fallback...")
+            continue
+
+    raise last_error
 
 
 # ── Public API functions ──────────────────────────────────────────────────────

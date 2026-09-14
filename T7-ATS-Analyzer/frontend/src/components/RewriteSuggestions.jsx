@@ -85,9 +85,9 @@ export default function RewriteSuggestions({ rewrites, onRequestRewrites, isLoad
     <div className="glass-card" style={{ padding: 28, marginBottom: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>✍️ Bullet Rewrites</h3>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            Hallucination-guarded — uses <code style={{ background: 'rgba(255,255,255,0.07)', padding: '1px 6px', borderRadius: 4 }}>[ADD: metric]</code> placeholders instead of fabricating numbers
+          <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4, color: '#ffffff' }}>✍️ Bullet Rewrites</h3>
+          <p style={{ fontSize: 13, color: '#94a3b8' }}>
+            Hallucination-guarded — uses <code style={{ background: 'rgba(255,255,255,0.07)', padding: '1px 6px', borderRadius: 4, color: '#cbd5e1' }}>[ADD: metric]</code> placeholders instead of fabricating numbers
           </p>
         </div>
         {!rewrites?.length && (

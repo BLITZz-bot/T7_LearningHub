@@ -92,14 +92,14 @@ export default function ScoreCards({ scores }) {
           >
             <ScoreRing score={val} color={cfg.color} size={110} />
             <div>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 4 }}>{cfg.icon} {cfg.label}</p>
+              <p style={{ fontSize: 14, fontWeight: 600, color: '#ffffff', marginBottom: 6 }}>{cfg.icon} {cfg.label}</p>
               <span style={{
                 fontSize: 11, fontWeight: 600, color: bandColor,
-                background: bandColor + '18', padding: '2px 10px',
+                background: bandColor + '18', padding: '3px 12px',
                 borderRadius: 99, letterSpacing: 0.5,
               }}>{band}</span>
             </div>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.4 }}>{cfg.desc}</p>
+            <p style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.4 }}>{cfg.desc}</p>
           </div>
         );
       })}

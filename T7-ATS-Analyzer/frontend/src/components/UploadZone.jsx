@@ -11,20 +11,19 @@ const ALL_ROLES = [
 ];
 
 const MODELS = [
-  ['gemini-3.8-flash', 'Gemini 3.8 Flash — Recommended'],
-  ['gemini-3.7-flash', 'Gemini 3.7 Flash'],
-  ['gemini-3.6-flash', 'Gemini 3.6 Flash'],
+  ['gemini-3.1-flash-lite', 'Gemini 3.1 Flash Lite (Default / Fastest)'],
   ['gemini-3.5-flash', 'Gemini 3.5 Flash'],
-  ['gemini-3.1-flash-lite', 'Gemini 3.1 Flash Lite — Lowest cost'],
-  ['gemini-2.5-flash', 'Gemini 2.5 Flash'],
-  ['gemini-2.5-pro', 'Gemini 2.5 Pro'],
-  ['gemini-3.1-pro-preview', 'Gemini 3.1 Pro Preview'],
+  ['gemini-3.6-flash', 'Gemini 3.6 Flash'],
+  ['gemini-3.7-flash', 'Gemini 3.7 Flash'],
+  ['gemini-3.8-flash', 'Gemini 3.8 Flash'],
+  ['gemini-3.1-pro-preview', 'Gemini 3.1 Pro Preview (Paid Tier)'],
 ];
 
 export default function UploadZone({ onUpload, isLoading }) {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedRole, setSelectedRole] = useState('Software Developer');
-  const [selectedModel, setSelectedModel] = useState('gemini-3.8-flash');
+  const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite');
+  const [selectedFile, setSelectedFile] = useState(null);
   const [fileName, setFileName] = useState(null);
   const [loadingSeconds, setLoadingSeconds] = useState(0);
 
@@ -43,79 +42,95 @@ export default function UploadZone({ onUpload, isLoading }) {
     };
   }, [isLoading]);
 
-  const handleFile = useCallback((file) => {
+  const handleFileSelect = useCallback((file) => {
     if (!file) return;
+    setSelectedFile(file);
     setFileName(file.name);
-    onUpload(file, selectedRole, selectedModel);
-  }, [onUpload, selectedRole, selectedModel]);
+  }, []);
 
   const handleDrop = useCallback((e) => {
     e.preventDefault();
     setIsDragging(false);
-    handleFile(e.dataTransfer.files[0]);
-  }, [handleFile]);
+    handleFileSelect(e.dataTransfer.files[0]);
+  }, [handleFileSelect]);
+
+  const handleAnalyze = () => {
+    if (!selectedFile || isLoading) return;
+    onUpload(selectedFile, selectedRole, selectedModel);
+  };
 
   return (
     <div style={{ maxWidth: 680, margin: '0 auto' }}>
       {/* Role selector */}
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>
+        <label style={{ display: 'block', fontSize: 13, color: '#cbd5e1', marginBottom: 8, fontWeight: 500 }}>
           Target Role
         </label>
         <select
           value={selectedRole}
+          disabled={isLoading}
           onChange={e => setSelectedRole(e.target.value)}
           style={{
             width: '100%', padding: '12px 16px',
-            background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-md)', color: 'var(--text-primary)',
-            fontSize: 15, outline: 'none', cursor: 'pointer',
+            background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)', color: '#ffffff',
+            fontSize: 15, outline: 'none', cursor: isLoading ? 'not-allowed' : 'pointer',
             fontFamily: 'inherit',
           }}
         >
-          <option value="Software Developer">Software Developer</option>
-          {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+          <option value="Software Developer" style={{ background: '#12121e', color: '#ffffff' }}>Software Developer</option>
+          {ALL_ROLES.map(r => (
+            <option key={r} value={r} style={{ background: '#12121e', color: '#ffffff' }}>
+              {r}
+            </option>
+          ))}
         </select>
       </div>
 
+      {/* Model selector */}
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>
+        <label style={{ display: 'block', fontSize: 13, color: '#cbd5e1', marginBottom: 8, fontWeight: 500 }}>
           Gemini Model
         </label>
         <select
           value={selectedModel}
+          disabled={isLoading}
           onChange={e => setSelectedModel(e.target.value)}
           style={{
-            width: '100%', padding: '12px 16px', background: 'rgba(255,255,255,0.04)',
+            width: '100%', padding: '12px 16px', background: 'rgba(255,255,255,0.06)',
             border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
-            color: 'var(--text-primary)', fontSize: 15, outline: 'none', cursor: 'pointer', fontFamily: 'inherit',
+            color: '#ffffff', fontSize: 15, outline: 'none', cursor: isLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
           }}
         >
-          {MODELS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+          {MODELS.map(([id, label]) => (
+            <option key={id} value={id} style={{ background: '#12121e', color: '#ffffff', padding: '8px' }}>
+              {label}
+            </option>
+          ))}
         </select>
-        <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 6 }}>
-          Flash models are recommended for standard resume analysis.
+        <p style={{ color: '#94a3b8', fontSize: 12, marginTop: 6 }}>
+          Flash models are recommended for fast, high-accuracy resume analysis.
         </p>
         {selectedModel.includes('pro') && (
           <p style={{ color: '#f59e42', fontSize: 12, marginTop: 6 }}>
-            Subscribe to pro model
+            Note: Pro preview requires a paid tier billing project on Google AI Studio.
           </p>
         )}
       </div>
 
       {/* Drop zone */}
       <div
-        onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+        onDragOver={e => { e.preventDefault(); if (!isLoading) setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
-        onClick={() => document.getElementById('resume-file-input').click()}
+        onClick={() => { if (!isLoading) document.getElementById('resume-file-input').click(); }}
         style={{
-          border: `2px dashed ${isDragging ? 'var(--accent-blue)' : 'rgba(255,255,255,0.12)'}`,
+          border: `2px dashed ${selectedFile ? 'var(--accent-blue)' : isDragging ? 'var(--accent-blue)' : 'rgba(255,255,255,0.14)'}`,
           borderRadius: 'var(--radius-xl)',
-          padding: '52px 32px',
+          padding: '44px 32px',
           textAlign: 'center',
-          cursor: 'pointer',
-          background: isDragging ? 'rgba(91,141,238,0.06)' : 'rgba(255,255,255,0.02)',
+          cursor: isLoading ? 'not-allowed' : 'pointer',
+          background: isDragging ? 'rgba(91,141,238,0.08)' : selectedFile ? 'rgba(91,141,238,0.04)' : 'rgba(255,255,255,0.02)',
           transition: 'all 0.25s ease',
           position: 'relative',
           overflow: 'hidden',
@@ -149,7 +164,7 @@ export default function UploadZone({ onUpload, isLoading }) {
                   ? 'Evaluating with Gemini & computing ATS score…'
                   : 'Cloud server is waking up — almost ready…'}
               </p>
-              <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+              <p style={{ color: '#94a3b8', fontSize: 13 }}>
                 {loadingSeconds >= 14
                   ? 'Render free tier takes ~20–30s on first request after sleep. Hold tight!'
                   : 'Structural parsing · Skill taxonomy match · Dual-layer scoring'}
@@ -158,12 +173,14 @@ export default function UploadZone({ onUpload, isLoading }) {
           </div>
         ) : (
           <>
-            <div style={{ fontSize: 48, marginBottom: 12, filter: 'grayscale(0.3)' }}>📄</div>
-            <p style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>
-              {fileName ? `✅ ${fileName}` : 'Drop your resume here'}
+            <div style={{ fontSize: 44, marginBottom: 12 }}>
+              {selectedFile ? '📄' : '📤'}
+            </div>
+            <p style={{ fontSize: 17, fontWeight: 600, color: '#ffffff', marginBottom: 6 }}>
+              {fileName ? `✅ ${fileName}` : 'Drop your resume here or click to browse'}
             </p>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-              PDF or DOCX · Max 10MB · Click to browse
+            <p style={{ color: '#94a3b8', fontSize: 13 }}>
+              {selectedFile ? 'Click anytime to choose a different file' : 'PDF or DOCX · Max 10MB'}
             </p>
           </>
         )}
@@ -174,8 +191,67 @@ export default function UploadZone({ onUpload, isLoading }) {
         type="file"
         accept=".pdf,.docx,.doc"
         style={{ display: 'none' }}
-        onChange={e => handleFile(e.target.files?.[0])}
+        onChange={e => handleFileSelect(e.target.files?.[0])}
       />
+
+      {/* Analyze Resume Button */}
+      <div style={{ marginTop: 20 }}>
+        <button
+          onClick={handleAnalyze}
+          disabled={!selectedFile || isLoading}
+          style={{
+            width: '100%',
+            padding: '16px 28px',
+            borderRadius: 'var(--radius-md)',
+            fontSize: 16,
+            fontWeight: 700,
+            fontFamily: 'inherit',
+            letterSpacing: '0.3px',
+            cursor: !selectedFile || isLoading ? 'not-allowed' : 'pointer',
+            opacity: !selectedFile ? 0.5 : 1,
+            background: isLoading
+              ? 'linear-gradient(135deg, rgba(91,141,238,0.5), rgba(139,92,246,0.5))'
+              : selectedFile
+              ? 'linear-gradient(135deg, #5b8dee 0%, #8b5cf6 100%)'
+              : 'rgba(255,255,255,0.06)',
+            border: selectedFile && !isLoading ? '1px solid rgba(255,255,255,0.2)' : '1px solid var(--border)',
+            color: '#ffffff',
+            boxShadow: selectedFile && !isLoading ? '0 6px 24px rgba(91,141,238,0.35)' : 'none',
+            transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 12,
+          }}
+        >
+          {isLoading ? (
+            <>
+              <div
+                style={{
+                  width: 20,
+                  height: 20,
+                  border: '2.5px solid rgba(255,255,255,0.3)',
+                  borderTop: '2.5px solid #ffffff',
+                  borderRadius: '50%',
+                  animation: 'spin 0.8s linear infinite',
+                }}
+              />
+              <span>Analyzing Resume… ({loadingSeconds}s)</span>
+            </>
+          ) : (
+            <>
+              <span style={{ fontSize: 18 }}>⚡</span>
+              <span>Analyze Resume</span>
+              {fileName && <span style={{ fontSize: 13, opacity: 0.85, fontWeight: 500 }}>({fileName})</span>}
+            </>
+          )}
+        </button>
+        {!selectedFile && (
+          <p style={{ color: '#94a3b8', fontSize: 12, marginTop: 8, textAlign: 'center' }}>
+            Select or drag a resume file above to enable analysis
+          </p>
+        )}
+      </div>
     </div>
   );
 }

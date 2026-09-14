@@ -64,3 +64,8 @@ CREATE INDEX IF NOT EXISTS t7_job_postings_role_idx ON public.t7_job_postings(ro
 CREATE INDEX IF NOT EXISTS t7_job_postings_proc_idx ON public.t7_job_postings(skills_processed);
 CREATE INDEX IF NOT EXISTS t7_taxonomy_role_status_idx
   ON public.t7_skill_taxonomy(role_category, status);
+
+-- Allows each resume analysis to retain the model selected at upload time.
+ALTER TABLE IF EXISTS public.t7_resumes
+  ADD COLUMN IF NOT EXISTS generation_model TEXT;
+
