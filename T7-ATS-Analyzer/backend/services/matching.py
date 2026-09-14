@@ -94,6 +94,7 @@ def jd_overlay_match(
     resume_id: str,
     jd_text: str,
     resume_skills: list[str],
+    model: str | None = None,
 ) -> dict:
     """
     Extract skills from a pasted JD, then compare against resume skills.
@@ -102,7 +103,7 @@ def jd_overlay_match(
     sb = get_supabase()
 
     # Extract skills from JD
-    jd_parsed = extract_skills_from_jd(jd_text)
+    jd_parsed = extract_skills_from_jd(jd_text, model=model)
     required = jd_parsed.get("required_skills", [])
     nice = jd_parsed.get("nice_to_have_skills", [])
     all_jd_skills = list(dict.fromkeys(required + nice))  # deduped, order preserved

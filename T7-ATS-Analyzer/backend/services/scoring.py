@@ -50,7 +50,7 @@ def mechanical_score(file_type: str, raw_text: str, parsed: dict) -> dict:
     }
 
 
-def content_score(resume_json: dict, target_role: str = "") -> dict:
+def content_score(resume_json: dict, target_role: str = "", model: str | None = None) -> dict:
     """
     One Gemini call to evaluate content quality:
     - Impact & quantification of bullets
@@ -58,7 +58,7 @@ def content_score(resume_json: dict, target_role: str = "") -> dict:
     Returns quantification_score (0-100), formatting_score (0-100),
     weak_bullets list, and seniority notes.
     """
-    result = gemini_score_content(resume_json, target_role)
+    result = gemini_score_content(resume_json, target_role, model)
     return {
         "quantification_score": result.get("quantification_score", 50),
         "formatting_score": result.get("formatting_score", 50),

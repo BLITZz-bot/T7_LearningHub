@@ -14,7 +14,7 @@ export default function Analyzer() {
   const [jdMatch, setJdMatch] = useState(null);
   const [showJDModal, setShowJDModal] = useState(false);
 
-  const handleUpload = async (file, role) => {
+  const handleUpload = async (file, role, model) => {
     setIsLoading(true);
     setError('');
     setResult(null);
@@ -25,6 +25,7 @@ export default function Analyzer() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('role', role);
+      formData.append('model', model);
       formData.append('user_id', 'anonymous');
 
       const res = await fetch('/api/resumes/upload', { method: 'POST', body: formData });

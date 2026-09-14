@@ -20,7 +20,17 @@ from config import get_env
 _client: genai.Client | None = None
 
 # ── Model constants (per implementation plan) ────────────────────────────────
-MODEL_PRIMARY = "gemini-3.1-pro-preview"
+DEFAULT_GENERATION_MODEL = "gemini-3.8-flash"
+GENERATION_MODELS = {
+    "gemini-3.8-flash": "Gemini 3.8 Flash — Recommended",
+    "gemini-3.7-flash": "Gemini 3.7 Flash",
+    "gemini-3.6-flash": "Gemini 3.6 Flash",
+    "gemini-3.5-flash": "Gemini 3.5 Flash",
+    "gemini-3.1-flash-lite": "Gemini 3.1 Flash Lite — Lowest cost",
+    "gemini-2.5-flash": "Gemini 2.5 Flash",
+    "gemini-2.5-pro": "Gemini 2.5 Pro",
+    "gemini-3.1-pro-preview": "Gemini 3.1 Pro Preview",
+}
 MODEL_EMBED    = "gemini-embedding-001"     # embeddings — always free
 EMBED_DIMS     = 768
 
@@ -135,6 +145,33 @@ def _get_client() -> genai.Client:
     return _client
 
 
+def get_available_models() -> list[dict[str, str]]:
+    return [{"id": model, "label": label} for model, label in GENERATION_MODELS.items()]
+
+
+def _resolve_model(model: str | None) -> str:
+    selected = model or DEFAULT_GENERATION_MODEL
+    if selected not in GENERATION_MODELS:
+        raise ValueError("Unsupported Gemini model selected")
+    return selected
+
+
+def model_access_error_message(exc: Exception, model: str | None) -> str:
+    """Turn Gemini quota failures into an actionable, non-sensitive message."""
+    message = str(exc).lower()
+    selected = _resolve_model(model)
+    if "429" in message or "resource_exhausted" in message or "quota" in message:
+        if "pro" in selected:
+            return (
+                "Subscribe to pro model"
+            )
+        return (
+            f"{GENERATION_MODELS[selected]} is currently unavailable. "
+            "Please choose another Flash model or try again later."
+        )
+    return f"Gemini request failed using {GENERATION_MODELS[selected]}. Please try again."
+
+
 # ── Core JSON generation with auto-fallback ───────────────────────────────────
 
 def _generate_json(
@@ -142,6 +179,7 @@ def _generate_json(
     schema: dict,
     temperature: float = 0.1,
     retry_delay: float = 0.0,
+    model: str | None = None,
 ) -> dict:
     """
     Call gemini-3.1-pro-preview with structured JSON output.
@@ -150,7 +188,7 @@ def _generate_json(
     if retry_delay > 0:
         time.sleep(retry_delay)
     response = client.models.generate_content(
-        model=MODEL_PRIMARY,
+        model=_resolve_model(model),
         contents=contents,
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
@@ -163,7 +201,7 @@ def _generate_json(
 
 # ── Public API functions ──────────────────────────────────────────────────────
 
-def parse_resume(raw_text: str) -> dict:
+def parse_resume(raw_text: str, model: str | None = None) -> dict:
     """Extract structured resume data from raw text using Gemini JSON schema."""
     return _generate_json(
         contents=(
@@ -174,6 +212,7 @@ def parse_resume(raw_text: str) -> dict:
         ),
         schema=RESUME_SCHEMA,
         temperature=0.1,
+        model=model,
     )
 
 
@@ -188,7 +227,7 @@ def embed_text(text: str) -> list[float]:
     return result.embeddings[0].values
 
 
-def score_content(resume_json: dict, target_role: str = "") -> dict:
+def score_content(resume_json: dict, target_role: str = "", model: str | None = None) -> dict:
     """Content scoring: quantification, weak bullets, formatting. One Gemini call."""
     role_ctx = f" The target role is: {target_role}." if target_role else ""
     return _generate_json(
@@ -201,10 +240,11 @@ def score_content(resume_json: dict, target_role: str = "") -> dict:
         ),
         schema=CONTENT_SCORE_SCHEMA,
         temperature=0.2,
+        model=model,
     )
 
 
-def rewrite_bullet(bullet: str, role_context: str) -> dict:
+def rewrite_bullet(bullet: str, role_context: str, model: str | None = None) -> dict:
     """
     Hallucination-guarded bullet rewrite.
     NEVER invents metrics — uses [ADD: metric] placeholder instead.
@@ -223,10 +263,11 @@ def rewrite_bullet(bullet: str, role_context: str) -> dict:
         contents=prompt,
         schema=REWRITE_SCHEMA,
         temperature=0.3,
+        model=model,
     )
 
 
-def extract_skills_from_jd(jd_text: str) -> dict:
+def extract_skills_from_jd(jd_text: str, model: str | None = None) -> dict:
     """Extract required and nice-to-have skills from a job description."""
     return _generate_json(
         contents=(
@@ -236,12 +277,13 @@ def extract_skills_from_jd(jd_text: str) -> dict:
         ),
         schema=JD_SKILLS_SCHEMA,
         temperature=0.1,
+        model=model,
     )
 
 
-def extract_skills_from_posting(jd_text: str) -> list[str]:
+def extract_skills_from_posting(jd_text: str, model: str | None = None) -> list[str]:
     """Extract a flat, deduplicated skill list from a job posting (for taxonomy mining)."""
-    result = extract_skills_from_jd(jd_text)
+    result = extract_skills_from_jd(jd_text, model=model)
     skills = result.get("required_skills", []) + result.get("nice_to_have_skills", [])
     seen: set[str] = set()
     normalized: list[str] = []

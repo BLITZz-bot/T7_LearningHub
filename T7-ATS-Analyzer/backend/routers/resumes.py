@@ -8,11 +8,17 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import JSONResponse
 from db.client import get_supabase
 from services.parser import extract_text
-from services.gemini import parse_resume, embed_text, rewrite_bullet
+from services.gemini import (DEFAULT_GENERATION_MODEL, embed_text, get_available_models,
+                             model_access_error_message, parse_resume, rewrite_bullet)
 from services.scoring import mechanical_score, content_score, build_score_summary
 from services.matching import baseline_match, jd_overlay_match
 
 router = APIRouter()
+
+
+@router.get("/models")
+async def list_models():
+    return JSONResponse({"default": DEFAULT_GENERATION_MODEL, "models": get_available_models()})
 
 
 @router.post("/upload")
@@ -20,6 +26,7 @@ async def upload_resume(
     file: UploadFile = File(...),
     role: str = Form(default="Software Developer"),
     user_id: str = Form(default="anonymous"),
+    model: str = Form(default=DEFAULT_GENERATION_MODEL),
 ):
     """
     POST /resumes/upload
@@ -45,34 +52,43 @@ async def upload_resume(
 
     # 2. Parse with Gemini
     try:
-        parsed = parse_resume(raw_text)
+        parsed = parse_resume(raw_text, model=model)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Gemini parse error: {e}")
+        raise HTTPException(status_code=429, detail=model_access_error_message(e, model))
 
     # 3. Mechanical score (instant)
     mech = mechanical_score(file_type, raw_text, parsed)
 
     # 4. Content score (one Gemini call)
     try:
-        cont = content_score(parsed, role)
+        cont = content_score(parsed, role, model=model)
     except Exception as e:
-        cont = {"quantification_score": 50, "formatting_score": 50, "weak_bullets": [], "formatting_issues": [], "seniority_notes": str(e)}
+        cont = {"quantification_score": 50, "formatting_score": 50, "weak_bullets": [], "formatting_issues": [], "seniority_notes": model_access_error_message(e, model)}
 
     # 5. Store resume in Supabase
     sb = get_supabase()
     resume_id = str(uuid.uuid4())
+    insert_data = {
+        "id": resume_id,
+        "user_id": user_id,
+        "raw_text": raw_text[:20000],
+        "parsed_json": parsed,
+        "file_name": file.filename,
+        "file_type": file_type,
+        "target_role": role,
+        "generation_model": model,
+    }
     try:
-        sb.table("t7_resumes").insert({
-            "id": resume_id,
-            "user_id": user_id,
-            "raw_text": raw_text[:20000],
-            "parsed_json": parsed,
-            "file_name": file.filename,
-            "file_type": file_type,
-            "target_role": role,
-        }).execute()
+        sb.table("t7_resumes").insert(insert_data).execute()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"DB error: {e}")
+        if "generation_model" in str(e):
+            insert_data.pop("generation_model", None)
+            try:
+                sb.table("t7_resumes").insert(insert_data).execute()
+            except Exception as e2:
+                raise HTTPException(status_code=500, detail=f"We could not save this resume: {str(e2)}")
+        else:
+            raise HTTPException(status_code=500, detail=f"We could not save this resume: {str(e)}")
 
     # 6. Embed and store skills
     skills = parsed.get("skills", [])
@@ -138,9 +154,9 @@ async def match_resume(resume_id: str, request: Request):
 
     # Load resume
     try:
-        r = sb.table("t7_resumes").select("target_role, parsed_json").eq("id", resume_id).maybe_single().execute()
+        r = sb.table("t7_resumes").select("target_role, parsed_json, generation_model").eq("id", resume_id).maybe_single().execute()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"DB error: {e}")
+        raise HTTPException(status_code=500, detail="We could not load this resume. Please try again.")
 
     if not r.data:
         raise HTTPException(status_code=404, detail="Resume not found")
@@ -156,7 +172,7 @@ async def match_resume(resume_id: str, request: Request):
         results["taxonomy"] = baseline_match(resume_id, role, skills)
 
     if jd_text.strip():
-        results["jd_overlay"] = jd_overlay_match(resume_id, jd_text, skills)
+        results["jd_overlay"] = jd_overlay_match(resume_id, jd_text, skills, resume.get("generation_model"))
 
     return JSONResponse(results)
 
@@ -189,8 +205,9 @@ async def rewrite_resume_bullets(resume_id: str):
         return JSONResponse({"rewrites": [], "message": "No weak bullets to rewrite"})
 
     # Get target role
-    res_r = sb.table("t7_resumes").select("target_role").eq("id", resume_id).maybe_single().execute()
+    res_r = sb.table("t7_resumes").select("target_role, generation_model").eq("id", resume_id).maybe_single().execute()
     role = (res_r.data or {}).get("target_role", "Software Developer")
+    model = (res_r.data or {}).get("generation_model", DEFAULT_GENERATION_MODEL)
 
     rewrites = []
     for item in weak_bullets[:10]:  # cap at 10 rewrites per call
@@ -199,7 +216,7 @@ async def rewrite_resume_bullets(resume_id: str):
         if not bullet:
             continue
         try:
-            rw = rewrite_bullet(bullet, role)
+            rw = rewrite_bullet(bullet, role, model=model)
             rewrites.append(rw)
             # Persist
             sb.table("t7_rewrites").insert({
@@ -210,7 +227,7 @@ async def rewrite_resume_bullets(resume_id: str):
                 "rewritten_bullet": rw.get("rewritten", ""),
                 "reasoning": rw.get("reasoning", ""),
             }).execute()
-        except Exception as e:
-            rewrites.append({"original": bullet, "issue": issue, "error": str(e)})
+        except Exception:
+            rewrites.append({"original": bullet, "issue": issue, "error": "Unable to generate this suggestion. Please try again."})
 
     return JSONResponse({"rewrites": rewrites, "count": len(rewrites)})
