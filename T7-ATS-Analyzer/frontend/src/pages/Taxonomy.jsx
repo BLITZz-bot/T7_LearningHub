@@ -1,12 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 const TAXONOMY_MODELS = [
-  ['gemini-3.6-flash', 'Gemini 3.6 Flash (Default)'],
-  ['gemini-3.5-flash', 'Gemini 3.5 Flash'],
   ['gemini-3.1-flash-lite', 'Gemini 3.1 Flash Lite'],
+  ['gemini-3.5-flash', 'Gemini 3.5 Flash'],
+  ['gemini-3.6-flash', 'Gemini 3.6 Flash (Default)'],
   ['gemini-3.7-flash', 'Gemini 3.7 Flash'],
   ['gemini-3.8-flash', 'Gemini 3.8 Flash'],
-  ['gemini-2.5-flash', 'Gemini 2.5 Flash'],
 ];
 
 export default function Taxonomy() {
@@ -14,15 +13,61 @@ export default function Taxonomy() {
   const [selectedRole, setSelectedRole] = useState('');
   const [skills, setSkills] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [bootstrapStatus, setBootstrapStatus] = useState(null);
   const [selectedModel, setSelectedModel] = useState('gemini-3.6-flash');
 
-  useEffect(() => {
-    fetch('/api/taxonomy/')
-      .then(r => r.json())
-      .then(d => setRoles(d.roles || []))
-      .catch(() => {});
+  const fetchRoles = useCallback(async () => {
+    try {
+      const r = await fetch('/api/taxonomy/');
+      const d = await r.json();
+      setRoles(d.roles || []);
+    } catch {
+      // ignore
+    }
   }, []);
+
+  const checkBootstrapStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/taxonomy/bootstrap/status');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.running) {
+        setIsBootstrapping(true);
+        setBootstrapStatus(`⏳ Bootstrap in progress using ${data.model || 'Gemini'}…`);
+      } else if (data.done) {
+        setIsBootstrapping(false);
+        if (data.error) {
+          setBootstrapStatus(`⚠ Bootstrap error: ${data.error}`);
+        } else if (data.result) {
+          const count = data.result.skills_promoted || data.result.skills_extracted || 0;
+          setBootstrapStatus(`✅ Bootstrap complete! (${count} skills processed)`);
+          fetchRoles();
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [fetchRoles]);
+
+  // Check on mount (persists across tab switches)
+  useEffect(() => {
+    fetchRoles();
+    checkBootstrapStatus();
+  }, [fetchRoles, checkBootstrapStatus]);
+
+  // Polling while active
+  useEffect(() => {
+    let interval;
+    if (isBootstrapping) {
+      interval = setInterval(() => {
+        checkBootstrapStatus();
+      }, 4000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isBootstrapping, checkBootstrapStatus]);
 
   const loadSkills = async (role) => {
     setSelectedRole(role);
@@ -36,14 +81,18 @@ export default function Taxonomy() {
   };
 
   const triggerBootstrap = async () => {
-    setBootstrapStatus(`Starting with ${selectedModel}…`);
+    if (isBootstrapping) return;
+    setIsBootstrapping(true);
+    setBootstrapStatus(`Starting bootstrap with ${selectedModel}…`);
     try {
       const r = await fetch(`/api/admin/taxonomy/bootstrap?model=${encodeURIComponent(selectedModel)}`, {
         method: 'POST',
       });
       const d = await r.json();
-      setBootstrapStatus(d.message || 'Started');
+      setBootstrapStatus(d.message || `Bootstrap started using ${selectedModel}.`);
+      checkBootstrapStatus();
     } catch (e) {
+      setIsBootstrapping(false);
       setBootstrapStatus(`Error: ${e.message}`);
     }
   };
@@ -65,12 +114,13 @@ export default function Taxonomy() {
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           {bootstrapStatus && (
-            <span style={{ fontSize: 12, color: '#10d98f', background: 'rgba(16,217,143,0.1)', padding: '4px 12px', borderRadius: 99 }}>
+            <span style={{ fontSize: 12, color: '#10d98f', background: 'rgba(16,217,143,0.1)', padding: '5px 14px', borderRadius: 99 }}>
               {bootstrapStatus}
             </span>
           )}
           <select
             value={selectedModel}
+            disabled={isBootstrapping}
             onChange={e => setSelectedModel(e.target.value)}
             style={{
               padding: '8px 12px',
@@ -80,7 +130,8 @@ export default function Taxonomy() {
               color: '#ffffff',
               fontSize: 13,
               outline: 'none',
-              cursor: 'pointer',
+              cursor: isBootstrapping ? 'not-allowed' : 'pointer',
+              opacity: isBootstrapping ? 0.6 : 1,
             }}
           >
             {TAXONOMY_MODELS.map(([mId, label]) => (
@@ -89,12 +140,43 @@ export default function Taxonomy() {
               </option>
             ))}
           </select>
-          <button onClick={triggerBootstrap} style={{
-            padding: '9px 20px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 600,
-            background: 'linear-gradient(135deg, #5b8dee, #8b5cf6)',
-            border: 'none', color: 'white', cursor: 'pointer',
-          }}>
-            Run Bootstrap
+          <button
+            onClick={triggerBootstrap}
+            disabled={isBootstrapping}
+            style={{
+              padding: '9px 20px',
+              borderRadius: 'var(--radius-md)',
+              fontSize: 13,
+              fontWeight: 600,
+              background: isBootstrapping
+                ? 'rgba(91,141,238,0.3)'
+                : 'linear-gradient(135deg, #5b8dee, #8b5cf6)',
+              border: 'none',
+              color: 'white',
+              cursor: isBootstrapping ? 'not-allowed' : 'pointer',
+              opacity: isBootstrapping ? 0.6 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            {isBootstrapping ? (
+              <>
+                <div
+                  style={{
+                    width: 14,
+                    height: 14,
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderTop: '2px solid #ffffff',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite',
+                  }}
+                />
+                <span>Running in Background…</span>
+              </>
+            ) : (
+              'Run Bootstrap'
+            )}
           </button>
         </div>
       </div>
