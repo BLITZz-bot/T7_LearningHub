@@ -32,7 +32,6 @@ GENERATION_MODELS = {
     "gemini-3.1-flash-lite": "Gemini 3.1 Flash Lite — Fast & High Quota",
     "gemini-3.7-flash": "Gemini 3.7 Flash",
     "gemini-3.8-flash": "Gemini 3.8 Flash (High Demand)",
-    "gemini-2.5-flash": "Gemini 2.5 Flash",
     "gemini-3.1-pro-preview": "Gemini 3.1 Pro Preview (Paid Tier)",
 }
 MODEL_EMBED    = "gemini-embedding-001"     # embeddings — always free
