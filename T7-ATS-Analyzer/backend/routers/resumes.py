@@ -190,21 +190,31 @@ async def get_score(resume_id: str):
 
 
 @router.post("/{resume_id}/rewrite")
-async def rewrite_resume_bullets(resume_id: str):
+async def rewrite_resume_bullets(resume_id: str, request: Request):
     """
     POST /resumes/{id}/rewrite
     Generate hallucination-guarded rewrites ONLY for flagged weak bullets.
     """
     sb = get_supabase()
+    
+    # Try to get weak bullets from the request body first (supports local storage / no-DB mode)
+    try:
+        body = await request.json()
+        weak_bullets = body.get("weak_bullets", [])
+    except Exception:
+        weak_bullets = []
 
-    # Get weak bullets from stored scores
-    score_r = sb.table("t7_scores").select("weak_bullets").eq("resume_id", resume_id).order("computed_at", desc=True).limit(1).maybe_single().execute()
-    if not score_r.data:
-        raise HTTPException(status_code=404, detail="No scores found — upload resume first")
-
-    weak_bullets = score_r.data.get("weak_bullets") or []
+    # Fallback to database if not provided in body
     if not weak_bullets:
-        return JSONResponse({"rewrites": [], "message": "No weak bullets to rewrite"})
+        try:
+            score_r = sb.table("t7_scores").select("weak_bullets").eq("resume_id", resume_id).order("computed_at", desc=True).limit(1).maybe_single().execute()
+            if score_r.data:
+                weak_bullets = score_r.data.get("weak_bullets") or []
+        except Exception:
+            pass
+
+    if not weak_bullets:
+        raise HTTPException(status_code=404, detail="No weak bullets provided or found in database.")
 
     # Get target role
     res_r = sb.table("t7_resumes").select("target_role, generation_model").eq("id", resume_id).maybe_single().execute()
@@ -220,7 +230,12 @@ async def rewrite_resume_bullets(resume_id: str):
         try:
             rw = rewrite_bullet(bullet, role, model=model)
             rewrites.append(rw)
-            # Persist
+        except Exception as e:
+            rewrites.append({"original": bullet, "issue": issue, "error": "Unable to generate this suggestion. Please try again."})
+            continue
+            
+        # Persist - isolated try/except so missing tables don't break functionality
+        try:
             sb.table("t7_rewrites").insert({
                 "id": str(uuid.uuid4()),
                 "resume_id": resume_id,
@@ -230,6 +245,6 @@ async def rewrite_resume_bullets(resume_id: str):
                 "reasoning": rw.get("reasoning", ""),
             }).execute()
         except Exception:
-            rewrites.append({"original": bullet, "issue": issue, "error": "Unable to generate this suggestion. Please try again."})
+            pass
 
     return JSONResponse({"rewrites": rewrites, "count": len(rewrites)})
