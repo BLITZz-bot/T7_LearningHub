@@ -12,6 +12,7 @@ import { fetchJobMarketInsights } from '../../services/jobMarketService';
 import StudentProfileModal from './StudentProfileModal';
 import YouTubeTrackerModal from './YouTubeTrackerModal';
 import FullJobMarketView from './FullJobMarketView';
+import T7AiMentor from './T7AiMentor';
 // ModelSelector removed — LYZR manages AI models internally
 import { 
   LogOut,
@@ -413,7 +414,7 @@ const StudentDashboard = () => {
             <span className={`font-bold text-lg ${darkMode ? 'text-white' : 'text-zinc-900'}`}>T7 Learning Hub</span>
           </div>
           
-          <div className="flex items-center gap-3 ml-auto mr-14 sm:mr-16">
+          <div className="flex items-center gap-3 ml-auto">
             {/* Dark Mode Toggle */}
             <button
               type="button"
@@ -1388,6 +1389,43 @@ const StudentDashboard = () => {
         refreshVideoLearning={loadVideoLearningData}
         t7Id={userProfile?.t7Id}
         userProfile={userProfile}
+      />
+
+      {/* ── T7 AI MENTOR (Gemini-Powered Floating Chatbot) ─────────────────
+           Floating career mentor available on Home Dashboard in the exact same position
+           as the Results page. Powered by Google Gemini.
+      ──────────────────────────────────────────────────────────────────── */}
+      <T7AiMentor
+        studentContext={{
+          // Identity
+          name: userProfile?.displayName || userProfile?.name || currentUser?.displayName || '',
+          branch: userProfile?.branch || lastAnalysis?.branch || '',
+          year: userProfile?.passoutYear || userProfile?.year || lastAnalysis?.year || '',
+          cgpa: userProfile?.cgpa || lastAnalysis?.cgpa || '',
+
+          // Career profile
+          targetRole: industryRoles.find(r => r.id === careerInterest)?.role_name || userProfile?.career_interest || userProfile?.targetRole || lastAnalysis?.career_role || 'Software Developer',
+          readinessScore: lastAnalysis?.readiness_score || lastAnalysis?.analysis?.readiness_score,
+          honestAssessment: lastAnalysis?.honest_assessment || lastAnalysis?.analysis?.honest_assessment,
+          finalOutcome: lastAnalysis?.final_outcome || lastAnalysis?.analysis?.final_outcome,
+          matchedSkills: lastAnalysis?.matched_skills || lastAnalysis?.analysis?.matched_skills || selectedSkills,
+          missingSkills: lastAnalysis?.missing_skills || lastAnalysis?.analysis?.missing_skills || [],
+          roadmap: lastAnalysis?.learning_roadmap || lastAnalysis?.analysis?.learning_roadmap || [],
+          quickWins: lastAnalysis?.quick_wins || lastAnalysis?.analysis?.quick_wins || [],
+
+          // ATS resume data
+          atsScore: lastAnalysis?.ats_analysis?.ats_score ?? lastAnalysis?.ats_analysis?.score ?? null,
+          atsSummary: typeof lastAnalysis?.ats_analysis?.summary === 'string' ? lastAnalysis?.ats_analysis?.summary : null,
+          atsStrengths: lastAnalysis?.ats_analysis?.strengths || [],
+          atsGaps: lastAnalysis?.ats_analysis?.gaps || lastAnalysis?.ats_analysis?.issues || [],
+          atsKeywordGaps: lastAnalysis?.ats_analysis?.keyword_gaps || lastAnalysis?.ats_analysis?.ats_keyword_gaps || [],
+          atsRewrites: lastAnalysis?.ats_analysis?.rewrites || lastAnalysis?.ats_analysis?.rewrite_suggestions || [],
+          resumeFileName: lastAnalysis?.resume_meta?.file_name || null,
+
+          // YouTube learning
+          videoCount: videoLearning?.length || 0,
+          ytSkills: ytSkills || [],
+        }}
       />
     </div>
   );
