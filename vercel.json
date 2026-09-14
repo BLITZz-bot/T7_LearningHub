@@ -5,6 +5,22 @@
       "destination": "https://t7-learninghub-ats.onrender.com/:path*"
     },
     {
+      "source": "/api/resumes/:path*",
+      "destination": "https://t7-learninghub-ats.onrender.com/resumes/:path*"
+    },
+    {
+      "source": "/api/taxonomy/:path*",
+      "destination": "https://t7-learninghub-ats.onrender.com/taxonomy/:path*"
+    },
+    {
+      "source": "/api/admin/:path*",
+      "destination": "https://t7-learninghub-ats.onrender.com/admin/:path*"
+    },
+    {
+      "source": "/api/health",
+      "destination": "https://t7-learninghub-ats.onrender.com/health"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },

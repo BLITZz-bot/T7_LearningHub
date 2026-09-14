@@ -16,6 +16,7 @@ import Signup from './components/auth/Signup';
 import StudentDashboard from './components/student/StudentDashboard';
 import Results from './components/student/Results';
 import AcademicPage from './components/student/AcademicPage';
+import AtsPage from './components/student/AtsPage';
 
 // Admin Components
 import AdminDashboard from './components/admin/AdminDashboard';
@@ -124,6 +125,9 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+
+        {/* ATS Resume Analyzer Standalone Route */}
+        <Route path="/ats" element={<AtsPage />} />
 
         {/* Catch-all redirect */}
         <Route path="*" element={<Navigate to="/" replace />} />
