@@ -1,15 +1,11 @@
 {
   "rewrites": [
     {
-      "source": "/api/ats/:path*",
+      "source": "/api/:path*",
       "destination": "https://t7-learninghub-ats.onrender.com/:path*"
     },
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
-    {
-      "source": "/((?!api/).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
