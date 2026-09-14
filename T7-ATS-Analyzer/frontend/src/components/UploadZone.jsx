@@ -185,8 +185,8 @@ export default function UploadZone({ onUpload, isLoading, hasPrevious, onViewPre
                 {loadingSeconds < 5
                   ? 'Parsing resume structure & text…'
                   : loadingSeconds < 14
-                  ? 'Evaluating with Gemini & computing ATS score…'
-                  : 'Cloud server is waking up — almost ready…'}
+                    ? 'Evaluating with Gemini & computing ATS score…'
+                    : 'Cloud server is waking up — almost ready…'}
               </p>
               <p style={{ color: '#94a3b8', fontSize: 13 }}>
                 {loadingSeconds >= 14
@@ -236,8 +236,8 @@ export default function UploadZone({ onUpload, isLoading, hasPrevious, onViewPre
             background: isLoading
               ? 'linear-gradient(135deg, rgba(91,141,238,0.5), rgba(139,92,246,0.5))'
               : selectedFile
-              ? 'linear-gradient(135deg, #5b8dee 0%, #8b5cf6 100%)'
-              : 'rgba(255,255,255,0.06)',
+                ? 'linear-gradient(135deg, #5b8dee 0%, #8b5cf6 100%)'
+                : 'rgba(255,255,255,0.06)',
             border: selectedFile && !isLoading ? '1px solid rgba(255,255,255,0.2)' : '1px solid var(--border)',
             color: '#ffffff',
             boxShadow: selectedFile && !isLoading ? '0 6px 24px rgba(91,141,238,0.35)' : 'none',
@@ -270,7 +270,7 @@ export default function UploadZone({ onUpload, isLoading, hasPrevious, onViewPre
             </>
           )}
         </button>
-        
+
         {hasPrevious && !selectedFile && !isLoading && (
           <button
             onClick={onViewPrevious}

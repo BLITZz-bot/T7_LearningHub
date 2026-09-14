@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  ArrowLeft, Search, RefreshCw, Compass, Building2, MapPin, 
-  ExternalLink, Target, CheckCircle2, XCircle, TrendingUp, 
+import {
+  ArrowLeft, Search, RefreshCw, Compass, Building2, MapPin,
+  ExternalLink, Target, CheckCircle2, XCircle, TrendingUp,
   Loader2, Filter, ChevronDown, Briefcase, FileText, Youtube
 } from 'lucide-react';
 import { fetchJobMarketInsights, isJobRelevantForRole } from '../../services/jobMarketService';
 import { industryRoles } from '../../data/industrySkills';
 
-const FullJobMarketView = ({ 
-  careerInterest, 
-  userSkills = [], 
+const FullJobMarketView = ({
+  careerInterest,
+  userSkills = [],
   onBack,
   initialSource = 'auto',
   experienceLevel = 'all'
@@ -17,8 +17,8 @@ const FullJobMarketView = ({
   const [activeRoleId, setActiveRoleId] = useState(careerInterest || industryRoles[0]?.id || 'frontend-developer');
   const [activeLevel, setActiveLevel] = useState(
     experienceLevel?.toLowerCase().includes('student') ? 'internship' :
-    experienceLevel?.toLowerCase().includes('fresher') ? 'entry' :
-    experienceLevel?.toLowerCase().includes('professional') ? 'experienced' : 'all'
+      experienceLevel?.toLowerCase().includes('fresher') ? 'entry' :
+        experienceLevel?.toLowerCase().includes('professional') ? 'experienced' : 'all'
   );
   const [jobs, setJobs] = useState([]);
   const [selectedJob, setSelectedJob] = useState(null);
@@ -31,7 +31,7 @@ const FullJobMarketView = ({
   const [activeSources, setActiveSources] = useState([]);
   const [hasMore, setHasMore] = useState(true);
 
-  const selectedRole = activeRoleId === 'all' 
+  const selectedRole = activeRoleId === 'all'
     ? { id: 'all', role_name: 'All Tech Roles', required_skills: [] }
     : (industryRoles.find(r => r.id === activeRoleId) || industryRoles[0]);
 
@@ -115,18 +115,22 @@ const FullJobMarketView = ({
       if (selectedSource === 'themuse' && !p.includes('muse')) return false;
     }
 
-    // 3. Experience Level check (Local Title match)
+    // 3. Experience Level check
     if (activeLevel !== 'all') {
       const title = (job.title || '').toLowerCase();
+      const type = (job.type || '').toLowerCase();
+      const combined = `${title} ${type}`;
+      
       if (activeLevel === 'internship') {
-        if (!title.includes('intern') && !title.includes('student') && !title.includes('co-op')) return false;
+        if (!combined.includes('intern') && !combined.includes('student') && !combined.includes('co-op')) return false;
       } else if (activeLevel === 'entry') {
-        if (!title.includes('junior') && !title.includes('entry') && !title.includes('associate') && !title.includes('graduate')) {
+        if (!combined.includes('junior') && !combined.includes('entry') && !combined.includes('associate') && !combined.includes('graduate') && !combined.includes('fresher')) {
           // If it's senior or intern, exclude it
-          if (title.includes('senior') || title.includes('lead') || title.includes('intern')) return false;
+          if (combined.includes('senior') || combined.includes('lead') || combined.includes('intern') || combined.includes('principal') || combined.includes('manager')) return false;
         }
       } else if (activeLevel === 'experienced') {
-        if (!title.includes('senior') && !title.includes('lead') && !title.includes('staff') && !title.includes('principal') && !title.includes('manager')) {
+        if (!combined.includes('senior') && !combined.includes('lead') && !combined.includes('staff') && !combined.includes('principal') && !combined.includes('manager') && !combined.includes('architect')) {
+          // For experienced, if it doesn't explicitly have senior titles, exclude it
           return false;
         }
       }
@@ -254,11 +258,10 @@ const FullJobMarketView = ({
                 key={tab.id}
                 type="button"
                 onClick={() => setSelectedSource(tab.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                  selectedSource === tab.id
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${selectedSource === tab.id
                     ? 'bg-zinc-900 text-white shadow-xs'
                     : 'bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-100 hover:text-zinc-900'
-                }`}
+                  }`}
               >
                 {tab.label}
               </button>
@@ -374,7 +377,7 @@ const FullJobMarketView = ({
                           </span>
                         </div>
                         <div className="h-2 w-full bg-zinc-200 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className={`h-full rounded-full transition-all duration-500 ${matchPercentage >= 70 ? 'bg-emerald-500' : matchPercentage >= 40 ? 'bg-amber-500' : 'bg-red-500'}`}
                             style={{ width: `${matchPercentage}%` }}
                           />
@@ -388,11 +391,10 @@ const FullJobMarketView = ({
                         <button
                           type="button"
                           onClick={() => setSelectedJob(selectedJob?.id === job.id ? null : job)}
-                          className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                            selectedJob?.id === job.id 
-                              ? 'bg-zinc-900 text-white shadow-sm' 
+                          className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${selectedJob?.id === job.id
+                              ? 'bg-zinc-900 text-white shadow-sm'
                               : 'bg-white border border-zinc-200 text-zinc-700 hover:border-zinc-900 hover:text-zinc-900'
-                          }`}
+                            }`}
                         >
                           <Target className="w-3.5 h-3.5" />
                           <span>{selectedJob?.id === job.id ? 'Close Plan' : 'Compare & Plan'}</span>
@@ -421,7 +423,7 @@ const FullJobMarketView = ({
                               )) : <span className="text-xs text-zinc-400 font-medium italic">No matching skills selected yet</span>}
                             </div>
                           </div>
-                          
+
                           <div>
                             <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider mb-2">❌ Skills Missing (Click to Learn)</p>
                             <div className="flex flex-wrap gap-1.5">
@@ -434,7 +436,7 @@ const FullJobMarketView = ({
                                   title={`Learn ${skill} on YouTube`}
                                   className="text-xs font-medium bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-2 py-1 rounded-md flex items-center gap-1 transition-all cursor-pointer group"
                                 >
-                                  <XCircle className="w-3 h-3 text-red-500 group-hover:scale-110 transition-transform" /> 
+                                  <XCircle className="w-3 h-3 text-red-500 group-hover:scale-110 transition-transform" />
                                   <span>{skill}</span>
                                   <span className="text-[10px] text-red-500/70 group-hover:text-red-700">▶</span>
                                 </a>
@@ -452,7 +454,7 @@ const FullJobMarketView = ({
                                   Boosts Match: {matchPercentage}% ➔ {Math.min(100, Math.round(((matchedJobSkills.length + 1) / Math.max(1, job.requiredSkills.length)) * 100))}%
                                 </span>
                               </div>
-                              
+
                               <p className="text-xs text-amber-900 leading-relaxed font-medium">
                                 Master <strong className="font-extrabold text-amber-950 underline decoration-amber-400">{missingJobSkills[0]}</strong> next to become a top contender for this role.
                               </p>
