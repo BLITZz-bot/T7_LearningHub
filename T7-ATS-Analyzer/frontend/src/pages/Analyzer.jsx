@@ -72,7 +72,10 @@ export default function Analyzer({ onAnalysisComplete }) {
       const res = await fetch(`/api/resumes/${result.resume_id}/rewrite`, { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ weak_bullets: result?.scores?.weak_bullets || [] })
+        body: JSON.stringify({ 
+          weak_bullets: result?.scores?.weak_bullets || [],
+          target_role: result?.target_role || ''
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Rewrite failed');

@@ -197,12 +197,14 @@ async def rewrite_resume_bullets(resume_id: str, request: Request):
     """
     sb = get_supabase()
     
-    # Try to get weak bullets from the request body first (supports local storage / no-DB mode)
     try:
         body = await request.json()
         weak_bullets = body.get("weak_bullets", [])
+        role_from_body = body.get("target_role")
     except Exception:
+        body = {}
         weak_bullets = []
+        role_from_body = None
 
     # Fallback to database if not provided in body
     if not weak_bullets:
@@ -216,15 +218,25 @@ async def rewrite_resume_bullets(resume_id: str, request: Request):
     if not weak_bullets:
         raise HTTPException(status_code=404, detail="No weak bullets provided or found in database.")
 
-    # Get target role
-    res_r = sb.table("t7_resumes").select("target_role, generation_model").eq("id", resume_id).maybe_single().execute()
-    role = (res_r.data or {}).get("target_role", "Software Developer")
-    model = (res_r.data or {}).get("generation_model", DEFAULT_GENERATION_MODEL)
+    # Get target role (with try/except to prevent 500 error if DB missing)
+    try:
+        from services.gemini import DEFAULT_GENERATION_MODEL
+        res_r = sb.table("t7_resumes").select("target_role, generation_model").eq("id", resume_id).maybe_single().execute()
+        role = (res_r.data or {}).get("target_role") or role_from_body or ""
+        model = (res_r.data or {}).get("generation_model") or DEFAULT_GENERATION_MODEL
+    except Exception:
+        from services.gemini import DEFAULT_GENERATION_MODEL
+        role = role_from_body or ""
+        model = DEFAULT_GENERATION_MODEL
 
     rewrites = []
     for item in weak_bullets[:10]:  # cap at 10 rewrites per call
-        bullet = item.get("bullet", "")
-        issue = item.get("issue", "")
+        if isinstance(item, dict):
+            bullet = item.get("bullet", "") or item.get("original_bullet", "")
+            issue = item.get("issue", "")
+        else:
+            bullet = str(item)
+            issue = ""
         if not bullet:
             continue
         try:
