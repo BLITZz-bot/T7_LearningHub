@@ -10,9 +10,21 @@ const ALL_ROLES = [
   'Cloud Solutions Architect', 'Site Reliability Engineer (SRE)',
 ];
 
+const MODELS = [
+  ['gemini-3.8-flash', 'Gemini 3.8 Flash — Recommended'],
+  ['gemini-3.7-flash', 'Gemini 3.7 Flash'],
+  ['gemini-3.6-flash', 'Gemini 3.6 Flash'],
+  ['gemini-3.5-flash', 'Gemini 3.5 Flash'],
+  ['gemini-3.1-flash-lite', 'Gemini 3.1 Flash Lite — Lowest cost'],
+  ['gemini-2.5-flash', 'Gemini 2.5 Flash'],
+  ['gemini-2.5-pro', 'Gemini 2.5 Pro'],
+  ['gemini-3.1-pro-preview', 'Gemini 3.1 Pro Preview'],
+];
+
 export default function UploadZone({ onUpload, isLoading }) {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedRole, setSelectedRole] = useState('Software Developer');
+  const [selectedModel, setSelectedModel] = useState('gemini-3.8-flash');
   const [fileName, setFileName] = useState(null);
   const [loadingSeconds, setLoadingSeconds] = useState(0);
 
@@ -34,8 +46,8 @@ export default function UploadZone({ onUpload, isLoading }) {
   const handleFile = useCallback((file) => {
     if (!file) return;
     setFileName(file.name);
-    onUpload(file, selectedRole);
-  }, [onUpload, selectedRole]);
+    onUpload(file, selectedRole, selectedModel);
+  }, [onUpload, selectedRole, selectedModel]);
 
   const handleDrop = useCallback((e) => {
     e.preventDefault();
@@ -64,6 +76,31 @@ export default function UploadZone({ onUpload, isLoading }) {
           <option value="Software Developer">Software Developer</option>
           {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
         </select>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: 'block', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>
+          Gemini Model
+        </label>
+        <select
+          value={selectedModel}
+          onChange={e => setSelectedModel(e.target.value)}
+          style={{
+            width: '100%', padding: '12px 16px', background: 'rgba(255,255,255,0.04)',
+            border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
+            color: 'var(--text-primary)', fontSize: 15, outline: 'none', cursor: 'pointer', fontFamily: 'inherit',
+          }}
+        >
+          {MODELS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+        </select>
+        <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 6 }}>
+          Flash models are recommended for standard resume analysis.
+        </p>
+        {selectedModel.includes('pro') && (
+          <p style={{ color: '#f59e42', fontSize: 12, marginTop: 6 }}>
+            Subscribe to pro model
+          </p>
+        )}
       </div>
 
       {/* Drop zone */}

@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS t7_resumes (
   file_name    TEXT,
   file_type    TEXT,
   target_role  TEXT,
+  generation_model TEXT,
   uploaded_at  TIMESTAMPTZ DEFAULT now()
 );
 

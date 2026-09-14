@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE IF NOT EXISTS public.t7_resumes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id TEXT NOT NULL,
   raw_text TEXT, parsed_json JSONB, file_name TEXT, file_type TEXT,
-  target_role TEXT, uploaded_at TIMESTAMPTZ DEFAULT now()
+  target_role TEXT, generation_model TEXT, uploaded_at TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS public.t7_resume_skills (
