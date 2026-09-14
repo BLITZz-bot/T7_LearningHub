@@ -69,7 +69,11 @@ export default function Analyzer({ onAnalysisComplete }) {
     if (!result?.resume_id) return;
     setIsRewriting(true);
     try {
-      const res = await fetch(`/api/resumes/${result.resume_id}/rewrite`, { method: 'POST' });
+      const res = await fetch(`/api/resumes/${result.resume_id}/rewrite`, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weak_bullets: result?.scores?.weak_bullets || [] })
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Rewrite failed');
       setRewrites(data.rewrites || []);
