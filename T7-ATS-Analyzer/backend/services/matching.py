@@ -8,6 +8,7 @@ Uses Supabase pgvector cosine similarity (threshold = 0.75).
 """
 
 import uuid
+import json
 from db.client import get_supabase
 from services.gemini import embed_text, extract_skills_from_jd
 
@@ -55,6 +56,11 @@ def baseline_match(resume_id: str, role_category: str, resume_skills: list[str])
         tax_emb = tax_skill.get("embedding")
         if not tax_emb:
             continue
+        if isinstance(tax_emb, str):
+            try:
+                tax_emb = json.loads(tax_emb)
+            except Exception:
+                continue
 
         # Find highest cosine similarity to any resume skill
         best_sim = 0.0
