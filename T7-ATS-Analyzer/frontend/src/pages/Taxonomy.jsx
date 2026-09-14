@@ -19,9 +19,16 @@ export default function Taxonomy() {
 
   const fetchRoles = useCallback(async () => {
     try {
-      const r = await fetch('/api/taxonomy/');
+      const r = await fetch('/api/taxonomy');
       const d = await r.json();
-      setRoles(d.roles || []);
+      if (Array.isArray(d.roles) && d.roles.length > 0) {
+        setRoles(d.roles);
+        return;
+      }
+      // Fallback
+      const r2 = await fetch('/api/taxonomy/roles');
+      const d2 = await r2.json();
+      setRoles(d2.roles || []);
     } catch {
       // ignore
     }

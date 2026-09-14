@@ -6,6 +6,18 @@ from db.client import get_supabase
 router = APIRouter()
 
 
+@router.get("/")
+@router.get("/roles")
+async def list_roles():
+    sb = get_supabase()
+    try:
+        r = sb.table("t7_skill_taxonomy").select("role_category").eq("status", "canonical").execute()
+        roles = list(dict.fromkeys(s["role_category"] for s in (r.data or [])))
+    except Exception:
+        roles = []
+    return JSONResponse({"roles": roles, "count": len(roles)})
+
+
 @router.get("/{role}")
 async def get_taxonomy(role: str, status: str = "canonical"):
     sb = get_supabase()
@@ -23,13 +35,3 @@ async def get_taxonomy(role: str, status: str = "canonical"):
         skills = []
     return JSONResponse({"role": role, "status": status, "skills": skills, "count": len(skills)})
 
-
-@router.get("/")
-async def list_roles():
-    sb = get_supabase()
-    try:
-        r = sb.table("t7_skill_taxonomy").select("role_category").eq("status", "canonical").execute()
-        roles = list(dict.fromkeys(s["role_category"] for s in (r.data or [])))
-    except Exception:
-        roles = []
-    return JSONResponse({"roles": roles, "count": len(roles)})
