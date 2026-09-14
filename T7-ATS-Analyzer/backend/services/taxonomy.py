@@ -16,6 +16,8 @@ Incremental refresh (Phase 2 cron):
 
 import uuid
 import asyncio
+import re
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from db.client import get_supabase
 from services.gemini import embed_text, extract_skills_from_posting
@@ -45,7 +47,7 @@ async def run_bootstrap(model: str = "gemini-3.6-flash") -> dict:
     Returns summary dict with counts.
     """
     sb = get_supabase()
-    summary = {"roles": 0, "postings_fetched": 0, "skills_extracted": 0, "skills_promoted": 0, "onet_fallback_roles": []}
+    summary = {"roles": 0, "postings_fetched": 0, "skills_extracted": 0, "skills_promoted": 0, "curated_skills_seeded": 0, "onet_fallback_roles": []}
 
     print(f"[taxonomy] Step 1: Fetching job postings for all roles (model: {model})...")
     all_postings = await fetch_all_roles_all_sources()
@@ -108,6 +110,10 @@ async def run_bootstrap(model: str = "gemini-3.6-flash") -> dict:
             if fallback_skills:
                 _seed_onet_fallback(role, fallback_skills)
                 summary["onet_fallback_roles"].append(role)
+
+    # T7's curated role data guarantees an immediately useful baseline even
+    # when an external job source is incomplete or temporarily rate-limited.
+    summary["curated_skills_seeded"] = _seed_curated_baseline()
 
     summary["roles"] = len(ALL_ROLES)
     print(f"[taxonomy] Bootstrap complete: {summary}")
@@ -336,6 +342,54 @@ def _seed_onet_fallback(role: str, skills: list[str]):
     get_supabase().table("t7_skill_taxonomy").update({"status": "canonical"}).eq(
         "role_category", role
     ).in_("skill_name", skills).execute()
+
+
+def _load_curated_role_skills() -> dict[str, list[str]]:
+    """Read the existing T7 role dataset without duplicating it in the backend."""
+    dataset = Path(__file__).resolve().parents[3] / "src" / "data" / "industrySkills.js"
+    try:
+        source = dataset.read_text(encoding="utf-8")
+    except OSError as exc:
+        print(f"[taxonomy] Curated skill dataset unavailable: {exc}")
+        return {}
+
+    roles: dict[str, list[str]] = {}
+    pattern = re.compile(
+        r"role_name:\s*'(?P<role>[^']+)'[\s\S]*?required_skills:\s*\[(?P<skills>[\s\S]*?)\],",
+        re.MULTILINE,
+    )
+    for match in pattern.finditer(source):
+        skills = re.findall(r"name:\s*'([^']+)'", match.group("skills"))
+        if skills:
+            roles[match.group("role")] = list(dict.fromkeys(skills))
+    return roles
+
+
+def _seed_curated_baseline() -> int:
+    """Upsert T7's maintained role skills as canonical baseline skills."""
+    sb = get_supabase()
+    seeded = 0
+    for role, skills in _load_curated_role_skills().items():
+        for skill in skills:
+            try:
+                response = sb.table("t7_skill_taxonomy").upsert(
+                    {
+                        "role_category": role,
+                        "skill_name": skill,
+                        "frequency_30d": 1,
+                        "frequency_90d": 1,
+                        "company_count": 1,
+                        "status": "canonical",
+                    },
+                    on_conflict="role_category,skill_name",
+                    ignore_duplicates=True,
+                ).execute()
+                if response.data:
+                    seeded += len(response.data)
+            except Exception as exc:
+                print(f"[taxonomy] Curated seed error for '{skill}': {exc}")
+    print(f"[taxonomy] Seeded {seeded} curated baseline skills")
+    return seeded
 
 
 def _chunks(lst: list, n: int):

@@ -199,7 +199,7 @@ def _generate_json(
         if fb not in candidates:
             candidates.append(fb)
 
-    last_error = None
+    last_error: Exception | None = None
     for candidate in candidates:
         try:
             response = client.models.generate_content(
@@ -217,7 +217,9 @@ def _generate_json(
             print(f"[gemini] Model '{candidate}' failed: {e}. Attempting fallback...")
             continue
 
-    raise last_error
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("Gemini did not return a response.")
 
 
 # ── Public API functions ──────────────────────────────────────────────────────
