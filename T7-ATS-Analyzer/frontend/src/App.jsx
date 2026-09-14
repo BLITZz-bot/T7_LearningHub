@@ -53,7 +53,12 @@ export default function App() {
       </nav>
 
       {/* Page content */}
-      {page === 'analyzer' ? <Analyzer /> : <Taxonomy />}
+      <div style={{ display: page === 'analyzer' ? 'block' : 'none' }}>
+        <Analyzer />
+      </div>
+      <div style={{ display: page === 'taxonomy' ? 'block' : 'none' }}>
+        <Taxonomy />
+      </div>
 
       {/* Cloud server cold start monitor & animated status */}
       <ServerWarmupBanner />
