@@ -46,22 +46,22 @@ const SUPPORTED_MODELS = {
     endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent',
     tag: '🧠 Deep Intelligence',
   },
-  'gemini-2.5-pro': {
-    id: 'gemini-2.5-pro',
-    name: 'Gemini 2.5 Pro',
-    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent',
-    tag: '🏆 Advanced Reasoning',
+  'gemini-3.6-flash': {
+    id: 'gemini-3.6-flash',
+    name: 'Gemini 3.6 Flash',
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent',
+    tag: '⚖️ Default (Balanced)',
   },
-  'gemini-2.5-flash': {
-    id: 'gemini-2.5-flash',
-    name: 'Gemini 2.5 Flash',
-    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
-    tag: '⚡ Instant & Thinking',
+  'gemini-3.5-flash': {
+    id: 'gemini-3.5-flash',
+    name: 'Gemini 3.5 Flash',
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent',
+    tag: '⚡ Stable Fallback',
   },
-  'gemini-2.5-flash-lite': {
-    id: 'gemini-2.5-flash-lite',
-    name: 'Gemini 2.5 Flash-Lite',
-    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
+  'gemini-3.1-flash-lite': {
+    id: 'gemini-3.1-flash-lite',
+    name: 'Gemini 3.1 Flash-Lite',
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent',
     tag: '🪶 Ultra Low Latency',
   },
   'gemini-flash-latest': {
