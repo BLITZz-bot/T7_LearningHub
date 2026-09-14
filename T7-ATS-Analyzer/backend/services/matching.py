@@ -55,6 +55,25 @@ def baseline_match(resume_id: str, role_category: str, resume_skills: list[str])
     for tax_skill in taxonomy_skills:
         tax_emb = tax_skill.get("embedding")
         if not tax_emb:
+            # Curated baseline skills are usable before their async embedding
+            # enrichment finishes. Exact normalized matches are high confidence.
+            normalized_tax = _normalize_skill(tax_skill["skill_name"])
+            direct_match = next(
+                (skill for skill in resume_skills if _normalize_skill(skill) == normalized_tax),
+                None,
+            )
+            if direct_match:
+                matched.append({
+                    "taxonomy_skill": tax_skill["skill_name"],
+                    "resume_skill": direct_match,
+                    "similarity": 1.0,
+                })
+            else:
+                missing.append({
+                    "skill": tax_skill["skill_name"],
+                    "closest_in_resume": None,
+                    "similarity": 0.0,
+                })
             continue
         if isinstance(tax_emb, str):
             try:
@@ -185,3 +204,7 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
     if mag_a == 0 or mag_b == 0:
         return 0.0
     return dot / (mag_a * mag_b)
+
+
+def _normalize_skill(value: str) -> str:
+    return "".join(char for char in value.casefold() if char.isalnum())

@@ -9,6 +9,10 @@
       "destination": "https://t7-learninghub-ats.onrender.com/resumes/:path*"
     },
     {
+      "source": "/api/taxonomy",
+      "destination": "https://t7-learninghub-ats.onrender.com/taxonomy"
+    },
+    {
       "source": "/api/taxonomy/:path*",
       "destination": "https://t7-learninghub-ats.onrender.com/taxonomy/:path*"
     },
