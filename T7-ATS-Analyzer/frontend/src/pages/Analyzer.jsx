@@ -19,7 +19,7 @@ export default function Analyzer({ onAnalysisComplete }) {
     try {
       const saved = localStorage.getItem('t7_ats_latest_result');
       if (saved) setHasPrevious(true);
-    } catch {}
+    } catch { }
   }, []);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function Analyzer({ onAnalysisComplete }) {
     try {
       const saved = localStorage.getItem('t7_ats_latest_result');
       if (saved) setResult(JSON.parse(saved));
-    } catch {}
+    } catch { }
   };
 
   const handleUpload = async (file, role, model, experience_level) => {
@@ -57,7 +57,7 @@ export default function Analyzer({ onAnalysisComplete }) {
       setHasPrevious(true);
       try {
         localStorage.setItem('t7_ats_latest_result', JSON.stringify(data));
-      } catch {}
+      } catch { }
     } catch (e) {
       setError(e.message);
     } finally {
@@ -100,9 +100,9 @@ export default function Analyzer({ onAnalysisComplete }) {
 
       {/* Upload zone */}
       <div className="glass-card" style={{ padding: 32, marginBottom: 32 }}>
-        <UploadZone 
-          onUpload={handleUpload} 
-          isLoading={isLoading} 
+        <UploadZone
+          onUpload={handleUpload}
+          isLoading={isLoading}
           hasPrevious={hasPrevious && !result}
           onViewPrevious={handleViewPrevious}
         />
@@ -132,7 +132,7 @@ export default function Analyzer({ onAnalysisComplete }) {
                 setResult(null);
                 setRewrites(null);
                 setJdMatch(null);
-                try { localStorage.removeItem('t7_ats_latest_result'); } catch {}
+                try { localStorage.removeItem('t7_ats_latest_result'); } catch { }
               }}
               style={{
                 padding: '10px 18px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 600,

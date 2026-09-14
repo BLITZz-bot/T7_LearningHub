@@ -70,12 +70,12 @@ export const isJobRelevantForRole = (title = '', description = '', roleName = ''
 
   // If role is Frontend Developer:
   if (r.includes('frontend') || r.includes('front-end') || r.includes('ui developer')) {
-    return t.includes('frontend') || t.includes('front-end') || t.includes('react') || t.includes('vue') || t.includes('angular') || t.includes('ui') || t.includes('web developer') || t.includes('javascript');
+    return t.includes('frontend') || t.includes('front-end') || t.includes('react') || t.includes('vue') || t.includes('angular') || t.includes('ui') || t.includes('web developer') || t.includes('javascript') || t.includes('software engineer') || t.includes('sde');
   }
 
   // If role is Backend Developer:
   if (r.includes('backend') || r.includes('back-end')) {
-    return t.includes('backend') || t.includes('back-end') || t.includes('node') || t.includes('java') || t.includes('python') || t.includes('api') || t.includes('server') || t.includes('spring') || t.includes('golang') || t.includes('c#') || t.includes('.net');
+    return t.includes('backend') || t.includes('back-end') || t.includes('node') || t.includes('java') || t.includes('python') || t.includes('api') || t.includes('server') || t.includes('spring') || t.includes('golang') || t.includes('c#') || t.includes('.net') || t.includes('software engineer') || t.includes('sde');
   }
 
   // If role is Full Stack:
