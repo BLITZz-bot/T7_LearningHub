@@ -103,6 +103,49 @@ export default function ScoreCards({ scores }) {
           </div>
         );
       })}
+
+      {/* 5th View Jobs Card */}
+      <div
+        className="glass-card animate-fade-up"
+        style={{
+          padding: '24px 20px',
+          animationDelay: `${SCORE_CONFIGS.length * 80}ms`,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 16,
+          textAlign: 'center',
+          transition: 'transform 0.2s, border-color 0.2s',
+          cursor: 'pointer',
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(91,141,238,0.05) 100%)'
+        }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = '#5b8dee60'; }}
+        onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.borderColor = ''; }}
+        onClick={() => {
+          const feed = document.getElementById('ats-job-feed');
+          if (feed) feed.scrollIntoView({ behavior: 'smooth' });
+        }}
+      >
+        <div style={{
+          width: 80, height: 80, borderRadius: '50%',
+          background: 'rgba(91,141,238,0.1)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 32, marginBottom: 8,
+          border: '1px solid rgba(91,141,238,0.3)'
+        }}>
+          💼
+        </div>
+        <div>
+          <p style={{ fontSize: 15, fontWeight: 700, color: '#ffffff', marginBottom: 6 }}>View Jobs</p>
+          <span style={{
+            fontSize: 11, fontWeight: 600, color: '#5b8dee',
+            background: '#5b8dee18', padding: '3px 12px',
+            borderRadius: 99, letterSpacing: 0.5,
+          }}>Market Insights</span>
+        </div>
+        <p style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.4 }}>See live job postings matching your skills.</p>
+      </div>
     </div>
   );
 }

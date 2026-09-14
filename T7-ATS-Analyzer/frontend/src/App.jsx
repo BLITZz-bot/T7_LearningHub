@@ -8,7 +8,7 @@ const NAV = [
   { id: 'taxonomy', label: '🌐 Taxonomy' },
 ];
 
-export default function App() {
+export default function App({ onAnalysisComplete }) {
   const [page, setPage] = useState('analyzer');
 
   return (
@@ -23,7 +23,7 @@ export default function App() {
         height: 60,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 22 }}>📋</span>
+          <span style={{ fontSize: 22 }}>📄</span>
           <span style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, fontSize: 18 }}>
             T7 ATS<span style={{ color: 'var(--accent-blue)' }}>.</span>ai
           </span>
@@ -54,7 +54,7 @@ export default function App() {
 
       {/* Page content */}
       <div style={{ display: page === 'analyzer' ? 'block' : 'none' }}>
-        <Analyzer />
+        <Analyzer onAnalysisComplete={onAnalysisComplete} />
       </div>
       <div style={{ display: page === 'taxonomy' ? 'block' : 'none' }}>
         <Taxonomy />

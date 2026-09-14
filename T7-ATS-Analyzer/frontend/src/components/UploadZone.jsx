@@ -19,10 +19,11 @@ const MODELS = [
   ['gemini-3.1-pro-preview', 'Gemini 3.1 Pro Preview (Paid Tier)'],
 ];
 
-export default function UploadZone({ onUpload, isLoading }) {
+export default function UploadZone({ onUpload, isLoading, hasPrevious, onViewPrevious }) {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedRole, setSelectedRole] = useState('Software Developer');
   const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite');
+  const [selectedExperience, setSelectedExperience] = useState('Student (Internship)');
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileName, setFileName] = useState(null);
   const [loadingSeconds, setLoadingSeconds] = useState(0);
@@ -56,7 +57,7 @@ export default function UploadZone({ onUpload, isLoading }) {
 
   const handleAnalyze = () => {
     if (!selectedFile || isLoading) return;
-    onUpload(selectedFile, selectedRole, selectedModel);
+    onUpload(selectedFile, selectedRole, selectedModel, selectedExperience);
   };
 
   return (
@@ -116,6 +117,29 @@ export default function UploadZone({ onUpload, isLoading }) {
             Note: Pro preview requires a paid tier billing project on Google AI Studio.
           </p>
         )}
+      </div>
+
+      {/* Experience Level selector */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: 'block', fontSize: 13, color: '#cbd5e1', marginBottom: 8, fontWeight: 500 }}>
+          I am a...
+        </label>
+        <select
+          value={selectedExperience}
+          disabled={isLoading}
+          onChange={e => setSelectedExperience(e.target.value)}
+          style={{
+            width: '100%', padding: '12px 16px',
+            background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)', color: '#ffffff',
+            fontSize: 15, outline: 'none', cursor: isLoading ? 'not-allowed' : 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          <option value="Student (Internship)" style={{ background: '#12121e', color: '#ffffff' }}>Student (Looking for Internships)</option>
+          <option value="Fresher (Entry-Level)" style={{ background: '#12121e', color: '#ffffff' }}>Fresher (Looking for Entry-Level)</option>
+          <option value="Professional (Experienced)" style={{ background: '#12121e', color: '#ffffff' }}>Professional (Looking for Experienced Roles)</option>
+        </select>
       </div>
 
       {/* Drop zone */}
@@ -246,7 +270,32 @@ export default function UploadZone({ onUpload, isLoading }) {
             </>
           )}
         </button>
-        {!selectedFile && (
+        
+        {hasPrevious && !selectedFile && !isLoading && (
+          <button
+            onClick={onViewPrevious}
+            style={{
+              width: '100%',
+              padding: '14px 28px',
+              marginTop: 12,
+              borderRadius: 'var(--radius-md)',
+              fontSize: 15,
+              fontWeight: 600,
+              fontFamily: 'inherit',
+              cursor: 'pointer',
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: '#cbd5e1',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+          >
+            🕒 View Previous Analysis
+          </button>
+        )}
+
+        {!selectedFile && !hasPrevious && (
           <p style={{ color: '#94a3b8', fontSize: 12, marginTop: 8, textAlign: 'center' }}>
             Select or drag a resume file above to enable analysis
           </p>

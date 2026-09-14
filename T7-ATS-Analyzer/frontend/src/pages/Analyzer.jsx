@@ -1,27 +1,41 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import UploadZone from '../components/UploadZone';
 import ScoreCards from '../components/ScoreCards';
 import GapList from '../components/GapList';
 import RewriteSuggestions from '../components/RewriteSuggestions';
 import JDPasteModal from '../components/JDPasteModal';
 
-export default function Analyzer() {
+export default function Analyzer({ onAnalysisComplete }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isRewriting, setIsRewriting] = useState(false);
   const [error, setError] = useState('');
-  const [result, setResult] = useState(() => {
-    try {
-      const saved = localStorage.getItem('t7_ats_latest_result');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [result, setResult] = useState(null);
+  const [hasPrevious, setHasPrevious] = useState(false);
   const [rewrites, setRewrites] = useState(null);
   const [jdMatch, setJdMatch] = useState(null);
   const [showJDModal, setShowJDModal] = useState(false);
 
-  const handleUpload = async (file, role, model) => {
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('t7_ats_latest_result');
+      if (saved) setHasPrevious(true);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (onAnalysisComplete) {
+      onAnalysisComplete(result);
+    }
+  }, [result, onAnalysisComplete]);
+
+  const handleViewPrevious = () => {
+    try {
+      const saved = localStorage.getItem('t7_ats_latest_result');
+      if (saved) setResult(JSON.parse(saved));
+    } catch {}
+  };
+
+  const handleUpload = async (file, role, model, experience_level) => {
     setIsLoading(true);
     setError('');
     setResult(null);
@@ -33,12 +47,14 @@ export default function Analyzer() {
       formData.append('file', file);
       formData.append('role', role);
       formData.append('model', model);
+      if (experience_level) formData.append('experience_level', experience_level);
       formData.append('user_id', 'anonymous');
 
       const res = await fetch('/api/resumes/upload', { method: 'POST', body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Upload failed');
       setResult(data);
+      setHasPrevious(true);
       try {
         localStorage.setItem('t7_ats_latest_result', JSON.stringify(data));
       } catch {}
@@ -84,7 +100,12 @@ export default function Analyzer() {
 
       {/* Upload zone */}
       <div className="glass-card" style={{ padding: 32, marginBottom: 32 }}>
-        <UploadZone onUpload={handleUpload} isLoading={isLoading} />
+        <UploadZone 
+          onUpload={handleUpload} 
+          isLoading={isLoading} 
+          hasPrevious={hasPrevious && !result}
+          onViewPrevious={handleViewPrevious}
+        />
       </div>
 
       {/* Error */}
@@ -155,11 +176,13 @@ export default function Analyzer() {
             </div>
           )}
 
-          {/* Seniority notes */}
+          {/* Level Assessment */}
           {scores?.seniority_notes && (
             <div className="glass-card" style={{ padding: 24, marginBottom: 24 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 10, color: '#ffffff' }}>💼 Seniority Assessment</h3>
-              <p style={{ color: '#cbd5e1', fontSize: 14, lineHeight: 1.7 }}>{scores.seniority_notes}</p>
+              <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 10, color: '#ffffff' }}>
+                💼 {result.experience_level?.includes('Student') ? 'Internship Readiness' : result.experience_level?.includes('Fresher') ? 'Entry-Level Readiness' : 'Seniority Assessment'}
+              </h3>
+              <p style={{ color: '#cbd5e1', fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{scores.seniority_notes}</p>
             </div>
           )}
 

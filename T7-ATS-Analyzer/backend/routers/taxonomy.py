@@ -18,7 +18,7 @@ async def list_roles():
     return JSONResponse({"roles": roles, "count": len(roles)})
 
 
-@router.get("/{role}")
+@router.get("/{role:path}")
 async def get_taxonomy(role: str, status: str = "canonical"):
     sb = get_supabase()
     try:
