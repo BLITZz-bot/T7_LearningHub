@@ -271,10 +271,10 @@ export default async function handler(req, res) {
       body: JSON.stringify(requestBody),
     });
 
-    // If selected model is not available or errors out (e.g. 404), fallback to gemini-2.5-flash
-    if (!response.ok && activeModelKey !== 'gemini-2.5-flash') {
-      console.warn(`[/api/gemini] Model ${activeModelKey} failed with status ${response.status}. Falling back to gemini-2.5-flash.`);
-      targetModel = SUPPORTED_MODELS['gemini-2.5-flash'];
+    // If selected model is not available or errors out (e.g. 404), fallback to gemini-3.5-flash
+    if (!response.ok && activeModelKey !== 'gemini-3.5-flash') {
+      console.warn(`[/api/gemini] Model ${activeModelKey} failed with status ${response.status}. Falling back to gemini-3.5-flash.`);
+      targetModel = SUPPORTED_MODELS['gemini-3.5-flash'];
       response = await fetch(`${targetModel.endpoint}?key=${GEMINI_API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
