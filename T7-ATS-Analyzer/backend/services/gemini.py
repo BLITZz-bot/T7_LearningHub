@@ -110,7 +110,7 @@ CONTENT_SCORE_SCHEMA = {
                 },
             },
         },
-        "seniority_notes":  {"type": "string"},
+        "level_assessment": {"type": "string"},
         "formatting_score": {"type": "integer"},
         "formatting_issues": {"type": "array", "items": {"type": "string"}},
     },
@@ -250,15 +250,21 @@ def embed_text(text: str) -> list[float]:
     return result.embeddings[0].values
 
 
-def score_content(resume_json: dict, target_role: str = "", model: str | None = None) -> dict:
+def score_content(resume_json: dict, target_role: str = "", experience_level: str = "Professional (Experienced)", model: str | None = None) -> dict:
     """Content scoring: quantification, weak bullets, formatting. One Gemini call."""
     role_ctx = f" The target role is: {target_role}." if target_role else ""
     return _generate_json(
         contents=(
             f"Evaluate this resume for impact quantification, weak action verbs, "
-            f"seniority-appropriate language, and ATS formatting.{role_ctx} "
+            f"and ATS formatting.{role_ctx} "
             f"Flag ALL weak/vague bullets with specific issues. "
             f"Give quantification_score (0-100) and formatting_score (0-100). "
+            f"CRITICAL: The candidate's chosen experience level is: '{experience_level}'. "
+            f"Write a comprehensive, realistic 'level_assessment' explaining their readiness for this level based strictly on the exact text of their resume. "
+            f"Do NOT limit the length of this explanation. Provide proper content and reality. "
+            f"If they are a student/intern, discuss fundamentals, academic projects, hackathons. "
+            f"If they are professional, discuss business impact, scale, and leadership. "
+            f"Do not hallucinate skills or experiences they don't have. "
             f"Resume JSON:\n{json.dumps(resume_json)}"
         ),
         schema=CONTENT_SCORE_SCHEMA,

@@ -11,9 +11,15 @@ const FullJobMarketView = ({
   careerInterest, 
   userSkills = [], 
   onBack,
-  initialSource = 'auto'
+  initialSource = 'auto',
+  experienceLevel = 'all'
 }) => {
   const [activeRoleId, setActiveRoleId] = useState(careerInterest || industryRoles[0]?.id || 'frontend-developer');
+  const [activeLevel, setActiveLevel] = useState(
+    experienceLevel?.toLowerCase().includes('student') ? 'internship' :
+    experienceLevel?.toLowerCase().includes('fresher') ? 'entry' :
+    experienceLevel?.toLowerCase().includes('professional') ? 'experienced' : 'all'
+  );
   const [jobs, setJobs] = useState([]);
   const [selectedJob, setSelectedJob] = useState(null);
   const [selectedSource, setSelectedSource] = useState(initialSource);
@@ -92,7 +98,7 @@ const FullJobMarketView = ({
     }
   };
 
-  // Filter jobs by role relevance, search query & selected source
+  // Filter jobs by role relevance, search query & selected source & experience level
   const filteredJobs = jobs.filter(job => {
     // 1. Strict Role Relevance check
     if (!isJobRelevantForRole(job.title, job.description, selectedRole.role_name)) {
@@ -109,7 +115,24 @@ const FullJobMarketView = ({
       if (selectedSource === 'themuse' && !p.includes('muse')) return false;
     }
 
-    // 3. Search query check
+    // 3. Experience Level check (Local Title match)
+    if (activeLevel !== 'all') {
+      const title = (job.title || '').toLowerCase();
+      if (activeLevel === 'internship') {
+        if (!title.includes('intern') && !title.includes('student') && !title.includes('co-op')) return false;
+      } else if (activeLevel === 'entry') {
+        if (!title.includes('junior') && !title.includes('entry') && !title.includes('associate') && !title.includes('graduate')) {
+          // If it's senior or intern, exclude it
+          if (title.includes('senior') || title.includes('lead') || title.includes('intern')) return false;
+        }
+      } else if (activeLevel === 'experienced') {
+        if (!title.includes('senior') && !title.includes('lead') && !title.includes('staff') && !title.includes('principal') && !title.includes('manager')) {
+          return false;
+        }
+      }
+    }
+
+    // 4. Search query check
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -121,20 +144,24 @@ const FullJobMarketView = ({
   });
 
   return (
-    <div className="min-h-screen bg-zinc-50 pb-16 animate-fade-in">
+    <div className="min-h-screen bg-zinc-50 pb-16 animate-fade-in" id="ats-job-feed">
       {/* Top Sticky Header */}
       <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-zinc-200 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={onBack}
-              className="inline-flex items-center gap-2 px-3.5 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-900 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back to Dashboard</span>
-            </button>
-            <div className="hidden sm:block h-5 w-px bg-zinc-200" />
+            {onBack && (
+              <>
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="inline-flex items-center gap-2 px-3.5 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-900 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back</span>
+                </button>
+                <div className="hidden sm:block h-5 w-px bg-zinc-200" />
+              </>
+            )}
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-base sm:text-lg font-black text-zinc-900 tracking-tight">
@@ -166,6 +193,22 @@ const FullJobMarketView = ({
                     🎯 {role.role_name}
                   </option>
                 ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            {/* Experience Level Dropdown */}
+            <div className="relative">
+              <select
+                value={activeLevel}
+                onChange={(e) => setActiveLevel(e.target.value)}
+                className="px-3.5 py-2 pr-9 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 rounded-xl text-xs font-bold text-zinc-900 outline-none cursor-pointer appearance-none shadow-xs transition-all"
+                title="Select Experience Level"
+              >
+                <option value="all">🎓 All Levels</option>
+                <option value="internship">🌱 Internship</option>
+                <option value="entry">🚀 Entry-Level</option>
+                <option value="experienced">💼 Experienced</option>
               </select>
               <ChevronDown className="w-4 h-4 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>

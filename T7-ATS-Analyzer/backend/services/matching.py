@@ -52,29 +52,49 @@ def baseline_match(resume_id: str, role_category: str, resume_skills: list[str])
     matched = []
     missing = []
 
+    # Pre-process taxonomy skills to split composites like "Java / Python"
+    expanded_taxonomy_skills = []
     for tax_skill in taxonomy_skills:
+        name = tax_skill["skill_name"]
+        if "/" in name:
+            for part in name.split("/"):
+                part = part.strip()
+                if part:
+                    expanded_taxonomy_skills.append({
+                        "skill_name": part,
+                        "embedding": tax_skill.get("embedding") if not tax_skill.get("embedding") else None 
+                        # Use None if it had an embedding for the combined string, forcing direct string match for the split parts
+                    })
+        else:
+            expanded_taxonomy_skills.append(tax_skill)
+
+    for tax_skill in expanded_taxonomy_skills:
         tax_emb = tax_skill.get("embedding")
-        if not tax_emb:
-            # Curated baseline skills are usable before their async embedding
-            # enrichment finishes. Exact normalized matches are high confidence.
-            normalized_tax = _normalize_skill(tax_skill["skill_name"])
-            direct_match = next(
-                (skill for skill in resume_skills if _normalize_skill(skill) == normalized_tax),
-                None,
-            )
-            if direct_match:
-                matched.append({
-                    "taxonomy_skill": tax_skill["skill_name"],
-                    "resume_skill": direct_match,
-                    "similarity": 1.0,
-                })
-            else:
-                missing.append({
-                    "skill": tax_skill["skill_name"],
-                    "closest_in_resume": None,
-                    "similarity": 0.0,
-                })
+        
+        # 1. Direct Text Match (Short-circuit).
+        norm_tax = _normalize_skill(tax_skill["skill_name"])
+        direct_match = next(
+            (skill for skill in resume_skills if _normalize_skill(skill) == norm_tax),
+            None,
+        )
+                
+        if direct_match:
+            matched.append({
+                "taxonomy_skill": tax_skill["skill_name"],
+                "resume_skill": direct_match,
+                "similarity": 1.0,
+            })
             continue
+
+        # 2. Vector Match (if direct text match fails and embedding exists)
+        if not tax_emb:
+            missing.append({
+                "skill": tax_skill["skill_name"],
+                "closest_in_resume": None,
+                "similarity": 0.0,
+            })
+            continue
+
         if isinstance(tax_emb, str):
             try:
                 tax_emb = json.loads(tax_emb)

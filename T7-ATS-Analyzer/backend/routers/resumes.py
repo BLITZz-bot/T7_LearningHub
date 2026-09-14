@@ -25,6 +25,7 @@ async def list_models():
 async def upload_resume(
     file: UploadFile = File(...),
     role: str = Form(default="Software Developer"),
+    experience_level: str = Form(default="Professional (Experienced)"),
     user_id: str = Form(default="anonymous"),
     model: str = Form(default=DEFAULT_GENERATION_MODEL),
 ):
@@ -61,7 +62,7 @@ async def upload_resume(
 
     # 4. Content score (one Gemini call)
     try:
-        cont = content_score(parsed, role, model=model)
+        cont = content_score(parsed, role, experience_level, model=model)
     except Exception as e:
         cont = {"quantification_score": 50, "formatting_score": 50, "weak_bullets": [], "formatting_issues": [], "seniority_notes": model_access_error_message(e, model)}
 
@@ -132,6 +133,7 @@ async def upload_resume(
         "parsed": parsed,
         "match": match_result,
         "target_role": role,
+        "experience_level": experience_level,
     })
 
 
