@@ -18,9 +18,9 @@
   --accent-orange: #f59e42;
   --accent-red:    #f87171;
 
-  --text-primary:  #f1f5f9;
-  --text-secondary:#94a3b8;
-  --text-muted:    #475569;
+  --text-primary:  #ffffff;
+  --text-secondary:#cbd5e1;
+  --text-muted:    #94a3b8;
 
   --radius-sm: 8px;
   --radius-md: 14px;
@@ -40,6 +40,10 @@ html, body, #root {
   background: var(--bg-deep);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary);
 }
 
 body {

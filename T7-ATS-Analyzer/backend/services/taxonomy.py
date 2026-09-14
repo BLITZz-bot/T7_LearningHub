@@ -39,7 +39,7 @@ ONET_FALLBACK: dict[str, list[str]] = {
 
 # ─── Bootstrap ────────────────────────────────────────────────────────────────
 
-async def run_bootstrap() -> dict:
+async def run_bootstrap(model: str = "gemini-3.6-flash") -> dict:
     """
     Full one-time bootstrap.
     Returns summary dict with counts.
@@ -47,29 +47,42 @@ async def run_bootstrap() -> dict:
     sb = get_supabase()
     summary = {"roles": 0, "postings_fetched": 0, "skills_extracted": 0, "skills_promoted": 0, "onet_fallback_roles": []}
 
-    print("[taxonomy] Step 1: Fetching job postings for all roles...")
+    print(f"[taxonomy] Step 1: Fetching job postings for all roles (model: {model})...")
     all_postings = await fetch_all_roles_all_sources()
     summary["postings_fetched"] = len(all_postings)
 
-    # Store postings in DB
-    print(f"[taxonomy] Storing {len(all_postings)} postings...")
-    for chunk in _chunks(all_postings, 50):
-        rows = [
-            {
-                "id": p.setdefault("id", str(uuid.uuid4())),
-                "source": p.get("source"),
-                "role_category": p.get("role_category"),
-                "role_title": p.get("role_title"),
-                "company": p.get("company"),
-                "raw_description": p.get("raw_description", "")[:4000],
-                "skills_processed": False,
-            }
-            for p in chunk
-        ]
+    # If external APIs returned 0, use existing unprocessed job postings in the database
+    if not all_postings:
+        print("[taxonomy] External fetch empty — querying existing postings in DB...")
         try:
-            sb.table("t7_job_postings").insert(rows).execute()
+            db_res = sb.table("t7_job_postings").select(
+                "id, role_category, role_title, company, raw_description"
+            ).eq("skills_processed", False).limit(1000).execute()
+            all_postings = db_res.data or []
+            print(f"[taxonomy] Found {len(all_postings)} existing unprocessed postings in DB.")
         except Exception as e:
-            print(f"[taxonomy] Warning: batch insert failed: {e}")
+            print(f"[taxonomy] DB query error: {e}")
+
+    # Store postings in DB if they were freshly fetched
+    if summary["postings_fetched"] > 0:
+        print(f"[taxonomy] Storing {len(all_postings)} postings...")
+        for chunk in _chunks(all_postings, 50):
+            rows = [
+                {
+                    "id": p.setdefault("id", str(uuid.uuid4())),
+                    "source": p.get("source"),
+                    "role_category": p.get("role_category"),
+                    "role_title": p.get("role_title"),
+                    "company": p.get("company"),
+                    "raw_description": p.get("raw_description", "")[:4000],
+                    "skills_processed": False,
+                }
+                for p in chunk
+            ]
+            try:
+                sb.table("t7_job_postings").insert(rows).execute()
+            except Exception as e:
+                print(f"[taxonomy] Warning: batch insert failed: {e}")
 
     # Count postings per role to detect thin roles
     role_posting_counts: dict[str, int] = {}
@@ -77,8 +90,8 @@ async def run_bootstrap() -> dict:
         rc = p.get("role_category", "")
         role_posting_counts[rc] = role_posting_counts.get(rc, 0) + 1
 
-    print("[taxonomy] Step 2: Extracting skills from all postings...")
-    total_skills = await _extract_and_store_skills(all_postings)
+    print(f"[taxonomy] Step 2: Extracting skills from all postings using {model}...")
+    total_skills = await _extract_and_store_skills(all_postings, model=model)
     summary["skills_extracted"] = total_skills
 
     print("[taxonomy] Step 3: Normalizing + deduplicating via embeddings...")
@@ -103,11 +116,11 @@ async def run_bootstrap() -> dict:
 
 # ─── Incremental Refresh ──────────────────────────────────────────────────────
 
-async def run_incremental_refresh() -> dict:
+async def run_incremental_refresh(model: str = "gemini-3.6-flash") -> dict:
     """Fetch new postings for all roles and merge into taxonomy."""
     summary = {"postings_fetched": 0, "skills_extracted": 0, "promoted": 0}
 
-    print("[taxonomy] Incremental refresh starting...")
+    print(f"[taxonomy] Incremental refresh starting (model: {model})...")
     all_postings = await fetch_all_roles_all_sources()
     summary["postings_fetched"] = len(all_postings)
 
@@ -130,7 +143,7 @@ async def run_incremental_refresh() -> dict:
         except Exception as e:
             print(f"[taxonomy] Warning: {e}")
 
-    total_skills = await _extract_and_store_skills(all_postings)
+    total_skills = await _extract_and_store_skills(all_postings, model=model)
     summary["skills_extracted"] = total_skills
     await _normalize_all_candidate_skills()
     promoted = _bootstrap_promote()
@@ -141,7 +154,7 @@ async def run_incremental_refresh() -> dict:
 
 # ─── Internal helpers ─────────────────────────────────────────────────────────
 
-async def _extract_and_store_skills(postings: list[dict]) -> int:
+async def _extract_and_store_skills(postings: list[dict], model: str = "gemini-3.6-flash") -> int:
     """
     Run extract_skills_from_posting() over every posting.
     Gemini calls are synchronous — run them in a thread pool to avoid
@@ -159,7 +172,7 @@ async def _extract_and_store_skills(postings: list[dict]) -> int:
         role = posting.get("role_category", "")
         company = posting.get("company", "")
         try:
-            skills = extract_skills_from_posting(desc)
+            skills = extract_skills_from_posting(desc, model=model)
             for skill in skills:
                 _upsert_candidate_skill(skill, role, company)
                 count += 1

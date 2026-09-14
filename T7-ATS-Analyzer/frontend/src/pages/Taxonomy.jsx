@@ -1,11 +1,21 @@
 import { useState, useEffect } from 'react';
 
+const TAXONOMY_MODELS = [
+  ['gemini-3.6-flash', 'Gemini 3.6 Flash (Default)'],
+  ['gemini-3.5-flash', 'Gemini 3.5 Flash'],
+  ['gemini-3.1-flash-lite', 'Gemini 3.1 Flash Lite'],
+  ['gemini-3.7-flash', 'Gemini 3.7 Flash'],
+  ['gemini-3.8-flash', 'Gemini 3.8 Flash'],
+  ['gemini-2.5-flash', 'Gemini 2.5 Flash'],
+];
+
 export default function Taxonomy() {
   const [roles, setRoles] = useState([]);
   const [selectedRole, setSelectedRole] = useState('');
   const [skills, setSkills] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [bootstrapStatus, setBootstrapStatus] = useState(null);
+  const [selectedModel, setSelectedModel] = useState('gemini-3.6-flash');
 
   useEffect(() => {
     fetch('/api/taxonomy/')
@@ -26,25 +36,32 @@ export default function Taxonomy() {
   };
 
   const triggerBootstrap = async () => {
-    const r = await fetch('/api/admin/taxonomy/bootstrap', { method: 'POST' });
-    const d = await r.json();
-    setBootstrapStatus(d.message);
+    setBootstrapStatus(`Starting with ${selectedModel}…`);
+    try {
+      const r = await fetch(`/api/admin/taxonomy/bootstrap?model=${encodeURIComponent(selectedModel)}`, {
+        method: 'POST',
+      });
+      const d = await r.json();
+      setBootstrapStatus(d.message || 'Started');
+    } catch (e) {
+      setBootstrapStatus(`Error: ${e.message}`);
+    }
   };
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto', padding: '40px 20px' }}>
-      <h1 style={{ fontSize: 32, fontWeight: 800, fontFamily: 'Outfit, sans-serif', marginBottom: 8 }}>
+      <h1 style={{ fontSize: 32, fontWeight: 800, fontFamily: 'Outfit, sans-serif', marginBottom: 8, color: '#ffffff' }}>
         🌐 <span className="grad-text">Skill Taxonomy</span>
       </h1>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: 32 }}>
+      <p style={{ color: '#94a3b8', marginBottom: 32 }}>
         Live canonical skills mined from {'>'}35 roles across Adzuna, JSearch & Jooble
       </p>
 
       {/* Admin: bootstrap */}
       <div className="glass-card" style={{ padding: 20, marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>🚀 Bootstrap Taxonomy</p>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Fetches all jobs from all APIs, extracts skills, promotes canonical — runs once in background</p>
+          <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: '#ffffff' }}>🚀 Bootstrap Taxonomy</p>
+          <p style={{ fontSize: 12, color: '#94a3b8' }}>Fetches all jobs from all APIs, extracts skills, promotes canonical — runs once in background</p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           {bootstrapStatus && (
@@ -52,6 +69,26 @@ export default function Taxonomy() {
               {bootstrapStatus}
             </span>
           )}
+          <select
+            value={selectedModel}
+            onChange={e => setSelectedModel(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid var(--border)',
+              color: '#ffffff',
+              fontSize: 13,
+              outline: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            {TAXONOMY_MODELS.map(([mId, label]) => (
+              <option key={mId} value={mId} style={{ background: '#12121e', color: '#fff' }}>
+                {label}
+              </option>
+            ))}
+          </select>
           <button onClick={triggerBootstrap} style={{
             padding: '9px 20px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 600,
             background: 'linear-gradient(135deg, #5b8dee, #8b5cf6)',

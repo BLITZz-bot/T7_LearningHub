@@ -119,10 +119,10 @@ export default function Analyzer() {
           {/* Formatting issues */}
           {scores?.formatting_issues?.length > 0 && (
             <div className="glass-card" style={{ padding: 24, marginBottom: 24 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 14 }}>🛠 Formatting Issues</h3>
+              <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 14, color: '#ffffff' }}>🛠 Formatting Issues</h3>
               <ul style={{ paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {scores.formatting_issues.map((issue, i) => (
-                  <li key={i} style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{issue}</li>
+                  <li key={i} style={{ color: '#cbd5e1', fontSize: 14, lineHeight: 1.6 }}>{issue}</li>
                 ))}
               </ul>
             </div>
@@ -131,8 +131,8 @@ export default function Analyzer() {
           {/* Seniority notes */}
           {scores?.seniority_notes && (
             <div className="glass-card" style={{ padding: 24, marginBottom: 24 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 10 }}>💼 Seniority Assessment</h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.7 }}>{scores.seniority_notes}</p>
+              <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 10, color: '#ffffff' }}>💼 Seniority Assessment</h3>
+              <p style={{ color: '#cbd5e1', fontSize: 14, lineHeight: 1.7 }}>{scores.seniority_notes}</p>
             </div>
           )}
 

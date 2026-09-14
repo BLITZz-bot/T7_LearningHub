@@ -11,8 +11,8 @@ export default function GapList({ matchResult }) {
     <div className="glass-card animate-fade-up" style={{ padding: 28, marginBottom: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>🎯 Skill Gap Analysis</h3>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+          <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4, color: '#ffffff' }}>🎯 Skill Gap Analysis</h3>
+          <p style={{ fontSize: 13, color: '#94a3b8' }}>
             {matched.length} matched · {missing.length} missing
           </p>
         </div>
