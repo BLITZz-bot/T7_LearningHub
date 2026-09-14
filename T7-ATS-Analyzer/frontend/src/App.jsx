@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Analyzer from './pages/Analyzer';
 import Taxonomy from './pages/Taxonomy';
+import ServerWarmupBanner from './components/ServerWarmupBanner';
 
 const NAV = [
   { id: 'analyzer', label: '🤖 Analyzer' },
@@ -53,6 +54,9 @@ export default function App() {
 
       {/* Page content */}
       {page === 'analyzer' ? <Analyzer /> : <Taxonomy />}
+
+      {/* Cloud server cold start monitor & animated status */}
+      <ServerWarmupBanner />
     </div>
   );
 }

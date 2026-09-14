@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 const ALL_ROLES = [
   'Software Development Engineer (SDE) / Backend Developer',
@@ -14,6 +14,22 @@ export default function UploadZone({ onUpload, isLoading }) {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedRole, setSelectedRole] = useState('Software Developer');
   const [fileName, setFileName] = useState(null);
+  const [loadingSeconds, setLoadingSeconds] = useState(0);
+
+  useEffect(() => {
+    let timer;
+    if (isLoading) {
+      setLoadingSeconds(0);
+      timer = setInterval(() => {
+        setLoadingSeconds(s => s + 1);
+      }, 1000);
+    } else {
+      setLoadingSeconds(0);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [isLoading]);
 
   const handleFile = useCallback((file) => {
     if (!file) return;
@@ -70,15 +86,38 @@ export default function UploadZone({ onUpload, isLoading }) {
       >
         {isLoading ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-            <div style={{
-              width: 48, height: 48,
-              border: '3px solid rgba(91,141,238,0.2)',
-              borderTop: '3px solid var(--accent-blue)',
-              borderRadius: '50%',
-              animation: 'spin 0.8s linear infinite',
-            }} />
-            <p style={{ color: 'var(--accent-blue)', fontSize: 16, fontWeight: 500 }}>Analyzing with Gemini…</p>
-            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Parsing resume · Scoring · Finding skill gaps</p>
+            <div style={{ position: 'relative', width: 56, height: 56 }}>
+              <div style={{
+                width: 56, height: 56,
+                border: '3px solid rgba(91,141,238,0.18)',
+                borderTop: '3px solid var(--accent-blue)',
+                borderRadius: '50%',
+                animation: 'spin 0.8s linear infinite',
+              }} />
+              <div style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 12, fontWeight: 700, color: 'var(--accent-blue)',
+                fontVariantNumeric: 'tabular-nums',
+              }}>
+                {loadingSeconds}s
+              </div>
+            </div>
+
+            <div>
+              <p style={{ color: 'var(--accent-blue)', fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+                {loadingSeconds < 5
+                  ? 'Parsing resume structure & text…'
+                  : loadingSeconds < 14
+                  ? 'Evaluating with Gemini & computing ATS score…'
+                  : 'Cloud server is waking up — almost ready…'}
+              </p>
+              <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                {loadingSeconds >= 14
+                  ? 'Render free tier takes ~20–30s on first request after sleep. Hold tight!'
+                  : 'Structural parsing · Skill taxonomy match · Dual-layer scoring'}
+              </p>
+            </div>
           </div>
         ) : (
           <>
