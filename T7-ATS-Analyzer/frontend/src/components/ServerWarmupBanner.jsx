@@ -23,7 +23,6 @@ export default function ServerWarmupBanner() {
     fetch('/api/health')
       .then(res => {
         if (res.ok) {
-          
           clearTimeout(slowTimer);
           if (timerInterval) clearInterval(timerInterval);
           if (isMounted) {
