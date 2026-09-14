@@ -236,15 +236,17 @@ def _upsert_candidate_skill(skill_text: str, role_category: str, company: str):
             .select("id, frequency_30d, frequency_90d, company_count")
             .eq("role_category", role_category)
             .eq("skill_name", skill_text)
-            .maybe_single()
+            .limit(1)
             .execute()
         )
-        if existing.data:
+        if existing and existing.data and len(existing.data) > 0:
+            existing_row = existing.data[0]
             sb.table("t7_skill_taxonomy").update({
-                "frequency_30d": existing.data["frequency_30d"] + 1,
-                "frequency_90d": existing.data["frequency_90d"] + 1,
-                "company_count": company_count,
-            }).eq("id", existing.data["id"]).execute()
+                "frequency_30d": (existing_row.get("frequency_30d") or 0) + 1,
+                "frequency_90d": (existing_row.get("frequency_90d") or 0) + 1,
+                "company_count": max(1, company_count),
+                "status": "canonical",
+            }).eq("id", existing_row["id"]).execute()
         else:
             sb.table("t7_skill_taxonomy").insert({
                 "id": str(uuid.uuid4()),
@@ -252,8 +254,8 @@ def _upsert_candidate_skill(skill_text: str, role_category: str, company: str):
                 "skill_name": skill_text,
                 "frequency_30d": 1,
                 "frequency_90d": 1,
-                "company_count": company_count,
-                "status": "candidate",
+                "company_count": max(1, company_count),
+                "status": "canonical",
             }).execute()
     except Exception as e:
         print(f"[taxonomy] Upsert error for '{skill_text}': {e}")
@@ -298,8 +300,7 @@ async def _normalize_all_candidate_skills():
 
 def _bootstrap_promote() -> int:
     """
-    Promote candidates to 'canonical' immediately if:
-      frequency_30d >= PROMOTE_FREQUENCY AND company_count >= PROMOTE_COMPANIES
+    Promote candidates to 'canonical' so they appear in taxonomy & matching immediately.
     Returns count of newly promoted skills.
     """
     sb = get_supabase()
@@ -308,8 +309,6 @@ def _bootstrap_promote() -> int:
             sb.table("t7_skill_taxonomy")
             .select("id, skill_name, role_category, frequency_30d, company_count")
             .eq("status", "candidate")
-            .gte("frequency_30d", PROMOTE_FREQUENCY)
-            .gte("company_count", PROMOTE_COMPANIES)
             .execute()
         )
     except Exception as e:

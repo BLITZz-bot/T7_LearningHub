@@ -9,7 +9,14 @@ export default function Analyzer() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRewriting, setIsRewriting] = useState(false);
   const [error, setError] = useState('');
-  const [result, setResult] = useState(null);         // upload response
+  const [result, setResult] = useState(() => {
+    try {
+      const saved = localStorage.getItem('t7_ats_latest_result');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [rewrites, setRewrites] = useState(null);
   const [jdMatch, setJdMatch] = useState(null);
   const [showJDModal, setShowJDModal] = useState(false);
@@ -32,6 +39,9 @@ export default function Analyzer() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Upload failed');
       setResult(data);
+      try {
+        localStorage.setItem('t7_ats_latest_result', JSON.stringify(data));
+      } catch {}
     } catch (e) {
       setError(e.message);
     } finally {
@@ -93,9 +103,26 @@ export default function Analyzer() {
         <>
           {/* Toolbar */}
           <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
-            <h2 style={{ fontSize: 22, fontWeight: 700, flex: 1 }}>
-              📊 Results — <span style={{ color: 'var(--text-secondary)', fontWeight: 500, fontSize: 16 }}>{result.target_role}</span>
+            <h2 style={{ fontSize: 22, fontWeight: 700, flex: 1, color: '#ffffff' }}>
+              📊 Results — <span style={{ color: '#94a3b8', fontWeight: 500, fontSize: 16 }}>{result.target_role}</span>
             </h2>
+            <button
+              onClick={() => {
+                setResult(null);
+                setRewrites(null);
+                setJdMatch(null);
+                try { localStorage.removeItem('t7_ats_latest_result'); } catch {}
+              }}
+              style={{
+                padding: '10px 18px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 600,
+                background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)',
+                color: '#cbd5e1', cursor: 'pointer', transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.12)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+            >
+              🔄 New Resume
+            </button>
             <button
               onClick={() => setShowJDModal(true)}
               style={{
