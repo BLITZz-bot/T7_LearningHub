@@ -232,7 +232,7 @@ export default async function handler(req, res) {
     if (!jobId || !jobUrl) return res.status(400).json({ error: 'jobId and jobUrl are required' });
     
     try {
-      const { createClient } = require('@supabase/supabase-js');
+      const { createClient } = await import('@supabase/supabase-js');
       const supabaseUrl = process.env.SUPABASE_URL?.trim().replace(/^["']|["']$/g, '');
       const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '').trim().replace(/^["']|["']$/g, '');
       
