@@ -316,8 +316,21 @@ const FullJobMarketView = ({
             {/* Grid of Job Cards */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4.5">
               {filteredJobs.map((job, idx) => {
-                const matchedJobSkills = job.requiredSkills.filter(s => userSkills.includes(s));
-                const missingJobSkills = job.requiredSkills.filter(s => !userSkills.includes(s));
+                const normalizedUserSkills = userSkills.map(s => s.toLowerCase().trim());
+                
+                const matchedJobSkills = job.requiredSkills.filter(jobSkill => {
+                  const normalizedJobSkill = jobSkill.toLowerCase().trim();
+                  return normalizedUserSkills.some(userSkill => 
+                    userSkill.includes(normalizedJobSkill) || normalizedJobSkill.includes(userSkill)
+                  );
+                });
+                
+                const missingJobSkills = job.requiredSkills.filter(jobSkill => {
+                  const normalizedJobSkill = jobSkill.toLowerCase().trim();
+                  return !normalizedUserSkills.some(userSkill => 
+                    userSkill.includes(normalizedJobSkill) || normalizedJobSkill.includes(userSkill)
+                  );
+                });
                 const matchPercentage = job.requiredSkills.length > 0
                   ? Math.round((matchedJobSkills.length / job.requiredSkills.length) * 100)
                   : 0;

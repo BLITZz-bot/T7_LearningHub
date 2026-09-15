@@ -19,6 +19,7 @@ export default function AtsPage() {
           <FullJobMarketView 
             careerInterest="all"
             experienceLevel={atsResult.experience_level || 'all'}
+            userSkills={atsResult.match?.matched_skills || []}
           />
         </div>
       )}
