@@ -105,34 +105,74 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'resumeBase64 or extractedText is required' });
   }
 
-  const prompt = `You are an expert Technical Recruiter and ATS (Applicant Tracking System) Analyzer.
-I am providing you with a candidate's resume text and their academic context.
-Your job is to analyze the resume for the target role: "${targetRole}".
+  const prompt = `You are a strict, top-tier Technical Recruiter and ATS (Applicant Tracking System) Specialist with 15+ years of hiring experience.
+I am providing you with a candidate's resume text and their complete academic/profile context.
+Your job is to perform an honest, no-sugarcoating reality check and technical evaluation for the target role: "${targetRole}".
 
-Academic Context:
+Candidate Profile Context:
+- Target Role: ${targetRole}
+- College Branch: ${branch || 'Not provided'}
 - CGPA: ${cgpa || 'Not provided'}
 - Passout Year: ${year || 'Not provided'}
-- Branch: ${branch || 'Not provided'}
-- Current Skills: ${studentSkills ? studentSkills.join(', ') : 'Not provided'}
+- Self-Reported Skills: ${studentSkills ? studentSkills.join(', ') : 'Not provided'}
 
 Resume Text:
 ${textToAnalyze.substring(0, 15000)}
 
-Analyze the resume and return EXACTLY this JSON structure, and nothing else:
+Perform a deep analysis focusing on these critical dimensions:
+
+1. BRANCH & ROLE ALIGNMENT:
+   - Analyze how their academic branch ("${branch}") matches the target role ("${targetRole}").
+   - If they are from a non-CS/IT branch (e.g. Mechanical, Civil, Electrical, Chemical) pivoting into Software/Data, acknowledge the hurdle: their projects and technical proof must be twice as strong.
+   - If they are CS/IT, hold them to high standard on fundamental CS concepts and depth.
+
+2. PROJECT REALITY CHECK (CRITICAL):
+   - Thoroughly inspect every project listed in the resume.
+   - Grade project authenticity and complexity: Are these generic tutorial/college beginner projects (e.g., To-Do list, calculator, basic portfolio, simple clone of Netflix/Amazon UI with hardcoded data), or are they real-world engineering projects (full-stack, auth, database design, caching, APIs, deployment, optimization)?
+   - Call out their projects by name in the critique and explicitly tell them how recruiters perceive them.
+
+3. IMPACT & QUANTIFICATION:
+   - Scan for metrics, percentages, throughput numbers, cost savings, user counts, or quantifiable business impact.
+   - Heavily penalize passive bullets like "Assisted in development" or "Worked on frontend".
+
+4. SKILL & KEYWORD MATCH:
+   - Cross-check technical competencies required for a modern ${targetRole} against the resume.
+   - Identify exact missing industry keywords and tools.
+
+Return EXACTLY this JSON structure and nothing else:
 {
   "ats_parseability": 0-100,
   "impact_quantification": 0-100,
   "skill_match": 0-100,
   "formatting_quality": 0-100,
   "overall_readiness": 0-100,
-  "action_plan": "A personalized mentor message explaining their reality check. Incorporate their CGPA, Branch, Year, and any soft skills or leadership qualities found in the resume. Be honest, direct, and actionable.",
-  "soft_skills_detected": ["List", "of", "soft", "skills", "found"]
+  "action_plan": "A direct, honest, second-person mentor message ('You currently have...', 'Your branch is...', 'Your projects...'). Specifically analyze: (1) their Branch vs ${targetRole} transition reality, (2) an honest critique of their projects (name them and state whether they are beginner clones or production-ready), (3) their CGPA and passout year impact, and (4) soft skills/leadership observed, ending with the exact top 2 actions they must take immediately.",
+  "soft_skills_detected": ["List", "of", "soft", "skills", "or", "leadership", "found"],
+  "project_critique": "Detailed 2-3 sentence reality check on the quality, tech stack depth, and real-world credibility of their projects.",
+  "strengths": [
+    "Specific thing working well with context",
+    "Another genuine strength found in resume"
+  ],
+  "issues": [
+    {
+      "issue": "Specific critical issue in resume or project depth",
+      "why_it_matters": "Why an ATS or recruiter will reject it"
+    }
+  ],
+  "keyword_gaps": ["Essential", "Industry", "Keywords", "Missing", "For", "${targetRole}"],
+  "suggested_keywords": ["High", "Impact", "Keywords", "To", "Add"],
+  "rewrite_suggestions": [
+    {
+      "original": "A weak or unquantified bullet point extracted from their resume",
+      "improved": "An ATS-optimized version using Action Verb + Context + Metric + Result formula",
+      "reason": "Why this revision increases ATS score and recruiter callback rate"
+    }
+  ]
 }
 
 Rules for scoring:
-- overall_readiness should incorporate their academic stats and soft skills, not just the technical resume.
-- Be highly critical of impact_quantification if they don't use numbers/metrics.
-- The action_plan MUST be written in the second person ("You have...", "Your CGPA is...") like a mentor talking to the student.`;
+- overall_readiness should realistically reflect their hiring probability for "${targetRole}", taking into account their branch, CGPA, project strength, and resume quality.
+- Do NOT inflate scores. Be tough, realistic, and constructive.`;
 
   let lastError = null;
   for (const model of MODELS) {

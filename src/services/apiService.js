@@ -174,3 +174,7 @@ export const analyzeResumeGemini = async ({ resumeFile, targetRole, cgpa, year, 
   return await res.json();
 };
 
+export const saveResumeScan = async ({ userId, scanData, analysisId, resumeMeta }) => {
+  return await callDbProxy('saveResumeScan', { userId, scanData, analysisId, resumeMeta });
+};
+

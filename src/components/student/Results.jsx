@@ -14,7 +14,7 @@ import {
   Upload, RefreshCw
 } from 'lucide-react';
 import { analyzeResumeLyzr } from '../../services/lyzrAgentService';
-import { getLatestAnalysis, getVideoLearning, getVideoLearningSkills, analyzeResumeGemini } from '../../services/apiService';
+import { getLatestAnalysis, getVideoLearning, getVideoLearningSkills, analyzeResumeGemini, saveResumeScan } from '../../services/apiService';
 import { industryRoles } from '../../data/industrySkills';
 import YouTubeTrackerModal from './YouTubeTrackerModal';
 import T7AiMentor from './T7AiMentor';
@@ -301,6 +301,20 @@ const Results = () => {
         localStorage.setItem(metaKey, JSON.stringify(newMeta));
       } catch (cacheErr) {
         console.warn('Failed to cache ATS analysis:', cacheErr);
+      }
+
+      // Persist to Supabase if logged in for comparison
+      if (currentUser?.uid) {
+        try {
+          await saveResumeScan({
+            userId: currentUser.uid,
+            scanData: newAnalysis,
+            analysisId: analysis?.id || null,
+            resumeMeta: newMeta
+          });
+        } catch (dbErr) {
+          console.warn('Failed to save scan to database:', dbErr);
+        }
       }
     } catch (err) {
       console.error('Standalone ATS Error', err);
@@ -1993,9 +2007,19 @@ const Results = () => {
                   <h3 className="font-bold text-emerald-400 text-xl mb-3 flex items-center gap-2">
                     <CheckCircle className="w-5 h-5" /> AI Mentor Reality Check
                   </h3>
-                  <p className="text-zinc-300 leading-relaxed text-lg z-10 relative">
+                  <p className="text-zinc-300 leading-relaxed text-lg z-10 relative whitespace-pre-line">
                     {ats_analysis.action_plan || ats_analysis.summary || "Based on your resume and skills profile, here is what you need to focus on next to secure this role."}
                   </p>
+
+                  {ats_analysis.project_critique && (
+                    <div className="mt-5 pt-4 border-t border-zinc-800/80 flex items-start gap-3 relative z-10">
+                      <Code className="w-5 h-5 text-indigo-400 mt-1 shrink-0" />
+                      <div>
+                        <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 block mb-1">Project Reality Audit</span>
+                        <p className="text-sm text-zinc-300 leading-relaxed">{ats_analysis.project_critique}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-center mb-8">
