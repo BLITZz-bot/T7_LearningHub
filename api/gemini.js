@@ -212,7 +212,118 @@ export default async function handler(req, res) {
     });
   }
 
-  const { message, chatHistory = [], studentContext = {}, model: requestedModel } = req.body || {};
+  const { message, chatHistory = [], studentContext = {}, model: requestedModel, action, jobId, jobUrl, fallbackDescription } = req.body || {};
+
+  // Action: scrape_and_extract_skills
+  if (action === 'scrape_and_extract_skills') {
+    if (!jobId || !jobUrl) return res.status(400).json({ error: 'jobId and jobUrl are required' });
+    
+    try {
+      const { createClient } = require('@supabase/supabase-js');
+      const supabaseUrl = process.env.SUPABASE_URL?.trim().replace(/^["']|["']$/g, '');
+      const supabaseKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '').trim().replace(/^["']|["']$/g, '');
+      
+      let supabase = null;
+      if (supabaseUrl && supabaseKey) {
+        supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
+      }
+
+      // 1. Check Cache
+      if (supabase) {
+        const { data: cached } = await supabase
+          .from('t7_scraped_jobs')
+          .select('extracted_skills')
+          .eq('job_id', jobId)
+          .maybeSingle();
+          
+        if (cached && cached.extracted_skills) {
+          return res.status(200).json({ skills: cached.extracted_skills, source: 'cache' });
+        }
+      }
+
+      // 2. Scrape via Python Playwright Backend (Instead of Jina)
+      let jobText = fallbackDescription || '';
+      try {
+        // Use environment variable for the backend URL, defaulting to local during development
+        const pythonBackendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        
+        const scrapeResponse = await fetch(`${pythonBackendUrl}/scraping/scrape`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: jobUrl })
+        });
+        
+        if (scrapeResponse.ok) {
+          const scrapeData = await scrapeResponse.json();
+          
+          // Check if Cloudflare blocked us
+          const isBlocked = scrapeData.text && (
+            scrapeData.text.includes("suspicious behaviour") || 
+            scrapeData.text.includes("Cloudflare") ||
+            scrapeData.text.includes("Just a moment...")
+          );
+
+          if (scrapeData.text && scrapeData.text.length > 200 && !isBlocked) {
+            jobText = scrapeData.text;
+          } else {
+            console.warn(`Scraped text blocked or too short for ${jobUrl}, falling back to description.`);
+          }
+        } else {
+          console.warn(`Python Scraper failed for ${jobUrl} (Status: ${scrapeResponse.status}), falling back to description.`);
+        }
+      } catch (err) {
+        console.warn('Python scraper fetch error:', err.message);
+      }
+
+      // 3. Extract via Gemini
+      const prompt = `Extract all technical skills, frameworks, tools, and programming languages required in the following job posting text.
+Return ONLY a valid JSON array of strings (e.g., ["React", "TypeScript", "Git"]). Do not include any markdown formatting or extra text.
+Job Text:
+${jobText.substring(0, 15000)}`;
+
+      const requestBody = {
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.1, responseMimeType: "application/json" }
+      };
+
+      const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!aiRes.ok) throw new Error('Gemini API extraction failed');
+      const aiData = await aiRes.json();
+      let resultText = aiData?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+      
+      // Clean potential markdown blocks
+      resultText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
+      
+      let extractedSkills = [];
+      try {
+        extractedSkills = JSON.parse(resultText);
+        if (!Array.isArray(extractedSkills)) extractedSkills = [];
+      } catch (e) {
+        console.error('Failed to parse Gemini output:', resultText);
+      }
+
+      // 4. Save to Cache
+      if (supabase && extractedSkills.length > 0) {
+        await supabase.from('t7_scraped_jobs').upsert({
+          job_id: jobId,
+          url: jobUrl,
+          extracted_skills: extractedSkills,
+          created_at: new Date().toISOString()
+        }).catch(e => console.warn('Cache save failed:', e.message));
+      }
+
+      return res.status(200).json({ skills: extractedSkills, source: 'ai' });
+
+    } catch (err) {
+      console.error('Extraction error:', err);
+      return res.status(500).json({ error: 'Failed to extract skills', detail: err.message });
+    }
+  }
 
   if (!message || !message.trim()) {
     return res.status(400).json({ error: 'message is required' });

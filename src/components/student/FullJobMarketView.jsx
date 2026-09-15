@@ -30,10 +30,54 @@ const FullJobMarketView = ({
   const [error, setError] = useState('');
   const [activeSources, setActiveSources] = useState([]);
   const [hasMore, setHasMore] = useState(true);
+  const [scrapingJobs, setScrapingJobs] = useState({});
 
   const selectedRole = activeRoleId === 'all'
     ? { id: 'all', role_name: 'All Tech Roles', required_skills: [] }
     : (industryRoles.find(r => r.id === activeRoleId) || industryRoles[0]);
+
+  const handleCompareAndPlan = async (job) => {
+    if (selectedJob?.id === job.id) {
+      setSelectedJob(null);
+      return;
+    }
+
+    if (job.fullSkillsExtracted) {
+      setSelectedJob(job);
+      return;
+    }
+
+    setScrapingJobs(prev => ({ ...prev, [job.id]: true }));
+    try {
+      const res = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'scrape_and_extract_skills',
+          jobId: job.id,
+          jobUrl: job.applyUrl,
+          fallbackDescription: job.description
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.skills && Array.isArray(data.skills) && data.skills.length > 0) {
+        setJobs(prevJobs => prevJobs.map(j => {
+          if (j.id === job.id) {
+            return { ...j, requiredSkills: data.skills, fullSkillsExtracted: true };
+          }
+          return j;
+        }));
+        setSelectedJob({ ...job, requiredSkills: data.skills, fullSkillsExtracted: true });
+      } else {
+        setSelectedJob(job);
+      }
+    } catch (err) {
+      console.error('Failed to extract skills:', err);
+      setSelectedJob(job);
+    } finally {
+      setScrapingJobs(prev => ({ ...prev, [job.id]: false }));
+    }
+  };
 
   // Initial load or role/source change
   const loadInitialJobs = async (forceRefresh = false) => {
@@ -316,7 +360,11 @@ const FullJobMarketView = ({
             {/* Grid of Job Cards */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4.5">
               {filteredJobs.map((job, idx) => {
-                const normalizedUserSkills = userSkills.map(s => s.toLowerCase().trim());
+                const normalizedUserSkills = userSkills.map(s => {
+                  if (typeof s === 'string') return s.toLowerCase().trim();
+                  if (s && typeof s === 'object') return (s.resume_skill || s.taxonomy_skill || s.skill || '').toLowerCase().trim();
+                  return '';
+                }).filter(Boolean);
                 
                 const matchedJobSkills = job.requiredSkills.filter(jobSkill => {
                   const normalizedJobSkill = jobSkill.toLowerCase().trim();
@@ -403,14 +451,24 @@ const FullJobMarketView = ({
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           type="button"
-                          onClick={() => setSelectedJob(selectedJob?.id === job.id ? null : job)}
+                          onClick={() => handleCompareAndPlan(job)}
+                          disabled={scrapingJobs[job.id]}
                           className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${selectedJob?.id === job.id
                               ? 'bg-zinc-900 text-white shadow-sm'
                               : 'bg-white border border-zinc-200 text-zinc-700 hover:border-zinc-900 hover:text-zinc-900'
-                            }`}
+                            } ${scrapingJobs[job.id] ? 'opacity-70 cursor-not-allowed' : ''}`}
                         >
-                          <Target className="w-3.5 h-3.5" />
-                          <span>{selectedJob?.id === job.id ? 'Close Plan' : 'Compare & Plan'}</span>
+                          {scrapingJobs[job.id] ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>AI Analyzing JD...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Target className="w-3.5 h-3.5" />
+                              <span>{selectedJob?.id === job.id ? 'Close Plan' : 'Compare & Plan'}</span>
+                            </>
+                          )}
                         </button>
 
                         <a

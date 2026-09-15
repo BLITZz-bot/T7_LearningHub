@@ -8,8 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from routers import resumes, taxonomy, admin
-
+from routers import resumes, taxonomy, admin, scraping
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -36,6 +35,7 @@ app.add_middleware(
 app.include_router(resumes.router, prefix="/resumes", tags=["Resumes"])
 app.include_router(taxonomy.router, prefix="/taxonomy", tags=["Taxonomy"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
+app.include_router(scraping.router, prefix="/scraping", tags=["Scraping"])
 
 
 @app.get("/health")
