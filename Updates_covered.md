@@ -441,3 +441,39 @@ SUPABASE_ANON_KEY=your_supabase_anon_key_here
 * **Result:** `✓ 1428 modules transformed in 2.6s. Zero syntax, type, or bundling errors.`
 * **Import Health:** 100% of internal imports across `src/` resolve cleanly.
 * **Git Status:** `.gitignore` excludes local notes and environment files. Repository is synchronized on branch `V2-Supabse`.
+
+---
+
+## 8. Gemini API & ATS Analyzer Fixes
+
+### A. Gemini 3.x Stack Synchronization
+* **Issue:** Vercel Serverless Function (`api/gemini.js`) had hardcoded `SUPPORTED_MODELS` pointing to older 2.x versions, while the frontend requested `gemini-3.6-flash`.
+* **Fix:** Updated the serverless function's model dictionary to exclusively support the 3.x stack (`gemini-3.6-flash`, `gemini-3.5-flash`, `gemini-3.1-flash-lite`), matching the frontend selections and eliminating 404 mismatch errors.
+
+### B. Fallback Model Crash (`undefined endpoint`)
+* **Error:** `Cannot read properties of undefined (reading 'endpoint')`
+* **Issue:** When a premium model (e.g., Gemini 3.1 Pro) encountered a 429 quota error, the `api/gemini.js` fallback safety net attempted to route the request to a deleted `gemini-2.5-flash` object, causing a 500 Server Error.
+* **Fix:** Rewired the fallback logic to securely route failed API calls to the new stable `gemini-3.5-flash` model.
+
+### C. ATS "No Push" Database Safety Net
+* **Issue:** The `/api/resumes/{id}/rewrite` Python endpoint in `T7-ATS-Analyzer` crashed with an unhandled 500 error if users uploaded a resume but bypassed Supabase persistence (the `t7_resumes` query failed).
+* **Fix:** Wrapped the `target_role` Supabase lookup in a robust `try/except` block and configured it to read the `target_role` directly from the JSON body as a fallback.
+
+### D. Gemini JSON Schema Hallucination Handling
+* **Error:** `Unexpected token 'I', "Internal S"... is not valid JSON` in the React frontend.
+* **Issue:** The Python backend crashed when Gemini occasionally hallucinated the `weak_bullets` schema as a flat array of strings rather than a list of dictionaries (causing `.get("bullet")` to throw an `AttributeError`).
+* **Fix:** Implemented type-checking (`isinstance(item, dict)`) during bullet iteration to safely parse both strictly structured dictionaries and hallucinated flat strings.
+
+### E. Dynamic Target Role Binding for AI Rewrites
+* **Issue:** The backend hardcoded `"Software Developer"` as the ultimate fallback role, forcing Gemini to rewrite bullets tailored to software engineering even for Data Analysts or PMs.
+* **Fix:** 
+  1. Removed the `"Software Developer"` hardcoded string, replacing it with an empty string `""` for unbiased, context-based rewrites.
+  2. Updated `Analyzer.jsx` to actively pass the user's defined `target_role` directly in the `fetch()` payload body so the AI successfully tailors the rewrites to the user's specific career field.
+
+### F. Anti-Hallucination & Tone Calibration (ATS Analyzer)
+* **Issue:** The AI ATS assessment was using third-person phrasing ("The candidate") and occasionally provided overly optimistic "fake motivation" rather than realistic critiques.
+* **Fix:** Engineered the `CONTENT_SCORE_SCHEMA` prompt in `backend/services/gemini.py` with strict instructions to speak directly in the second person ("You are a strong applicant...") and to provide a "harsh but fair real-world explanation" completely grounded in reality.
+
+### G. T7 AI Mentor UI Model Cleanup
+* **Issue:** The chat dropdown in `T7AiMentor.jsx` still displayed deprecated `Gemini 2.x` models, causing confusion when the backend had already moved to the `3.x` stack.
+* **Fix:** Purged the hardcoded 2.x references from the `AI_MODELS` array in `T7AiMentor.jsx` to perfectly mirror the updated backend configuration.
