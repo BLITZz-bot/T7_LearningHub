@@ -86,6 +86,12 @@ function buildSystemPrompt(ctx) {
     matchedSkills = [],
     missingSkills = [],
     atsScore,
+    atsParseability,
+    impactQuantification,
+    skillMatch,
+    formattingQuality,
+    realityCheckMessage,
+    softSkills = [],
     atsSummary,
     atsGaps = [],
     atsKeywordGaps = [],
@@ -107,6 +113,7 @@ function buildSystemPrompt(ctx) {
   const strengthsList = Array.isArray(atsStrengths) ? atsStrengths.map(s => typeof s === 'object' ? (s.point || s.title || s.strength || JSON.stringify(s)) : s).join('\n  - ') : '';
   const ytSkillsList = Array.isArray(ytSkills) ? ytSkills.join(', ') : ytSkills;
   const quickWinsList = Array.isArray(quickWins) ? quickWins.map(w => typeof w === 'object' ? (w.action || w.tip || JSON.stringify(w)) : w).slice(0, 5).join('\n  - ') : '';
+  const softSkillsList = Array.isArray(softSkills) ? softSkills.join(', ') : (softSkills || 'None detected');
 
   const roadmapSummary = Array.isArray(roadmap) ? roadmap.map((p, i) => {
     const title = p.title || p.milestone || p.focus || `Phase ${i + 1}`;
@@ -146,10 +153,16 @@ LEARNING ROADMAP
 ${roadmapSummary || 'No roadmap generated yet'}
 
 ═══════════════════════════════════════════════════
-ATS RESUME AUDIT (from AI Resume Analysis)
+ATS RESUME AUDIT (from Gemini ATS Analysis)
 ═══════════════════════════════════════════════════
 ${resumeFileName ? `Resume File: ${resumeFileName}` : 'Resume: Not uploaded yet'}
-ATS Score: ${atsScore !== undefined && atsScore !== null ? `${atsScore}%` : 'Not analyzed yet'}
+ATS Overall Readiness: ${atsScore !== undefined && atsScore !== null ? `${atsScore}%` : 'Not analyzed yet'}
+${atsParseability !== undefined && atsParseability !== null ? `ATS Parseability: ${atsParseability}%` : ''}
+${impactQuantification !== undefined && impactQuantification !== null ? `Impact & Quantification: ${impactQuantification}%` : ''}
+${skillMatch !== undefined && skillMatch !== null ? `Skill Match: ${skillMatch}%` : ''}
+${formattingQuality !== undefined && formattingQuality !== null ? `Formatting Quality: ${formattingQuality}%` : ''}
+Soft Skills & Leadership: ${softSkillsList}
+${realityCheckMessage ? `Gemini Mentor Reality Check: ${realityCheckMessage}` : ''}
 ${atsSummary ? `Summary: ${atsSummary}` : ''}
 
 Resume Strengths:
