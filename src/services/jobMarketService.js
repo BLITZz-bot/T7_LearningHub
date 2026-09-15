@@ -58,44 +58,47 @@ export const isJobRelevantForRole = (title = '', description = '', roleName = ''
     return true;
   }
 
+  // Helper to ensure we match whole words for short acronyms like 'AI', 'ML', 'iOS', 'BI'
+  const hasWord = (str, word) => new RegExp(`\\b${word}\\b`, 'i').test(str);
+
   // If role is Data Analyst / BI:
-  if (r.includes('data analyst') || r.includes('business intelligence') || r.includes('bi analyst')) {
-    return t.includes('data') || t.includes('analyst') || t.includes('analytics') || t.includes('bi ') || t.includes('power bi') || t.includes('tableau') || t.includes('sql');
+  if (r.includes('data analyst') || r.includes('business intelligence') || hasWord(r, 'bi')) {
+    return t.includes('data analyst') || t.includes('data analytics') || t.includes('business intelligence') || hasWord(t, 'bi') || t.includes('power bi') || t.includes('tableau');
   }
 
   // If role is Data Scientist / AI / ML:
-  if (r.includes('data scientist') || r.includes('machine learning') || r.includes('ai') || r.includes('ml')) {
-    return t.includes('data scien') || t.includes('machine learning') || t.includes('ai') || t.includes('ml') || t.includes('deep learning') || t.includes('nlp');
+  if (r.includes('data scientist') || r.includes('machine learning') || hasWord(r, 'ai') || hasWord(r, 'ml')) {
+    return t.includes('data scien') || t.includes('machine learning') || hasWord(t, 'ai') || hasWord(t, 'ml') || t.includes('deep learning') || hasWord(t, 'nlp') || t.includes('artificial intelligence') || t.includes('genai');
   }
 
   // If role is Frontend Developer:
   if (r.includes('frontend') || r.includes('front-end') || r.includes('ui developer')) {
-    return t.includes('frontend') || t.includes('front-end') || t.includes('react') || t.includes('vue') || t.includes('angular') || t.includes('ui') || t.includes('web developer') || t.includes('javascript') || t.includes('software engineer') || t.includes('sde');
+    return t.includes('frontend') || t.includes('front-end') || t.includes('react') || t.includes('vue') || t.includes('angular') || t.includes('ui developer') || t.includes('web developer');
   }
 
   // If role is Backend Developer:
   if (r.includes('backend') || r.includes('back-end')) {
-    return t.includes('backend') || t.includes('back-end') || t.includes('node') || t.includes('java') || t.includes('python') || t.includes('api') || t.includes('server') || t.includes('spring') || t.includes('golang') || t.includes('c#') || t.includes('.net') || t.includes('software engineer') || t.includes('sde');
+    return t.includes('backend') || t.includes('back-end') || t.includes('node') || t.includes('java') || t.includes('python') || hasWord(t, 'api') || t.includes('server') || t.includes('spring') || t.includes('golang') || hasWord(t, 'c#') || t.includes('.net');
   }
 
   // If role is Full Stack:
   if (r.includes('fullstack') || r.includes('full stack') || r.includes('full-stack')) {
-    return t.includes('fullstack') || t.includes('full stack') || t.includes('full-stack') || t.includes('software engineer') || t.includes('software developer') || t.includes('web developer');
+    return t.includes('fullstack') || t.includes('full stack') || t.includes('full-stack') || (t.includes('web developer') && !t.includes('front'));
   }
 
   // If role is Cybersecurity:
   if (r.includes('security') || r.includes('cyber')) {
-    return t.includes('security') || t.includes('cyber') || t.includes('infosec') || t.includes('soc') || t.includes('penetration') || t.includes('threat');
+    return t.includes('security') || t.includes('cyber') || t.includes('infosec') || hasWord(t, 'soc') || t.includes('penetration') || t.includes('threat');
   }
 
   // If role is DevOps / Cloud:
-  if (r.includes('devops') || r.includes('cloud') || r.includes('sre')) {
-    return t.includes('devops') || t.includes('cloud') || t.includes('aws') || t.includes('azure') || t.includes('kubernetes') || t.includes('sre') || t.includes('infrastructure');
+  if (r.includes('devops') || r.includes('cloud') || hasWord(r, 'sre')) {
+    return t.includes('devops') || t.includes('cloud') || hasWord(t, 'aws') || t.includes('azure') || t.includes('kubernetes') || hasWord(t, 'sre') || t.includes('infrastructure');
   }
 
   // If role is Mobile:
-  if (r.includes('mobile') || r.includes('android') || r.includes('ios') || r.includes('flutter')) {
-    return t.includes('android') || t.includes('ios') || t.includes('flutter') || t.includes('react native') || t.includes('mobile');
+  if (r.includes('mobile') || r.includes('android') || hasWord(r, 'ios') || r.includes('flutter')) {
+    return t.includes('android') || hasWord(t, 'ios') || t.includes('flutter') || t.includes('react native') || t.includes('mobile');
   }
 
   // Generic fallback: check if title or description has key role words
