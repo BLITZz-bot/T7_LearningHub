@@ -265,6 +265,21 @@ export default async function handler(req, res) {
         const { userId, scanData = {}, analysisId = null, resumeMeta = {} } = payload;
         if (!userId) return res.status(400).json({ error: 'userId is required' });
 
+        // AUTO-CLEANUP: Only keep the most recent existing scan before inserting the new one.
+        const { data: existingScans } = await supabase
+          .from('resume_scans')
+          .select('id')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
+
+        if (existingScans && existingScans.length > 0) {
+          // Keep index 0 (the most recent past scan) and delete the rest
+          const scansToDelete = existingScans.slice(1).map(s => s.id);
+          if (scansToDelete.length > 0) {
+            await supabase.from('resume_scans').delete().in('id', scansToDelete);
+          }
+        }
+
         const { data, error } = await supabase
           .from('resume_scans')
           .insert({
@@ -273,13 +288,19 @@ export default async function handler(req, res) {
             file_name: resumeMeta.file_name || 'resume.pdf',
             file_type: resumeMeta.file_type || 'application/pdf',
             size_kb: resumeMeta.size_kb || 0,
-            ats_score: scanData.score || 0,
-            summary: scanData.summary || '',
-            strengths: scanData.strengths || [],
+            ats_score: scanData.overall_readiness ?? (scanData.score || 0),
+            summary: scanData.action_plan ?? (scanData.summary || ''),
+            strengths: scanData.soft_skills_detected ?? (scanData.strengths || []),
             issues: scanData.issues || [],
             keyword_gaps: scanData.keyword_gaps || [],
             suggested_keywords: scanData.suggested_keywords || [],
-            section_scores: scanData.section_scores || {},
+            section_scores: {
+              ats_parseability: scanData.ats_parseability || 0,
+              impact_quantification: scanData.impact_quantification || 0,
+              skill_match: scanData.skill_match || 0,
+              formatting_quality: scanData.formatting_quality || 0,
+              ...(scanData.section_scores || {})
+            },
             rewrite_suggestions: scanData.rewrite_suggestions || []
           })
           .select()

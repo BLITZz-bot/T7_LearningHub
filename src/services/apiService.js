@@ -130,3 +130,51 @@ export const checkDbGatewayStatus = async () => {
   }
 };
 
+// ----------------------------------------------------------------
+// 7. Gemini Direct ATS Analysis
+// ----------------------------------------------------------------
+const fileToBase64 = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const base64 = reader.result.split(',')[1];
+    resolve({ base64, mimeType: file.type });
+  };
+  reader.onerror = reject;
+  reader.readAsDataURL(file);
+});
+
+export const analyzeResumeGemini = async ({ resumeFile, targetRole, cgpa, year, branch, studentSkills }) => {
+  let resumeBase64 = null;
+  let mimeType = null;
+  if (resumeFile) {
+    const encoded = await fileToBase64(resumeFile);
+    resumeBase64 = encoded.base64;
+    mimeType = encoded.mimeType;
+  }
+
+  const res = await fetch('/api/gemini-ats', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      resumeBase64,
+      mimeType,
+      targetRole,
+      cgpa,
+      year,
+      branch,
+      studentSkills
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || err.detail || 'Failed to analyze resume with Gemini ATS');
+  }
+
+  return await res.json();
+};
+
+export const saveResumeScan = async ({ userId, scanData, analysisId, resumeMeta }) => {
+  return await callDbProxy('saveResumeScan', { userId, scanData, analysisId, resumeMeta });
+};
+
