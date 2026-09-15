@@ -13,43 +13,42 @@ import {
   Youtube, Globe, TrendingUp, Award, X, Home, Lightbulb, Copy, ArrowRight,
   Upload, RefreshCw
 } from 'lucide-react';
-import { analyzeResumeLyzr } from '../../services/lyzrAgentService';
-import { getLatestAnalysis, getVideoLearning, getVideoLearningSkills, analyzeResumeGemini, saveResumeScan } from '../../services/apiService';
+import { analyzeResumeGemini } from '../../services/geminiAtsService';
+import { getLatestAnalysis, getVideoLearning, getVideoLearningSkills, saveResumeScan, getResumeHistory } from '../../services/apiService';
 import { industryRoles } from '../../data/industrySkills';
 import YouTubeTrackerModal from './YouTubeTrackerModal';
 import T7AiMentor from './T7AiMentor';
+import FullJobMarketView from './FullJobMarketView';
 
-const CircularProgress = ({ percent, label, size = 'sm', color = 'text-emerald-500' }) => {
-  const radius = size === 'lg' ? 60 : 35;
-  const stroke = size === 'lg' ? 10 : 6;
-  const normalizedRadius = radius - stroke * 2;
-  const circumference = normalizedRadius * 2 * Math.PI;
-  const strokeDashoffset = circumference - ((percent || 0) / 100) * circumference;
-
+const CircularRing = ({ percentage, label, colorClass, size = 100, strokeWidth = 8 }) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (percentage / 100) * circumference;
+  
   return (
-    <div className="flex flex-col items-center">
-      <div className="relative flex items-center justify-center">
-        <svg height={radius * 2} width={radius * 2} className="transform -rotate-90">
-          <circle stroke="#f4f4f5" fill="transparent" strokeWidth={stroke} r={normalizedRadius} cx={radius} cy={radius} />
-          <circle
+    <div className="flex flex-col items-center gap-2">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg className="w-full h-full transform -rotate-90">
+          <circle cx={size/2} cy={size/2} r={radius} stroke="rgba(0,0,0,0.1)" strokeWidth={strokeWidth} fill="none" className="dark:stroke-white/10" />
+          <circle cx={size/2} cy={size/2} r={radius}
+            className={colorClass}
             stroke="currentColor"
-            fill="transparent"
+            strokeWidth={strokeWidth} fill="none"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
             strokeLinecap="round"
-            strokeWidth={stroke}
-            strokeDasharray={circumference + ' ' + circumference}
-            style={{ strokeDashoffset, transition: 'stroke-dashoffset 0.5s ease 0s' }}
-            r={normalizedRadius}
-            cx={radius}
-            cy={radius}
-            className={color}
+            style={{ transition: 'stroke-dashoffset 1s ease-in-out' }}
           />
         </svg>
-        <span className={`absolute font-black text-zinc-900 ${size === 'lg' ? 'text-4xl' : 'text-xl'}`}>{percent || 0}%</span>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-xl font-bold text-zinc-900 dark:text-white">{percentage}%</span>
+        </div>
       </div>
-      <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mt-3 text-center">{label}</span>
+      <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 text-center max-w-[80px] leading-tight">{label}</span>
     </div>
   );
 };
+
 
 const Results = () => {
   const location = useLocation();
@@ -67,11 +66,6 @@ const Results = () => {
   const [isYouTubeModalOpen, setIsYouTubeModalOpen] = useState(false);
   const [copiedT7, setCopiedT7] = useState(false);
   const [copiedRewriteIndex, setCopiedRewriteIndex] = useState(null);
-  
-  // ATS Compare Modal State
-  const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
-  const [previousAtsData, setPreviousAtsData] = useState(null);
-  const [loadingCompare, setLoadingCompare] = useState(false);
 
   const loadVideoLearningData = async () => {
     if (!currentUser?.uid && !userProfile?.t7Id) return;
@@ -160,6 +154,25 @@ const Results = () => {
   const [localResumeMeta, setLocalResumeMeta] = useState(null);
   const [isParsingResume, setIsParsingResume] = useState(false);
   const [resumeError, setResumeError] = useState('');
+  const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
+  const [atsHistory, setAtsHistory] = useState([]);
+  const [viewJobsMode, setViewJobsMode] = useState(false);
+
+  const fetchAtsHistory = async () => {
+    if (!currentUser?.uid) return;
+    try {
+      const history = await getResumeHistory(currentUser.uid, 5);
+      setAtsHistory(history || []);
+    } catch (e) {
+      console.warn("Failed to fetch ATS history:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'ats') {
+      fetchAtsHistory();
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     const storageKey = currentUser?.uid ? `t7_ats_analysis_${currentUser.uid}` : 't7_ats_analysis_guest';
@@ -261,6 +274,7 @@ const Results = () => {
   const ats_analysis = localAtsAnalysis;
   const resume_meta = localResumeMeta;
 
+
   const handleAtsUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -275,77 +289,37 @@ const Results = () => {
     setIsParsingResume(true);
 
     try {
-      // Uses Direct Gemini API (bypassing Lyzr) for highly detailed ATS analysis
+      // Direct Gemini Analysis
       const result = await analyzeResumeGemini({
         resumeFile: file,
-        targetRole: role?.role_name || 'Software Developer',
-        cgpa: userProfile?.cgpa || userProfile?.passoutYear || 'Not specified', // user context
-        year: userProfile?.passoutYear || 'Not specified',
-        branch: userProfile?.branch || 'Not specified',
-        studentSkills: userSkills,
+        targetRole: role?.role_name || null,
         userId: currentUser?.uid,
+        studentContext: {
+          cgpa: userProfile?.cgpa || '',
+          year: userProfile?.passoutYear || '',
+          branch: userProfile?.branch || ''
+        }
       });
+      setLocalAtsAnalysis(result.ats_analysis);
+      setLocalResumeMeta(result.resume_meta);
 
-      // The result format is directly mapped from the Gemini prompt
-      const newAnalysis = result.result || result;
-      setLocalAtsAnalysis(newAnalysis);
-      
-      const newMeta = { file_name: file.name, file_type: file.type || 'application/pdf', size_kb: Math.round(file.size / 1024) };
-      setLocalResumeMeta(newMeta);
+      if (currentUser?.uid) {
+        await saveResumeScan(currentUser.uid, result.ats_analysis, analysis?.id, result.resume_meta);
+        await fetchAtsHistory();
+      }
 
-      // Persist to localStorage immediately so analyzed data is permanently stored
       const storageKey = currentUser?.uid ? `t7_ats_analysis_${currentUser.uid}` : 't7_ats_analysis_guest';
       const metaKey = currentUser?.uid ? `t7_resume_meta_${currentUser.uid}` : 't7_resume_meta_guest';
       try {
-        localStorage.setItem(storageKey, JSON.stringify(newAnalysis));
-        localStorage.setItem(metaKey, JSON.stringify(newMeta));
-      } catch (cacheErr) {
-        console.warn('Failed to cache ATS analysis:', cacheErr);
-      }
-
-      // Persist to Supabase if logged in for comparison
-      if (currentUser?.uid) {
-        try {
-          await saveResumeScan({
-            userId: currentUser.uid,
-            scanData: newAnalysis,
-            analysisId: analysis?.id || null,
-            resumeMeta: newMeta
-          });
-        } catch (dbErr) {
-          console.warn('Failed to save scan to database:', dbErr);
-        }
-      }
+        localStorage.setItem(storageKey, JSON.stringify(result.ats_analysis));
+        localStorage.setItem(metaKey, JSON.stringify(result.resume_meta));
+      } catch (cacheErr) {}
     } catch (err) {
       console.error('Standalone ATS Error', err);
       setResumeError(`Analysis failed: ${err.message}`);
     } finally {
       setIsParsingResume(false);
       e.target.value = '';
-    }
-  };
-
-  const handleCompareAts = async () => {
-    if (!currentUser?.uid) return;
-    setLoadingCompare(true);
-    try {
-      const res = await fetch('/api/db', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'getResumeScans', userId: currentUser.uid })
-      });
-      const data = await res.json();
-      if (data.scans && data.scans.length > 1) {
-        // The most recent scan is at index 0, so the previous is at index 1
-        setPreviousAtsData(data.scans[1].ats_data);
-      } else {
-        setPreviousAtsData(null); // No previous scan found
-      }
-      setIsCompareModalOpen(true);
-    } catch (err) {
-      console.error('Failed to load previous ATS scan', err);
-    } finally {
-      setLoadingCompare(false);
     }
   };
 
@@ -803,49 +777,119 @@ const Results = () => {
 
             {/* Details */}
             <div className="flex-1 text-white">
-              <h1 className="text-3xl font-black mb-3">{role?.role_name || analysis.career_role}</h1>
+              <div className="flex items-center justify-between gap-4 mb-3 flex-wrap">
+                <h1 className="text-3xl font-black">{role?.role_name || analysis.career_role || 'Target Role'}</h1>
+                {resume_meta?.file_name && (
+                  <span className="text-xs bg-zinc-800 text-zinc-300 px-3 py-1 rounded-full border border-zinc-700 flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-blue-400" />
+                    {resume_meta.file_name}
+                  </span>
+                )}
+              </div>
 
-              {honest_assessment && (
-                <p className="text-zinc-300 mb-5 text-base bg-zinc-800/50 p-4 rounded-xl">💬 {honest_assessment}</p>
-              )}
+              {/* 4 Circular Rings in a row (Replacing the square box) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-2xl bg-zinc-800/40 border border-zinc-700/40 mb-5">
+                <CircularRing 
+                  percentage={ats_analysis?.ats_parseability ?? (score_breakdown?.resume_quality || 85)} 
+                  label="ATS Parseability" 
+                  colorClass="text-blue-400" 
+                  size={84} 
+                  strokeWidth={7}
+                />
+                <CircularRing 
+                  percentage={ats_analysis?.impact_quantification ?? (score_breakdown?.projects || 75)} 
+                  label="Impact & Quantification" 
+                  colorClass="text-purple-400" 
+                  size={84} 
+                  strokeWidth={7}
+                />
+                <CircularRing 
+                  percentage={ats_analysis?.skill_match ?? (score_breakdown?.technical_skills || 80)} 
+                  label="Skill Match" 
+                  colorClass="text-emerald-400" 
+                  size={84} 
+                  strokeWidth={7}
+                />
+                <CircularRing 
+                  percentage={ats_analysis?.formatting_quality ?? 90} 
+                  label="Formatting Quality" 
+                  colorClass="text-amber-400" 
+                  size={84} 
+                  strokeWidth={7}
+                />
+              </div>
 
-              {Object.keys(score_breakdown).length > 0 && (
-                <div className="grid grid-cols-3 gap-4 mb-5">
-                  {score_breakdown.technical_skills !== undefined && (
-                    <div className="bg-zinc-800 rounded-xl p-4 text-center">
-                      <p className={`text-3xl font-black ${getScoreColor(score_breakdown.technical_skills)}`}>{score_breakdown.technical_skills}%</p>
-                      <p className="text-sm text-zinc-400">Technical</p>
-                    </div>
-                  )}
-                  {score_breakdown.projects !== undefined && (
-                    <div className="bg-zinc-800 rounded-xl p-4 text-center">
-                      <p className={`text-3xl font-black ${getScoreColor(score_breakdown.projects)}`}>{score_breakdown.projects}%</p>
-                      <p className="text-sm text-zinc-400">Projects</p>
-                    </div>
-                  )}
-                  {score_breakdown.interview_readiness !== undefined && (
-                    <div className="bg-zinc-800 rounded-xl p-4 text-center">
-                      <p className={`text-3xl font-black ${getScoreColor(score_breakdown.interview_readiness)}`}>{score_breakdown.interview_readiness}%</p>
-                      <p className="text-sm text-zinc-400">Interview</p>
-                    </div>
-                  )}
+              {/* Gemini Reality Check & Action Plan Message (Below the rings) */}
+              {(ats_analysis?.reality_check_message || ats_analysis?.action_plan || honest_assessment) && (
+                <div className="p-4 bg-zinc-800/80 border border-zinc-700/60 rounded-2xl mb-5 shadow-inner">
+                  <div className="flex items-start gap-3">
+                    <Sparkles className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-zinc-200 text-sm leading-relaxed">
+                      {ats_analysis?.reality_check_message || ats_analysis?.action_plan || honest_assessment}
+                    </p>
+                  </div>
                 </div>
               )}
 
-              <div className="flex flex-wrap gap-3">
-                <span className="px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg text-base font-medium">
-                  ✓ {matched_skills.length} skills matched
-                </span>
-                <span className="px-4 py-2 bg-amber-500/20 text-amber-400 rounded-lg text-base font-medium">
-                  📚 {missing_skills.length} to learn
-                </span>
-                <span className="px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg text-base font-medium">
-                  📅 {learning_roadmap.length} months plan
-                </span>
+              {/* Badges + Action Buttons */}
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-wrap gap-2.5">
+                  <span className="px-3.5 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm font-medium flex items-center gap-1.5">
+                    ✓ {matched_skills.length} skills matched
+                  </span>
+                  <span className="px-3.5 py-1.5 bg-amber-500/20 text-amber-400 rounded-lg text-sm font-medium flex items-center gap-1.5">
+                    📚 {missing_skills.length} to learn
+                  </span>
+                  <span className="px-3.5 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-sm font-medium flex items-center gap-1.5">
+                    📅 {learning_roadmap.length} months plan
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setViewJobsMode(prev => !prev)}
+                    className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-sm transition-all shadow-lg shadow-emerald-900/30 flex items-center gap-2 cursor-pointer"
+                  >
+                    <Briefcase className="w-4 h-4" />
+                    {viewJobsMode ? 'Hide Jobs' : 'View Jobs'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      fetchAtsHistory();
+                      setIsCompareModalOpen(true);
+                    }}
+                    className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 hover:text-white font-semibold rounded-xl text-sm transition-all flex items-center gap-2 cursor-pointer"
+                  >
+                    <RefreshCw className="w-4 h-4 text-zinc-400" />
+                    Compare Previous
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Live Job Market View (Triggered by View Jobs button) */}
+        {viewJobsMode && (
+          <div className="mb-8 p-6 bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-emerald-400" />
+                Live Job Market for {role?.role_name || analysis.career_role || 'Target Role'}
+              </h2>
+              <button
+                onClick={() => setViewJobsMode(false)}
+                className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <FullJobMarketView
+              careerInterest={role?.id || 'all'}
+              userSkills={matched_skills}
+            />
+          </div>
+        )}
 
         {/* Compact YouTube Learning Tracker & T7 Sync Banner */}
         <div className="mb-6 p-4 sm:p-5 bg-gradient-to-r from-zinc-900 via-zinc-850 to-zinc-900 rounded-2xl shadow-xl border border-zinc-800 text-white transition-all hover:border-zinc-700">
@@ -1861,6 +1905,67 @@ const Results = () => {
           </div>
         )}
 
+        {isCompareModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-white">Compare Resume Scans</h2>
+                  <p className="text-zinc-400 text-sm mt-0.5">Track your readiness score & ATS metric progression across scans</p>
+                </div>
+                <button onClick={() => setIsCompareModalOpen(false)} className="text-zinc-400 hover:text-white p-2 rounded-xl hover:bg-zinc-800 transition cursor-pointer">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {atsHistory.length >= 2 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Previous */}
+                  <div className="bg-zinc-800/50 p-6 rounded-2xl border border-zinc-700/50">
+                    <h3 className="text-lg font-semibold text-zinc-300 mb-4">Previous Scan</h3>
+                    <div className="flex items-center gap-4 mb-6">
+                      <CircularRing percentage={atsHistory[1].overall_readiness || atsHistory[1].ats_score || 0} label="Readiness" colorClass="text-zinc-400" size={80} strokeWidth={6} />
+                      <div>
+                        <p className="text-sm font-medium text-white">{atsHistory[1].file_name || 'Previous Resume'}</p>
+                        <p className="text-xs text-zinc-400 mt-0.5">Scanned: {new Date(atsHistory[1].created_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Current */}
+                  <div className="bg-zinc-800/80 p-6 rounded-2xl border border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.1)]">
+                    <h3 className="text-lg font-bold text-emerald-400 mb-4">Latest Scan</h3>
+                    <div className="flex items-center gap-4 mb-6">
+                      <CircularRing percentage={atsHistory[0].overall_readiness || atsHistory[0].ats_score || 0} label="Readiness" colorClass="text-emerald-500" size={80} strokeWidth={6} />
+                      <div>
+                        <p className="text-sm font-medium text-white">{atsHistory[0].file_name || 'Latest Resume'}</p>
+                        <p className="text-xs text-zinc-400 mt-0.5">Scanned: {new Date(atsHistory[0].created_at).toLocaleDateString()}</p>
+                        <p className="text-sm font-semibold text-emerald-400 mt-2">
+                          {(atsHistory[0].overall_readiness || atsHistory[0].ats_score || 0) >= (atsHistory[1].overall_readiness || atsHistory[1].ats_score || 0) ? '+' : ''}
+                          {(atsHistory[0].overall_readiness || atsHistory[0].ats_score || 0) - (atsHistory[1].overall_readiness || atsHistory[1].ats_score || 0)}% Score Progression
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12 px-6 bg-zinc-800/40 rounded-2xl border border-zinc-700/50">
+                  <RefreshCw className="w-12 h-12 text-zinc-500 mx-auto mb-3 animate-spin-slow" />
+                  <h3 className="text-lg font-bold text-white mb-1">Previous Scan Not Found Yet</h3>
+                  <p className="text-zinc-400 text-sm max-w-md mx-auto mb-6">
+                    You currently have {atsHistory.length} scan recorded. Upload an updated resume to unlock automatic side-by-side comparison and progress tracking!
+                  </p>
+                  <label className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition cursor-pointer inline-flex items-center gap-2">
+                    <Upload className="w-4 h-4" />
+                    Upload Updated Resume
+                    <input type="file" accept=".pdf" className="hidden" onChange={handleAtsUpload} />
+                  </label>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {activeTab === 'ats' && (
           <div className="space-y-6">
             {!ats_analysis ? (
@@ -1903,37 +2008,21 @@ const Results = () => {
               </div>
             ) : (
               <>
-                <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100 mb-6">
-                  <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold uppercase tracking-wide text-zinc-500 mb-2">ATS Resume Review</p>
-                      <div className="flex items-center justify-between">
-                        <h2 className="text-3xl font-black text-zinc-900">
-                          {resume_meta?.file_name || 'Uploaded Resume'}
-                        </h2>
-                      </div>
+                <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100">
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-wide text-zinc-500">ATS Resume Review</p>
+                      <h2 className="text-3xl font-black text-zinc-900 mt-1">
+                        {resume_meta?.file_name || 'Uploaded Resume'}
+                      </h2>
+                      <p className="text-zinc-600 mt-2">{ats_analysis.summary}</p>
                     </div>
-                    <div className="flex items-center gap-3 flex-wrap lg:justify-end">
+                    <div className="flex items-center gap-3 flex-wrap">
                       {resumeError && (
                         <div className="w-full text-xs text-red-600 bg-red-50 py-1.5 px-3 rounded-lg border border-red-200">
                           {resumeError}
                         </div>
                       )}
-                      
-                      {/* Compare Previous Analysis Button */}
-                      <button
-                        type="button"
-                        onClick={handleCompareAts}
-                        disabled={loadingCompare}
-                        className="cursor-pointer bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md flex items-center gap-2"
-                      >
-                        {loadingCompare ? (
-                           <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin"></div>
-                        ) : (
-                           <RefreshCw className="w-4 h-4" />
-                        )}
-                        <span>{loadingCompare ? 'Loading...' : 'Compare Previous Analysis'}</span>
-                      </button>
 
                       <label className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md shadow-emerald-600/20 flex items-center gap-2">
                         {isParsingResume ? (
@@ -1972,231 +2061,105 @@ const Results = () => {
                         <RefreshCw className="w-3.5 h-3.5 text-zinc-400" />
                         <span>Clear</span>
                       </button>
+
+                      {/* Compare and View Jobs Buttons */}
+                      {atsHistory.length >= 2 && (
+                        <button
+                          type="button"
+                          onClick={() => setIsCompareModalOpen(true)}
+                          className="cursor-pointer bg-white px-3.5 py-2.5 rounded-xl text-xs font-semibold text-zinc-600 border border-zinc-200 hover:bg-zinc-50 hover:text-zinc-900 transition-colors flex items-center gap-1.5"
+                          title="Compare with previous ATS scan"
+                        >
+                          <TrendingUp className="w-3.5 h-3.5 text-blue-500" />
+                          <span>Compare</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setViewJobsMode(!viewJobsMode)}
+                        className="cursor-pointer bg-zinc-900 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-white hover:bg-zinc-800 transition-colors flex items-center gap-1.5"
+                      >
+                        <Briefcase className="w-3.5 h-3.5" />
+                        <span>{viewJobsMode ? 'Hide Jobs' : 'View Jobs'}</span>
+                      </button>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col xl:flex-row gap-6 mb-6">
-                  <div className="flex-none bg-white rounded-2xl p-8 shadow-lg border border-zinc-100 flex flex-col items-center justify-center">
-                    <CircularProgress 
-                      percent={typeof ats_analysis.score === 'object' ? (ats_analysis.score?.score ?? 0) : ats_analysis.score} 
-                      label="% Ready" 
-                      size="lg" 
-                      color={getAtsTone(typeof ats_analysis.score === 'object' ? (ats_analysis.score?.score ?? 0) : ats_analysis.score).text} 
-                    />
-                  </div>
+                {viewJobsMode ? (
+                  <FullJobMarketView 
+                    careerInterest="all"
+                    experienceLevel={ats_analysis.experience_level || 'all'}
+                    userSkills={ats_analysis.soft_skills_detected || []}
+                  />
+                ) : (
+                  <div className="bg-[#09090f] rounded-3xl p-8 border border-zinc-800/50 shadow-2xl relative overflow-hidden mt-6">
+                    <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none"></div>
+                    <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/10 blur-[100px] rounded-full pointer-events-none"></div>
+                    
+                    <div className="flex flex-col lg:flex-row gap-12 relative z-10">
+                      {/* Left: Overall Gauge */}
+                      <div className="flex flex-col items-center justify-center bg-zinc-900/50 p-8 rounded-3xl border border-zinc-800 backdrop-blur-xl shrink-0">
+                        <CircularRing percentage={ats_analysis.overall_readiness || 0} label="Overall Ready" colorClass="text-emerald-400" size={160} strokeWidth={12} />
+                        <div className="mt-6 text-center">
+                          <p className="text-sm font-semibold text-zinc-400">Target Role</p>
+                          <p className="text-lg font-bold text-white mt-1">{role?.role_name || 'Software Developer'}</p>
+                        </div>
+                      </div>
 
-                  <div className="flex-1 bg-white rounded-2xl p-6 shadow-lg border border-zinc-100 flex items-center justify-around flex-wrap gap-6">
-                    {Object.entries(ats_analysis.section_scores || {}).map(([key, value]) => {
-                      const scoreVal = typeof value === 'object' && value !== null ? (value.score ?? value.value ?? 0) : Number(value) || 0;
-                      return (
-                        <CircularProgress 
-                          key={key} 
-                          percent={scoreVal} 
-                          label={key.replace(/_/g, ' ')} 
-                          size="sm" 
-                          color={getScoreColor(scoreVal)} 
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
+                      {/* Right Side: Rings and Message */}
+                      <div className="flex flex-col gap-8 flex-grow">
+                        {/* 4 Rings Row */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                          <div className="bg-zinc-900/50 p-6 rounded-3xl border border-zinc-800 backdrop-blur-xl flex justify-center">
+                            <CircularRing percentage={ats_analysis.ats_parseability || 0} label="ATS Parseability" colorClass="text-blue-400" size={100} />
+                          </div>
+                          <div className="bg-zinc-900/50 p-6 rounded-3xl border border-zinc-800 backdrop-blur-xl flex justify-center">
+                            <CircularRing percentage={ats_analysis.impact_quantification || 0} label="Impact & Quant" colorClass="text-purple-400" size={100} />
+                          </div>
+                          <div className="bg-zinc-900/50 p-6 rounded-3xl border border-zinc-800 backdrop-blur-xl flex justify-center">
+                            <CircularRing percentage={ats_analysis.skill_match || 0} label="Skill Match" colorClass="text-amber-400" size={100} />
+                          </div>
+                          <div className="bg-zinc-900/50 p-6 rounded-3xl border border-zinc-800 backdrop-blur-xl flex justify-center">
+                            <CircularRing percentage={ats_analysis.formatting_quality || 0} label="Format Quality" colorClass="text-rose-400" size={100} />
+                          </div>
+                        </div>
 
-                <div className="bg-zinc-900 text-zinc-100 rounded-2xl p-8 shadow-xl mb-6 relative overflow-hidden border border-zinc-800">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-                  <h3 className="font-bold text-emerald-400 text-xl mb-3 flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5" /> AI Mentor Reality Check
-                  </h3>
-                  <p className="text-zinc-300 leading-relaxed text-lg z-10 relative whitespace-pre-line">
-                    {ats_analysis.action_plan || ats_analysis.summary || "Based on your resume and skills profile, here is what you need to focus on next to secure this role."}
-                  </p>
-
-                  {ats_analysis.project_critique && (
-                    <div className="mt-5 pt-4 border-t border-zinc-800/80 flex items-start gap-3 relative z-10">
-                      <Code className="w-5 h-5 text-indigo-400 mt-1 shrink-0" />
-                      <div>
-                        <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 block mb-1">Project Reality Audit</span>
-                        <p className="text-sm text-zinc-300 leading-relaxed">{ats_analysis.project_critique}</p>
+                        {/* Reality Check Message Box */}
+                        <div className="bg-gradient-to-br from-zinc-900 to-zinc-950 p-8 rounded-3xl border border-zinc-800/80 shadow-inner relative overflow-hidden">
+                          <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-blue-400 to-purple-500"></div>
+                          <div className="flex items-start gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0 border border-blue-500/30">
+                              <Sparkles className="w-5 h-5 text-blue-400" />
+                            </div>
+                            <div>
+                              <h3 className="text-xl font-bold text-white mb-3">AI Mentor Reality Check</h3>
+                              <div className="text-zinc-300 leading-relaxed text-sm md:text-base space-y-4 font-medium">
+                                {(ats_analysis.action_plan || "No action plan available.").split('\n').map((line, i) => (
+                                  <p key={i}>{line}</p>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  )}
-                </div>
 
-                <div className="flex justify-center mb-8">
-                  <button 
-                    onClick={() => setActiveTab('market')}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-emerald-500/30 transition-all flex items-center gap-2"
-                  >
-                    View Matching Jobs
-                    <Target className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="grid lg:grid-cols-2 gap-6">
-                  <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100">
-                    <h3 className="font-bold text-zinc-900 text-xl mb-4 flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5 text-emerald-500" />
-                      What is working
-                    </h3>
-                    <ul className="space-y-3">
-                      {(ats_analysis.strengths || []).map((item, index) => {
-                        const text = typeof item === 'object' && item !== null
-                          ? (item.point || item.title || item.strength || item.text || JSON.stringify(item))
-                          : String(item);
-                        return (
-                          <li key={index} className="flex items-start gap-3 text-zinc-700">
-                            <span className="text-emerald-500 mt-0.5">•</span>
-                            <span>{text}</span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-
-                  <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100">
-                    <h3 className="font-bold text-zinc-900 text-xl mb-4 flex items-center gap-2">
-                      <AlertTriangle className="w-5 h-5 text-amber-500" />
-                      Fix next
-                    </h3>
-                    <ul className="space-y-3">
-                      {(ats_analysis.issues || []).map((item, index) => {
-                        const isObj = typeof item === 'object' && item !== null;
-                        const text = isObj
-                          ? (item.issue || item.description || item.point || item.title || item.text || JSON.stringify(item))
-                          : String(item);
-                        const why = isObj ? (item.why_it_matters || item.severity) : null;
-                        return (
-                          <li key={index} className="flex items-start gap-3 text-zinc-700">
-                            <span className="text-amber-500 mt-0.5">•</span>
-                            <div>
-                              <span>{text}</span>
-                              {why && <span className="text-xs text-zinc-500 block mt-0.5">{why}</span>}
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="grid lg:grid-cols-2 gap-6">
-                  <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100">
-                    <h3 className="font-bold text-zinc-900 text-xl mb-4">Missing Keywords</h3>
-                    <div className="flex flex-wrap gap-3">
-                      {(ats_analysis.keyword_gaps || []).map((keyword, index) => {
-                        const kwText = typeof keyword === 'object' && keyword !== null
-                          ? (keyword.keyword || keyword.name || keyword.skill || JSON.stringify(keyword))
-                          : String(keyword);
-                        return (
-                          <span key={index} className="px-4 py-2 bg-red-50 text-red-700 rounded-xl text-sm font-semibold border border-red-100">
-                            {kwText}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100">
-                    <h3 className="font-bold text-zinc-900 text-xl mb-4">Suggested Keywords</h3>
-                    <div className="flex flex-wrap gap-3">
-                      {(ats_analysis.suggested_keywords || []).map((keyword, index) => {
-                        const kwText = typeof keyword === 'object' && keyword !== null
-                          ? (keyword.keyword || keyword.name || keyword.skill || JSON.stringify(keyword))
-                          : String(keyword);
-                        return (
-                          <span key={index} className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-sm font-semibold border border-emerald-100">
-                            {kwText}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl p-6 shadow-lg border border-zinc-100">
-                  <div className="flex items-center justify-between mb-5">
-                    <div>
-                      <h3 className="font-bold text-zinc-900 text-xl flex items-center gap-2">
-                        <Sparkles className="w-5 h-5 text-indigo-500" />
-                        Rewrite Suggestions
-                      </h3>
-                      <p className="text-xs text-zinc-500 mt-1">
-                        High-impact bullet points generated using the <strong>Action Verb + Context + Result</strong> formula.
-                      </p>
-                    </div>
-                    {(ats_analysis.rewrite_suggestions || ats_analysis.rewrites || []).length > 0 && (
-                      <span className="text-xs font-semibold px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100">
-                        {(ats_analysis.rewrite_suggestions || ats_analysis.rewrites || []).length} Suggestions
-                      </span>
+                    {/* Soft Skills Detected */}
+                    {ats_analysis.soft_skills_detected && ats_analysis.soft_skills_detected.length > 0 && (
+                      <div className="mt-8 pt-8 border-t border-zinc-800/50">
+                        <h4 className="text-sm font-semibold text-zinc-400 mb-4 uppercase tracking-wider">Soft Skills & Leadership Detected</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {ats_analysis.soft_skills_detected.map((skill, i) => (
+                            <span key={i} className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 text-sm font-medium">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
-
-                  <div className="space-y-4">
-                    {(ats_analysis.rewrite_suggestions || ats_analysis.rewrites || []).map((suggestion, index) => {
-                      const isObject = typeof suggestion === 'object' && suggestion !== null;
-                      const originalText = isObject ? suggestion.original : null;
-                      const improvedText = isObject ? (suggestion.improved || suggestion.rewrite || suggestion.text) : String(suggestion);
-                      const reasonText = isObject ? suggestion.reason : null;
-
-                      return (
-                        <div key={index} className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-5 hover:border-indigo-200 hover:bg-white transition-all shadow-sm">
-                          {originalText && (
-                            <div className="mb-3">
-                              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-red-600 mb-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                                Original Resume Bullet
-                              </div>
-                              <p className="text-sm text-zinc-600 line-through bg-red-50/60 p-2.5 rounded-xl border border-red-100/80 font-mono">
-                                {originalText}
-                              </p>
-                            </div>
-                          )}
-
-                          <div>
-                            <div className="flex items-center justify-between gap-2 mb-1">
-                              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-700">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                ATS-Optimized Version
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(improvedText);
-                                  setCopiedRewriteIndex(index);
-                                  setTimeout(() => setCopiedRewriteIndex(null), 2000);
-                                }}
-                                className="flex items-center gap-1 text-xs font-semibold text-zinc-600 hover:text-emerald-700 bg-white px-2.5 py-1 rounded-lg border border-zinc-200 hover:border-emerald-300 transition-colors cursor-pointer"
-                                title="Copy to clipboard"
-                              >
-                                {copiedRewriteIndex === index ? (
-                                  <>
-                                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                                    <span className="text-emerald-600 font-medium">Copied!</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Copy className="w-3.5 h-3.5 text-zinc-500" />
-                                    <span>Copy Bullet</span>
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                            <p className="text-sm font-semibold text-emerald-950 bg-emerald-50/80 p-3 rounded-xl border border-emerald-200/90">
-                              {improvedText}
-                            </p>
-                          </div>
-
-                          {reasonText && (
-                            <div className="mt-2.5 flex items-start gap-1.5 text-xs text-zinc-500">
-                              <Lightbulb className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
-                              <span><strong className="text-zinc-700 font-medium">Recruiter / ATS insight:</strong> {reasonText}</span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                )}
 
                 {/* Bridge ATS Gaps with YouTube Learning */}
                 <div className="bg-gradient-to-r from-zinc-900 via-zinc-850 to-zinc-900 rounded-2xl p-5 text-white border border-zinc-700 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -2818,9 +2781,15 @@ const Results = () => {
             roadmap: learning_roadmap,
             quickWins: quick_wins,
 
-            // ATS resume data (from Lyzr Agent B)
-            atsScore: ats_analysis?.ats_score ?? ats_analysis?.score ?? null,
-            atsSummary: typeof ats_analysis?.summary === 'string' ? ats_analysis.summary : null,
+            // Granular ATS resume data (from Gemini ATS Analyzer)
+            atsScore: ats_analysis?.overall_readiness ?? ats_analysis?.score ?? readiness_score,
+            atsParseability: ats_analysis?.ats_parseability ?? null,
+            impactQuantification: ats_analysis?.impact_quantification ?? null,
+            skillMatch: ats_analysis?.skill_match ?? null,
+            formattingQuality: ats_analysis?.formatting_quality ?? null,
+            realityCheckMessage: ats_analysis?.reality_check_message || ats_analysis?.action_plan || honest_assessment,
+            softSkills: ats_analysis?.soft_skills_detected || ats_analysis?.soft_skills || [],
+            atsSummary: typeof ats_analysis?.summary === 'string' ? ats_analysis.summary : (ats_analysis?.reality_check_message || null),
             atsStrengths: ats_analysis?.strengths || [],
             atsGaps: ats_analysis?.gaps || ats_analysis?.issues || [],
             atsKeywordGaps: ats_analysis?.keyword_gaps || ats_analysis?.ats_keyword_gaps || [],
@@ -2832,109 +2801,6 @@ const Results = () => {
             ytSkills: ytSkills || [],
           }}
         />
-        {/* ATS Comparison Modal */}
-        {isCompareModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-sm">
-            <div className="bg-white rounded-3xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative">
-              <button 
-                onClick={() => setIsCompareModalOpen(false)}
-                className="absolute top-6 right-6 p-2 bg-zinc-100 hover:bg-zinc-200 rounded-full text-zinc-500 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              
-              <h2 className="text-2xl font-black text-zinc-900 mb-6 flex items-center gap-3">
-                <RefreshCw className="w-6 h-6 text-emerald-500" />
-                Resume Analysis History
-              </h2>
-
-              {!previousAtsData ? (
-                <div className="text-center py-12 bg-zinc-50 rounded-2xl border border-zinc-100">
-                  <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto mb-3" />
-                  <h3 className="text-lg font-bold text-zinc-800">No Previous Analysis Found</h3>
-                  <p className="text-zinc-500 max-w-md mx-auto mt-2">
-                    This is your first resume analysis. The next time you analyze a resume, you'll be able to compare it here to see your progress!
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-8">
-                  <div className="grid md:grid-cols-2 gap-8">
-                    {/* Previous Scan */}
-                    <div className="bg-zinc-50 rounded-2xl p-6 border border-zinc-200 opacity-80">
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="bg-zinc-200 text-zinc-700 px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase">Previous</span>
-                      </div>
-                      <div className="flex items-center justify-center mb-6">
-                        <CircularProgress 
-                          percent={typeof previousAtsData.score === 'object' ? previousAtsData.score.score : previousAtsData.score} 
-                          label="Overall Score" 
-                          size="lg" 
-                          color="text-zinc-500" 
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        {Object.entries(previousAtsData.section_scores || {}).map(([key, value]) => {
-                          const scoreVal = typeof value === 'object' && value !== null ? (value.score ?? value.value ?? 0) : Number(value) || 0;
-                          return (
-                            <div key={key} className="bg-white p-3 rounded-xl border border-zinc-200 text-center">
-                              <p className="text-[10px] font-bold uppercase text-zinc-400">{key.replace(/_/g, ' ')}</p>
-                              <p className="text-xl font-black text-zinc-600">{scoreVal}%</p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Current Scan */}
-                    <div className="bg-emerald-50 rounded-2xl p-6 border border-emerald-200 relative shadow-md shadow-emerald-500/10">
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="bg-emerald-500 text-white px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase shadow-sm">Current</span>
-                      </div>
-                      <div className="flex items-center justify-center mb-6">
-                        <CircularProgress 
-                          percent={typeof ats_analysis.score === 'object' ? ats_analysis.score.score : ats_analysis.score} 
-                          label="Overall Score" 
-                          size="lg" 
-                          color="text-emerald-500" 
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        {Object.entries(ats_analysis.section_scores || {}).map(([key, value]) => {
-                          const scoreVal = typeof value === 'object' && value !== null ? (value.score ?? value.value ?? 0) : Number(value) || 0;
-                          const prevScoreRaw = previousAtsData.section_scores?.[key];
-                          const prevScoreVal = typeof prevScoreRaw === 'object' && prevScoreRaw !== null ? (prevScoreRaw.score ?? prevScoreRaw.value ?? 0) : Number(prevScoreRaw) || 0;
-                          
-                          const diff = scoreVal - prevScoreVal;
-                          const isBetter = diff > 0;
-                          const isWorse = diff < 0;
-
-                          return (
-                            <div key={key} className="bg-white p-3 rounded-xl border border-emerald-100 text-center relative overflow-hidden">
-                              <p className="text-[10px] font-bold uppercase text-zinc-500">{key.replace(/_/g, ' ')}</p>
-                              <p className="text-xl font-black text-zinc-900 mt-1">{scoreVal}%</p>
-                              {diff !== 0 && (
-                                <div className={`absolute top-0 right-0 w-8 h-8 flex items-start justify-end p-1 text-xs font-bold rounded-bl-xl ${isBetter ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                                  {isBetter ? '↑' : '↓'}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-zinc-900 rounded-xl p-6 text-zinc-100">
-                     <h3 className="text-emerald-400 font-bold mb-2 flex items-center gap-2"><Target className="w-5 h-5"/> Action Plan Update</h3>
-                     <p className="text-zinc-300">
-                        {ats_analysis.action_plan || "Keep iterating on your resume keywords based on the AI feedback."}
-                     </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );

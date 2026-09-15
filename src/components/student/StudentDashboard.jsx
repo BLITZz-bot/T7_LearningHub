@@ -6,7 +6,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { analyzeStudentProfile } from '../../services/lyzrAgentService';
-import { saveAnalysis, getLatestAnalysis, getVideoLearning, getVideoLearningSkills } from '../../services/apiService';
+import { analyzeResumeGemini } from '../../services/geminiAtsService';
+import { saveAnalysis, getLatestAnalysis, getVideoLearning, getVideoLearningSkills, saveResumeScan } from '../../services/apiService';
 import { industryRoles, allSkills, BRANCH_CAREER_MAP } from '../../data/industrySkills';
 import { fetchJobMarketInsights } from '../../services/jobMarketService';
 import StudentProfileModal from './StudentProfileModal';
@@ -320,9 +321,25 @@ const StudentDashboard = () => {
 
       const selectedRole = industryRoles.find(r => r.id === careerInterest);
       
-      // Uses LYZR ProfileAnalyzerAgent (role-based, no hardcoded companies).
-      // If LYZR is not yet configured, automatically falls back to Gemini.
-      // YouTube history is NOT an input — tracked separately after roadmap starts.
+      let atsData = null;
+      if (resumeFile) {
+        try {
+          atsData = await analyzeResumeGemini({
+            resumeFile,
+            targetRole: selectedRole?.role_name || null,
+            userId: currentUser?.uid,
+            studentContext: {
+              cgpa: userProfile?.cgpa || '',
+              year: userProfile?.passoutYear || userProfile?.year || '',
+              branch: userProfile?.branch || ''
+            }
+          });
+        } catch (atsErr) {
+          console.warn('Gemini ATS direct analysis warning:', atsErr);
+        }
+      }
+
+      // Profile & Roadmap analysis
       const analysisResult = await analyzeStudentProfile({
         studentSkills: selectedSkills,
         selectedRole,
@@ -332,10 +349,23 @@ const StudentDashboard = () => {
         cgpa: userProfile?.cgpa || '',
         resumeFile,
         userId: currentUser?.uid,
-        // Gemini fallback params (used only if LYZR not yet configured)
         customApiKey: userProfile?.geminiApiKey,
         preferredModel: userProfile?.geminiModel,
       });
+
+      if (atsData?.ats_analysis) {
+        analysisResult.ats_analysis = atsData.ats_analysis;
+        analysisResult.resume_meta = atsData.resume_meta;
+        if (atsData.ats_analysis.overall_readiness) {
+          analysisResult.readiness_score = atsData.ats_analysis.overall_readiness;
+        }
+        if (atsData.ats_analysis.reality_check_message) {
+          analysisResult.honest_assessment = atsData.ats_analysis.reality_check_message;
+        }
+        if (currentUser?.uid) {
+          await saveResumeScan(currentUser.uid, atsData.ats_analysis, null, atsData.resume_meta);
+        }
+      }
 
       await saveAnalysis(currentUser.uid, {
         career_role: selectedRole.role_name,

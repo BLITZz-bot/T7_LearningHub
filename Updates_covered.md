@@ -477,3 +477,36 @@ SUPABASE_ANON_KEY=your_supabase_anon_key_here
 ### G. T7 AI Mentor UI Model Cleanup
 * **Issue:** The chat dropdown in `T7AiMentor.jsx` still displayed deprecated `Gemini 2.x` models, causing confusion when the backend had already moved to the `3.x` stack.
 * **Fix:** Purged the hardcoded 2.x references from the `AI_MODELS` array in `T7AiMentor.jsx` to perfectly mirror the updated backend configuration.
+
+---
+
+## 9. Main Dashboard ATS Migration to Gemini & Scorecard Overhaul (September 15, 2026)
+
+### A. Direct Gemini ATS Engine (Bypassing Lyzr)
+* **Architecture Shift:** Migrated the main dashboard ATS resume parser away from third-party Lyzr agents to a direct serverless Gemini gateway ([`api/gemini-ats.js`](file:///d:/Projects%20Working%20in%20Progress/T7LEARNING_HUB(USEReady%20Edition)/T7-Learning-Hub/api/gemini-ats.js) and [`src/services/geminiAtsService.js`](file:///d:/Projects%20Working%20in%20Progress/T7LEARNING_HUB(USEReady%20Edition)/T7-Learning-Hub/src/services/geminiAtsService.js)).
+* **Model Waterfall Fallback:** Implemented an autonomous retry waterfall to eliminate quota issues and downtime:
+  `gemini-3.6-flash` ➔ `gemini-3.5-flash` ➔ `gemini-3.1-pro`
+* **Dynamic Role Inference:** Eliminated hardcoded fallback roles (e.g. "Software Developer"). If no role is selected, Gemini dynamically derives the target career role by cross-referencing the student's **academic branch, passout year, CGPA, and resume content**.
+
+### B. Hero Scorecard UI Overhaul (`Results.jsx`)
+* **Circular Rings Row (Replacing Square Box):** Dropped the old `80% Technical` square box from the main hero card. Replaced it with the **4 granular circular SVG progress rings** matching the standalone ATS:
+  1. **ATS Parseability** (blue gauge)
+  2. **Impact & Quantification** (purple gauge)
+  3. **Skill Match** (emerald gauge)
+  4. **Formatting Quality** (amber gauge)
+* **Gemini Reality Check / Mentor Plan Box:** Positioned directly beneath the circular metric rings in a sleek, dark-mode card. Provides an honest, personalized evaluation of where the student stands based on their academics, technical skills, and leadership/soft skills.
+* **Interactive Action Buttons:**
+  - **View Jobs:** Dynamically toggles the live job market view ([`FullJobMarketView`](file:///d:/Projects%20Working%20in%20Progress/T7LEARNING_HUB(USEReady%20Edition)/T7-Learning-Hub/src/components/student/FullJobMarketView.jsx)) right inside the results view.
+  - **Compare Previous:** Opens a dedicated modal showing side-by-side progression tracking across resume scans.
+
+### C. Supabase Smart Data Retention & Comparison Logic
+* **2-Scan Window Policy:** Updated [`api/db.js`](file:///d:/Projects%20Working%20in%20Progress/T7LEARNING_HUB(USEReady%20Edition)/T7-Learning-Hub/api/db.js) with an automatic cleanup policy: on every new resume scan save, older records are pruned to retain strictly the **current and previous scan** per student.
+* **Comparison Modal:** Built side-by-side score delta comparison in [`Results.jsx`](file:///d:/Projects%20Working%20in%20Progress/T7LEARNING_HUB(USEReady%20Edition)/T7-Learning-Hub/src/components/student/Results.jsx). Gracefully handles single-scan states with an interactive upload prompt.
+
+### D. Critical Bug Fixes & Hook Stability
+* **Missing Export Crash:** Fixed `Uncaught SyntaxError: The requested module '/src/services/apiService.js' does not provide an export named 'getResumeHistory'` by exporting alias definitions in [`src/services/apiService.js`](file:///d:/Projects%20Working%20in%20Progress/T7LEARNING_HUB(USEReady%20Edition)/T7-Learning-Hub/src/services/apiService.js) (`saveResumeScan` and `getResumeHistory`).
+* **React Rules of Hooks Order Crash:** Fixed `Warning: React has detected a change in the order of Hooks called by Results` / `Uncaught Error: Rendered more hooks than during previous render` by moving `isCompareModalOpen`, `atsHistory`, and `viewJobsMode` hooks above all conditional early returns (`if (loadingAnalysis) return ...`).
+
+### E. AI Mentor Deep Context Injection
+* **Granular Feed:** Piped all 4 ATS metric scores, soft skills/leadership highlights, and the reality check message into [`T7AiMentor`](file:///d:/Projects%20Working%20in%20Progress/T7LEARNING_HUB(USEReady%20Edition)/T7-Learning-Hub/src/components/student/T7AiMentor.jsx).
+* **System Prompt Update:** Enhanced `buildSystemPrompt()` in [`api/gemini.js`](file:///d:/Projects%20Working%20in%20Progress/T7LEARNING_HUB(USEReady%20Edition)/T7-Learning-Hub/api/gemini.js) to ground the mentor chatbot in the student's exact resume strengths, quantified impact score, and keyword gaps.
