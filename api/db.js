@@ -18,6 +18,8 @@
  *   - getVideoLearning       { userId }
  *   - getVideoLearningSkills { userId }
  *   - getCampusAnalytics     {}
+ *   - getQuizActivity        { userId }
+ *   - logQuizActivity        { userId, date, questionsSolved, totalScore }
  *   - status                 {}
  */
 
@@ -590,6 +592,50 @@ export default async function handler(req, res) {
         });
       }
 
+      // -----------------------------------------------------------
+      // 7. Daily Quiz Activity
+      // -----------------------------------------------------------
+      case 'getQuizActivity': {
+        const { userId } = payload;
+        if (!userId) return res.status(400).json({ error: 'userId is required' });
+
+        const { data, error } = await supabase
+          .from('t7_quiz_activity')
+          .select('*')
+          .eq('user_id', userId)
+          .order('date', { ascending: false });
+          
+        // Ignore error if table doesn't exist yet
+        if (error && error.code !== '42P01') throw error;
+        
+        return res.status(200).json({ activities: data || [] });
+      }
+
+      case 'logQuizActivity': {
+        const { userId, date, questionsSolved, totalScore } = payload;
+        if (!userId || !date) return res.status(400).json({ error: 'userId and date are required' });
+
+        const { data, error } = await supabase
+          .from('t7_quiz_activity')
+          .upsert(
+            { 
+              user_id: userId, 
+              date: date, 
+              questions_solved: questionsSolved, 
+              total_score: totalScore,
+              updated_at: new Date().toISOString()
+            }, 
+            { onConflict: 'user_id,date' }
+          )
+          .select()
+          .single();
+
+        // Ignore error if table doesn't exist yet
+        if (error && error.code !== '42P01') throw error;
+
+        return res.status(200).json({ activity: data });
+      }
+
       default:
         return res.status(400).json({ error: `Unknown action: "${action}"` });
     }
@@ -608,6 +654,7 @@ const devDb = {
   activities: new Map(),
   scans: new Map(),
   videos: new Map(),
+  quizActivities: new Map(),
 };
 
 function handleDevFallback(action, payload, res) {
@@ -768,6 +815,32 @@ function handleDevFallback(action, payload, res) {
         },
         devMode: true
       });
+    }
+
+    case 'getQuizActivity': {
+      const list = devDb.quizActivities.get(userId) || [];
+      return res.status(200).json({ activities: list, devMode: true });
+    }
+
+    case 'logQuizActivity': {
+      const { date, questionsSolved, totalScore } = payload;
+      if (!devDb.quizActivities.has(userId)) devDb.quizActivities.set(userId, []);
+      let list = devDb.quizActivities.get(userId);
+      const index = list.findIndex(a => a.date === date);
+      const updatedActivity = {
+        user_id: userId,
+        date,
+        questions_solved: questionsSolved,
+        total_score: totalScore,
+        updated_at: now
+      };
+      
+      if (index >= 0) {
+        list[index] = updatedActivity;
+      } else {
+        list.push(updatedActivity);
+      }
+      return res.status(200).json({ activity: updatedActivity, devMode: true });
     }
 
     default:
