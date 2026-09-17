@@ -8,17 +8,18 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   LogOut, ArrowLeft, Check, Calendar, ChevronDown, Download, Target, Sparkles,
-  Trophy, Rocket, BookOpen, Zap, Clock, Code, ExternalLink, CheckCircle,
+  Trophy, Rocket, BookOpen, Zap, Clock, Code, Code2, ExternalLink, CheckCircle,
   GraduationCap, Briefcase, Play, AlertTriangle, Linkedin, FileText,
   Youtube, Globe, TrendingUp, Award, X, Home, Lightbulb, Copy, ArrowRight,
   Upload, RefreshCw
 } from 'lucide-react';
 import { analyzeResumeGemini } from '../../services/geminiAtsService';
-import { getLatestAnalysis, getVideoLearning, getVideoLearningSkills, saveResumeScan, getResumeHistory } from '../../services/apiService';
+import { getLatestAnalysis, getVideoLearning, getVideoLearningSkills, saveResumeScan, getResumeHistory, fetchQuizActivity } from '../../services/apiService';
 import { industryRoles } from '../../data/industrySkills';
 import YouTubeTrackerModal from './YouTubeTrackerModal';
 import T7AiMentor from './T7AiMentor';
 import FullJobMarketView from './FullJobMarketView';
+import CodeArena from './CodeArena';
 
 const CircularRing = ({ percentage, label, colorClass, size = 100, strokeWidth = 8 }) => {
   const radius = (size - strokeWidth) / 2;
@@ -66,6 +67,9 @@ const Results = () => {
   const [isYouTubeModalOpen, setIsYouTubeModalOpen] = useState(false);
   const [copiedT7, setCopiedT7] = useState(false);
   const [copiedRewriteIndex, setCopiedRewriteIndex] = useState(null);
+  
+  // Quiz Activity tracking
+  const [quizActivities, setQuizActivities] = useState([]);
 
   const loadVideoLearningData = async () => {
     if (!currentUser?.uid && !userProfile?.t7Id) return;
@@ -95,6 +99,16 @@ const Results = () => {
 
   useEffect(() => {
     loadVideoLearningData();
+    const loadQuizActivity = async () => {
+      if (currentUser?.uid) {
+        const activities = await fetchQuizActivity(currentUser.uid);
+        setQuizActivities(activities || []);
+      } else if (userProfile?.t7Id) {
+        const activities = await fetchQuizActivity(userProfile.t7Id);
+        setQuizActivities(activities || []);
+      }
+    };
+    loadQuizActivity();
   }, [currentUser?.uid, userProfile?.t7Id]);
 
   const copyT7Id = () => {
@@ -966,6 +980,7 @@ const Results = () => {
               { id: 'skills', icon: Target, label: 'Skills' },
               { id: 'ats', icon: FileText, label: 'ATS Resume' },
               { id: 'youtube', icon: Youtube, label: 'YouTube Tracker' },
+              { id: 'code-arena', icon: Code2, label: 'Code Arena' },
               { id: 'tips', icon: Briefcase, label: 'Career Tips' },
               { id: 'portfolio', icon: Code, label: 'Portfolio' }
             ].map(tab => (
@@ -1006,30 +1021,53 @@ const Results = () => {
                   <div className="text-center">
                     <p className="text-xl font-bold text-emerald-600">
                       {(() => {
-                        let total = 0;
-                        for (let i = 0; i < 365; i++) {
-                          total += Math.random() > 0.7 ? Math.floor(Math.random() * 5) : 0;
-                        }
-                        return total;
+                        if (!quizActivities || quizActivities.length === 0) return 0;
+                        return quizActivities.reduce((acc, curr) => acc + (curr.total_score || 0), 0);
                       })()}
                     </p>
-                    <p className="text-[10px] text-zinc-500">Hours</p>
+                    <p className="text-[10px] text-zinc-500">Score</p>
                   </div>
                   <div className="text-center">
                     <p className="text-xl font-bold text-blue-600">
                       {(() => {
-                        let days = 0;
-                        for (let i = 0; i < 365; i++) {
-                          if (Math.random() > 0.7) days++;
-                        }
-                        return days;
+                        if (!quizActivities || quizActivities.length === 0) return 0;
+                        const uniqueDays = new Set(quizActivities.map(a => a.date));
+                        return uniqueDays.size;
                       })()}
                     </p>
                     <p className="text-[10px] text-zinc-500">Days</p>
                   </div>
                   <div className="text-center">
                     <p className="text-xl font-bold text-amber-600">
-                      {Math.floor(Math.random() * 15)}
+                      {(() => {
+                        if (!quizActivities || quizActivities.length === 0) return 0;
+                        const dates = [...new Set(quizActivities.map(a => a.date))].sort().reverse();
+                        let currentStreak = 0;
+                        const today = new Date();
+                        const todayStr = today.toISOString().split('T')[0];
+                        const yesterday = new Date(today);
+                        yesterday.setDate(yesterday.getDate() - 1);
+                        const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+                        let checkDate = null;
+                        if (dates.includes(todayStr)) {
+                          checkDate = new Date(todayStr);
+                        } else if (dates.includes(yesterdayStr)) {
+                          checkDate = new Date(yesterdayStr);
+                        }
+
+                        if (!checkDate) return 0;
+
+                        for (const dateStr of dates) {
+                          if (dateStr === checkDate.toISOString().split('T')[0]) {
+                            currentStreak++;
+                            checkDate.setDate(checkDate.getDate() - 1);
+                          } else {
+                            break;
+                          }
+                        }
+                        return currentStreak;
+                      })()}
                     </p>
                     <p className="text-[10px] text-zinc-500">Streak</p>
                   </div>
@@ -1068,20 +1106,28 @@ const Results = () => {
 
                         const currentDate = new Date(startDate);
                         currentDate.setDate(startDate.getDate() + dayCounter);
+                        const dateStr = currentDate.toISOString().split('T')[0];
 
                         if (week === 0 && day < startDate.getDay()) {
                           weekDays.push(null);
                           continue;
                         }
 
-                        const hours = Math.random() > 0.7 ? Math.floor(Math.random() * 5) : 0;
-                        const level = hours === 0 ? 0 : hours <= 1 ? 1 : hours <= 2 ? 2 : hours <= 3 ? 3 : 4;
+                        // Fetch from actual Supabase Quiz activities
+                        const activityForDate = quizActivities.find(a => a.date === dateStr);
+                        const solved = activityForDate ? (activityForDate.questions_solved || 0) : 0;
+                        
+                        let level = 0;
+                        if (solved > 0 && solved <= 2) level = 1;
+                        else if (solved > 2 && solved <= 4) level = 2;
+                        else if (solved === 5) level = 3;
+                        else if (solved > 5) level = 4;
 
                         weekDays.push({
-                          date: currentDate.toISOString().split('T')[0],
-                          hours: hours,
+                          date: dateStr,
+                          solved: solved,
                           level: level,
-                          activity: hours > 0 ? ['Coding', 'Reading', 'Practice'][Math.floor(Math.random() * 3)] : null
+                          activity: solved > 0 ? 'Coding Practice' : null
                         });
 
                         dayCounter++;
@@ -1457,6 +1503,10 @@ const Results = () => {
           </div>
         )}
 
+        {/* Code Arena Tab */}
+        {activeTab === 'code-arena' && (
+          <CodeArena profile={userProfile} />
+        )}
 
         {/* TAB: Roadmap */}
         {activeTab === 'roadmap' && (

@@ -132,3 +132,16 @@ export const checkDbGatewayStatus = async () => {
   }
 };
 
+// ----------------------------------------------------------------
+// 7. Daily Quiz Activity
+// ----------------------------------------------------------------
+export const fetchQuizActivity = async (userId) => {
+  const res = await callDbProxy('getQuizActivity', { userId });
+  return res.activities || [];
+};
+
+export const logQuizActivity = async (userId, date, questionsSolved, totalScore) => {
+  const res = await callDbProxy('logQuizActivity', { userId, date, questionsSolved, totalScore });
+  return res.activity || null;
+};
+

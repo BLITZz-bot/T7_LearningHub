@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
+    "@monaco-editor/react": "^4.7.0",
     "@supabase/supabase-js": "^2.116.0",
     "lucide-react": "^0.303.0",
     "mammoth": "^1.12.3",
