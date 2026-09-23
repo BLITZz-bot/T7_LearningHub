@@ -110,7 +110,7 @@ function routingFunction(state) {
     chatTutor:      'chatTutor',
     validateSkill:  'skillValidator',
   };
-  return routes[state.action] || 'error';
+  return routes[state.action] || 'errorHandler';
 }
 
 // ─── Node: Profile Analyzer ──────────────────────────────────────────────────
@@ -369,7 +369,7 @@ function buildAgentGraph() {
       userId:    { default: () => '' },
       result:    { default: () => null },
       agentName: { default: () => '' },
-      error:     { default: () => null },
+      error:     { default: () => null }, // <-- This state channel is named 'error'
     },
   });
 
@@ -378,7 +378,7 @@ function buildAgentGraph() {
   graph.addNode('resumeOptimizer', resumeOptimizerNode);
   graph.addNode('chatTutor',       chatTutorNode);
   graph.addNode('skillValidator',  skillValidatorNode);
-  graph.addNode('error',           errorNode);
+  graph.addNode('errorHandler',    errorNode); // <-- Renamed node from 'error' to 'errorHandler'
 
   graph.setEntryPoint('router');
 
@@ -387,14 +387,14 @@ function buildAgentGraph() {
     resumeOptimizer: 'resumeOptimizer',
     chatTutor:       'chatTutor',
     skillValidator:  'skillValidator',
-    error:           'error',
+    errorHandler:    'errorHandler', // <-- Updated route reference
   });
 
   graph.addEdge('profileAnalyzer', END);
   graph.addEdge('resumeOptimizer', END);
   graph.addEdge('chatTutor',       END);
   graph.addEdge('skillValidator',  END);
-  graph.addEdge('error',           END);
+  graph.addEdge('errorHandler',    END);
 
   return graph.compile();
 }
