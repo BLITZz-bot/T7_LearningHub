@@ -12,6 +12,9 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
+    "@langchain/core": "^1.2.12",
+    "@langchain/google-genai": "^2.3.2",
+    "@langchain/langgraph": "^1.4.17",
     "@monaco-editor/react": "^4.7.0",
     "@supabase/supabase-js": "^2.116.0",
     "lucide-react": "^0.303.0",
@@ -19,7 +22,8 @@
     "pdf-parse": "^2.4.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.21.1"
+    "react-router-dom": "^6.21.1",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",
