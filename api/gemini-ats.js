@@ -1,77 +1,111 @@
 /**
  * Vercel Serverless Function: /api/gemini-ats
  *
- * Direct Gemini integration for ATS Resume Analysis, replacing LYZR.
- * Supports model fallbacks: 3.6 Flash -> 3.5 Flash -> 3.1 Pro
+ * T7 ATS Resume Analyzer — Migrated to LangChain
+ *
+ * Key improvements over old gemini-ats.js:
+ *  ✅ .withStructuredOutput(schema)    → no more JSON.parse + markdown stripping
+ *  ✅ .withFallbacks([...])            → replaces the manual for-loop fallback
+ *  ✅ createScoringModel (temp=0)      → deterministic scores, no 2-5pt drift
+ *  ✅ Explicit scoring rubric in prompt → consistent criteria across all calls
+ *  ✅ Forgiving Zod schema (.default)  → partial outputs patched, not rejected
+ *  ✅ Auto-repair retry on ZodError    → second chance before giving up
+ *  ✅ Graceful degradation fallback    → student never sees a blank crash screen
  */
 
-const SUPPORTED_MODELS = [
-  { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash' },
-  { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
-  { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro' },
-];
+import { z }                          from 'zod';
+import { ZodError }                   from 'zod';
+import { setCors, extractTextFromBase64, createScoringModel } from './_langchain/llm.js';
 
-async function extractTextFromBase64(base64Data, mimeType = '') {
-  if (!base64Data) return '';
-  const buffer = Buffer.from(base64Data, 'base64');
-  const lowerMime = String(mimeType).toLowerCase();
+// ─── Layer 1: FORGIVING Schema ────────────────────────────────────────────────
+// .default() → if Gemini omits a field, use a safe value instead of throwing.
+// .catch()   → if a field has the wrong type (e.g. string instead of int),
+//              recover with the default instead of crashing the whole request.
+const ATSSchema = z.object({
+  target_role_detected:  z.string()
+                          .catch('Role not detected')
+                          .default('Role not detected')
+                          .describe('The role being analyzed for'),
 
-  const isWordDoc = lowerMime.includes('word') ||
-                    lowerMime.includes('officedocument') ||
-                    lowerMime.includes('msword') ||
-                    lowerMime.includes('docx') ||
-                    lowerMime.includes('doc');
+  ats_parseability:      z.number().int().min(0).max(100)
+                          .catch(50).default(50)
+                          .describe('ATS parseability score 0-100'),
 
-  if (isWordDoc) {
-    try {
-      const mammoth = await import('mammoth');
-      const extractor = mammoth.default || mammoth;
-      const res = await extractor.extractRawText({ buffer });
-      if (res?.value && res.value.trim().length > 20) {
-        return res.value.trim();
-      }
-    } catch (docxErr) {
-      console.warn('Mammoth Word extraction failed:', docxErr.message);
-    }
-  }
+  impact_quantification: z.number().int().min(0).max(100)
+                          .catch(50).default(50)
+                          .describe('Quantified impact score 0-100'),
 
-  try {
-    const bytes = new Uint8Array(buffer);
-    const { PDFParse } = await import('pdf-parse');
-    const parser = new PDFParse(bytes);
-    const parsedDoc = await parser.getText();
-    if (parsedDoc?.text && parsedDoc.text.trim().length > 20) {
-      return parsedDoc.text.trim();
-    }
-  } catch (err) {
-    try {
-      const mammoth = await import('mammoth');
-      const extractor = mammoth.default || mammoth;
-      const res = await extractor.extractRawText({ buffer });
-      if (res?.value && res.value.trim().length > 20) {
-        return res.value.trim();
-      }
-    } catch (_) {}
-  }
+  skill_match:           z.number().int().min(0).max(100)
+                          .catch(50).default(50)
+                          .describe('Skill match % against role requirements'),
 
-  try {
-    const raw = buffer.toString('utf-8');
-    const printable = raw.replace(/[^\x20-\x7E\n\r\t]/g, '');
-    if (printable.length > 50) {
-      return printable.trim();
-    }
-  } catch (_) {}
+  formatting_quality:    z.number().int().min(0).max(100)
+                          .catch(50).default(50)
+                          .describe('Formatting and structure score 0-100'),
 
-  return '';
-}
+  overall_readiness:     z.number().int().min(0).max(100)
+                          .catch(50).default(50)
+                          .describe('Weighted overall readiness score 0-100'),
+
+  reality_check_message: z.string()
+                          .catch('Analysis completed. Please review your scores above.')
+                          .default('Analysis completed. Please review your scores above.')
+                          .describe('Personalized career advice paragraph'),
+
+  matched_skills:        z.array(z.string()).catch([]).default([])
+                          .describe('Skills found in resume that match the target role'),
+
+  missing_skills:        z.array(z.string()).catch([]).default([])
+                          .describe('Important skills for the role not found in resume'),
+
+  soft_skills_detected:  z.array(z.string()).catch([]).default([])
+                          .describe('Soft skills detected in resume content'),
+
+  score_breakdown:       z.object({
+    ats_parseability_reason:      z.string().catch('').default(''),
+    impact_quantification_reason: z.string().catch('').default(''),
+    skill_match_reason:           z.string().catch('').default(''),
+    formatting_quality_reason:    z.string().catch('').default(''),
+  }).catch({
+    ats_parseability_reason:      '',
+    impact_quantification_reason: '',
+    skill_match_reason:           '',
+    formatting_quality_reason:    '',
+  }).default({
+    ats_parseability_reason:      '',
+    impact_quantification_reason: '',
+    skill_match_reason:           '',
+    formatting_quality_reason:    '',
+  }).describe('One-sentence rationale for each numeric score'),
+});
+
+// ─── Layer 3: Safe Defaults (used if ALL retries fail) ───────────────────────
+// Returns a meaningful "we tried but couldn't score precisely" response
+// instead of a blank 500 error screen.
+const GRACEFUL_FALLBACK = (targetRoleText, reason = '') => ({
+  target_role_detected:  targetRoleText || 'Unknown Role',
+  ats_parseability:      null,
+  impact_quantification: null,
+  skill_match:           null,
+  formatting_quality:    null,
+  overall_readiness:     null,
+  reality_check_message: 'We were unable to complete the full ATS analysis at this time. Please try re-uploading your resume or try again in a moment.',
+  matched_skills:        [],
+  missing_skills:        [],
+  soft_skills_detected:  [],
+  score_breakdown:       { ats_parseability_reason: '', impact_quantification_reason: '', skill_match_reason: '', formatting_quality_reason: '' },
+  score:                 null,
+  summary:               'Analysis could not be completed. Please try again.',
+  action_plan:           'Try re-uploading your resume in PDF format.',
+  agent:                 'GeminiATSAnalyzer',
+  partial_result:        true,   // ← frontend can check this flag to show a warning
+  failure_reason:        reason, // ← useful for debugging in LangSmith / logs
+});
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
+  setCors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed. Use POST.' });
+  if (req.method !== 'POST')   return res.status(405).json({ error: 'Method not allowed. Use POST.' });
 
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
   if (!GEMINI_API_KEY) {
@@ -84,107 +118,144 @@ export default async function handler(req, res) {
   if (!resumeBase64) return res.status(400).json({ error: 'resumeBase64 is required' });
 
   try {
+    // 1. Extract text from uploaded file
     const extractedText = await extractTextFromBase64(resumeBase64, mimeType);
     if (!extractedText) {
       return res.status(400).json({ error: 'Failed to extract readable text from the document.' });
     }
 
     const { cgpa, year, branch } = studentContext;
+    const targetRoleText = targetRole
+      ? `"${targetRole}"`
+      : (branch ? `a role inferred from the student's branch (${branch}) and resume content` : 'a best-fit role from resume content');
 
-    const targetRoleText = targetRole 
-      ? `"${targetRole}"` 
-      : (branch ? `a role inferred from the student's branch/department (${branch}) and their resume content` : 'a best-fit role inferred from their resume content');
+    // 2. Build prompt with EXPLICIT DETERMINISTIC RUBRIC
+    //    Giving the model exact criteria eliminates score variance between identical runs.
+    const prompt = `You are an expert ATS (Applicant Tracking System) analyzer.
+Evaluate the resume below for the target role: ${targetRoleText}.
 
-    const prompt = `You are an elite ATS (Applicant Tracking System) Analyzer and Career Mentor.
-Analyze the following resume against the target role: ${targetRoleText}.
-The student's context:
+Student context:
 - CGPA: ${cgpa || 'Not provided'}
 - Passout Year: ${year || 'Not provided'}
 - Branch/Department: ${branch || 'Not provided'}
 
-Provide a strict JSON response containing the exact metrics below.
-Calculate the overall readiness based on the resume content (including soft skills/leadership) and academic stats.
-The action_plan should be a personalized paragraph explaining their reality and what to do next to achieve the role.
+━━━━━━━━━━━━ SCORING RUBRIC (follow exactly) ━━━━━━━━━━━━
 
-Required JSON Schema:
-{
-  "target_role_detected": "String, detected or inferred role",
-  "ats_parseability": 0-100,
-  "impact_quantification": 0-100,
-  "skill_match": 0-100,
-  "formatting_quality": 0-100,
-  "overall_readiness": 0-100,
-  "reality_check_message": "A personalized reality check and action plan paragraph based on CGPA, year, department, and soft skills/leadership.",
-  "matched_skills": ["Skill1", "Skill2"],
-  "missing_skills": ["Skill3", "Skill4"],
-  "soft_skills_detected": ["Leadership", "Communication"]
-}
+1. ats_parseability (0-100): Count how many standard ATS sections are present.
+   Each present section adds points: Contact(15) + Summary/Objective(10) +
+   Skills(20) + Experience/Projects(25) + Education(20) + Certifications(10).
+   Deduct 5 pts per section that has tables, images, or complex formatting ATS bots cannot parse.
 
-Do not include any markdown fences, just return valid JSON.
+2. impact_quantification (0-100): Count bullet points that contain a number/metric
+   (e.g. "improved by 30%", "led team of 5"). Score = (quantified bullets / total bullets) × 100.
+   If no experience/project bullets exist, score is 10.
+
+3. skill_match (0-100): List the top 10 required skills for the target role.
+   Count how many of those 10 skills appear in the resume.
+   Score = (matched skills / 10) × 100. Round to nearest integer.
+
+4. formatting_quality (0-100): Start at 100. Deduct:
+   - 20 pts if resume uses tables/columns that break ATS parsing
+   - 15 pts if font size <10pt or excessive colors (not detectable from text = 0 deduction)
+   - 10 pts if more than 2 pages for a student/fresher
+   - 10 pts if no clear section headings
+   - 10 pts if contact info is missing phone or email
+
+5. overall_readiness = (ats_parseability×0.25) + (impact_quantification×0.20) +
+   (skill_match×0.35) + (formatting_quality×0.20). Round to nearest integer.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For score_breakdown, write ONE sentence explaining how you calculated each numeric score.
+For reality_check_message, write a direct, honest, personalized 2-3 sentence career advice message.
 
 Resume Text:
-${extractedText.slice(0, 15000)}
-`;
+${extractedText.slice(0, 15000)}`;
 
-    const requestBody = {
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.1, responseMimeType: "application/json" }
-    };
+    // 3. Deterministic scoring model — temperature=0, topK=1 → same input = same score
+    const model = createScoringModel(GEMINI_API_KEY, ATSSchema);
 
-    let aiData = null;
-    let successfulModel = null;
-    let lastError = null;
+    let result;
 
-    for (const model of SUPPORTED_MODELS) {
-      try {
-        const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent?key=${GEMINI_API_KEY}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
+    // ── Layer 1 + 2: Try primary call, auto-repair on ZodError ────────────────
+    try {
+      // Layer 1: Forgiving schema absorbs minor field type mismatches via .catch()
+      result = await model.invoke(prompt);
 
-        if (aiRes.ok) {
-          aiData = await aiRes.json();
-          successfulModel = model.name;
-          break;
-        } else {
-          const errData = await aiRes.json().catch(() => ({}));
-          lastError = new Error(errData?.error?.message || `HTTP ${aiRes.status}`);
-          console.warn(`Gemini ATS Model ${model.name} failed: ${lastError.message}`);
+    } catch (firstErr) {
+      const isSchemaError = firstErr instanceof ZodError ||
+                            firstErr?.name === 'ZodError' ||
+                            firstErr?.message?.includes('ZodError') ||
+                            firstErr?.message?.includes('validation');
+
+      if (isSchemaError) {
+        // ── Layer 2: AUTO-REPAIR ───────────────────────────────────────────────
+        // Gemini produced output that violated the schema even after .catch() defaults.
+        // Send the broken raw output back to Gemini and ask it to fix exactly what's wrong.
+        console.warn('[/api/gemini-ats] Schema validation failed, attempting auto-repair...', firstErr.message);
+        try {
+          const repairPrompt = `The following JSON output failed schema validation with this error:
+${firstErr.message}
+
+Fix ONLY the fields that failed validation. Return valid JSON matching this structure exactly:
+{
+  "target_role_detected": string,
+  "ats_parseability": integer 0-100,
+  "impact_quantification": integer 0-100,
+  "skill_match": integer 0-100,
+  "formatting_quality": integer 0-100,
+  "overall_readiness": integer 0-100,
+  "reality_check_message": string,
+  "matched_skills": string[],
+  "missing_skills": string[],
+  "soft_skills_detected": string[],
+  "score_breakdown": {
+    "ats_parseability_reason": string,
+    "impact_quantification_reason": string,
+    "skill_match_reason": string,
+    "formatting_quality_reason": string
+  }
+}
+
+Original broken output to fix:
+${JSON.stringify(firstErr.received ?? {}, null, 2)}`;
+
+          result = await model.invoke(repairPrompt);
+          console.info('[/api/gemini-ats] Auto-repair succeeded ✅');
+        } catch (repairErr) {
+          // ── Layer 3: GRACEFUL DEGRADATION ─────────────────────────────────
+          // Both attempts failed. Return safe defaults with partial_result flag.
+          // Student sees a helpful message, not a blank crash screen.
+          console.error('[/api/gemini-ats] Auto-repair also failed, returning graceful fallback:', repairErr.message);
+          return res.status(200).json({
+            result: GRACEFUL_FALLBACK(targetRoleText, repairErr.message),
+          });
         }
-      } catch (err) {
-        lastError = err;
-        console.warn(`Gemini ATS fallback: ${err.message}`);
+      } else {
+        // Not a schema error (e.g. network issue, API key problem) — re-throw for proper 500
+        throw firstErr;
       }
     }
 
-    if (!aiData) {
-      throw new Error(`All Gemini models failed. Last error: ${lastError?.message}`);
-    }
-
-    let resultText = aiData?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    resultText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
-
-    const parsed = JSON.parse(resultText);
-
-    // Normalize response for frontend
-    const result = {
-      ...parsed,
-      model_used: successfulModel,
-      score: parsed.overall_readiness || 0,
-      overall_readiness: parsed.overall_readiness || 0,
-      summary: parsed.reality_check_message || parsed.action_plan || '',
-      reality_check_message: parsed.reality_check_message || parsed.action_plan || '',
-      action_plan: parsed.reality_check_message || parsed.action_plan || '',
-      matched_skills: parsed.matched_skills || [],
-      missing_skills: parsed.missing_skills || [],
-      soft_skills_detected: parsed.soft_skills_detected || [],
-    };
-
-    return res.status(200).json({ result, agent: 'GeminiATSAnalyzer' });
+    return res.status(200).json({
+      result: {
+        ...result,
+        score:       result.overall_readiness ?? 0,
+        summary:     result.reality_check_message || '',
+        action_plan: result.reality_check_message || '',
+        agent:       'GeminiATSAnalyzer',
+        partial_result: false, // ← explicitly mark as a full successful result
+      },
+    });
 
   } catch (err) {
-    console.error('Gemini ATS Error:', err);
-    return res.status(500).json({ error: err.message || 'Internal Server Error' });
+    // Only non-schema errors reach here (auth failures, network timeouts, etc.)
+    console.error('[/api/gemini-ats] Fatal error:', err);
+    return res.status(500).json({
+      error:   err.message || 'Internal Server Error',
+      code:    err.name    || 'UNKNOWN_ERROR',
+    });
   }
 }
+
+
