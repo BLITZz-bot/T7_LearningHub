@@ -64,7 +64,14 @@ async def upload_resume(
     try:
         cont = content_score(parsed, role, experience_level, model=model)
     except Exception as e:
-        cont = {"quantification_score": 50, "formatting_score": 50, "weak_bullets": [], "formatting_issues": [], "seniority_notes": model_access_error_message(e, model)}
+        print(f"[resumes] content_score error with model {model}: {e}")
+        cont = {
+            "quantification_score": 50,
+            "formatting_score": 50,
+            "weak_bullets": [],
+            "formatting_issues": [],
+            "seniority_notes": f"AI readiness review temporarily unavailable for {model}. Please review your parsed skills and scores above, or select another Gemini model.",
+        }
 
     # 5. Store resume in Supabase
     sb = get_supabase()

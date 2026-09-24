@@ -208,9 +208,15 @@ def _generate_json(
                     response_mime_type="application/json",
                     response_schema=schema,
                     temperature=temperature,
+                    max_output_tokens=4096,
                 ),
             )
-            return json.loads(response.text)
+            raw = (response.text or "").strip()
+            if raw.startswith("```"):
+                import re
+                raw = re.sub(r"^```(?:json)?\s*", "", raw)
+                raw = re.sub(r"\s*```$", "", raw)
+            return json.loads(raw)
         except Exception as e:
             last_error = e
             print(f"[gemini] Model '{candidate}' failed: {e}. Attempting fallback...")
@@ -265,7 +271,7 @@ def score_content(resume_json: dict, target_role: str = "", experience_level: st
             f"STRUCTURE YOUR RESPONSE IN TWO PARTS: "
             f"1. First, explicitly state what core skills and expectations recruiters typically look for at the '{experience_level}' level. "
             f"2. Second, directly compare their actual resume against these expectations. Point out exact gaps realistically. "
-            f"Provide proper content and reality. Do NOT limit the length. "
+            f"Provide realistic, grounded feedback (under 350 words). "
             f"If they are a student/intern, discuss fundamentals, academic projects, hackathons. "
             f"If they are professional, discuss business impact, scale, and leadership. "
             f"Do not hallucinate skills or experiences they don't have. "
