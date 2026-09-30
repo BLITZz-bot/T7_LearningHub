@@ -208,7 +208,7 @@ export default async function handler(req, res) {
   // ── Chat Action ──────────────────────────────────────────────────────────────
   if (!message?.trim()) return res.status(400).json({ error: 'message is required' });
 
-  const activeModelKey = MODEL_REGISTRY[requestedModel] ? requestedModel : 'gemini-3.8-flash';
+  const activeModelKey = MODEL_REGISTRY[requestedModel] ? requestedModel : 'gemini-3.6-flash';
 
   try {
     const systemPrompt = buildSystemPrompt(studentContext);

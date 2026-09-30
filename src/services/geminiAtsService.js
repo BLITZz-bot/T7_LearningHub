@@ -19,6 +19,8 @@ export const analyzeResumeGemini = async ({
   targetRole = null,
   studentContext = {},
   userId = null,
+  customApiKey = null,
+  preferredModel = null,
 }) => {
   if (!resumeFile) throw new Error('Resume file is required');
 
@@ -34,6 +36,8 @@ export const analyzeResumeGemini = async ({
         targetRole: typeof targetRole === 'string' ? targetRole : targetRole?.role_name || null,
         studentContext,
         userId,
+        customApiKey,
+        preferredModel,
       }
     })
   });

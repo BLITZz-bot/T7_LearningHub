@@ -47,6 +47,8 @@ export const analyzeStudentProfile = async ({
   cgpa = '',
   resumeFile = null,
   userId = null,
+  customApiKey = null,
+  preferredModel = null,
 }) => {
   let resumeBase64 = null;
   let mimeType = null;
@@ -71,6 +73,8 @@ export const analyzeStudentProfile = async ({
     mimeType,
     userId,
     sessionId: `profile_${userId}_${Date.now()}`,
+    customApiKey,
+    preferredModel,
   });
 
   const result = data.result;
