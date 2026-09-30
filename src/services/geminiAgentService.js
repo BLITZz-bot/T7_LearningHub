@@ -79,7 +79,7 @@ export const analyzeStudentProfile = async ({
   resumeFile = null,
   userId = null,
   customApiKey = null,
-  preferredModel = 'gemini-3.6-flash',
+  preferredModel = 'gemini-3.5-flash',
 }) => {
   let resumeBase64 = null;
   let mimeType = null;
@@ -105,7 +105,7 @@ export const analyzeStudentProfile = async ({
     userId,
     sessionId: `profile_${userId}_${Date.now()}`,
     customApiKey,
-    preferredModel: preferredModel || 'gemini-3.6-flash',
+    preferredModel: preferredModel || 'gemini-3.5-flash',
   });
 
   const result = data.result || {};

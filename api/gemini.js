@@ -191,10 +191,14 @@ export default async function handler(req, res) {
 
       // Cache
       if (supabase && extractedSkills.length > 0) {
-        await supabase.from('t7_scraped_jobs').upsert({
-          job_id: jobId, url: jobUrl, extracted_skills: extractedSkills,
-          created_at: new Date().toISOString(),
-        }).catch(e => console.warn('[gemini] Cache save failed:', e.message));
+        try {
+          await supabase.from('t7_scraped_jobs').upsert({
+            job_id: jobId, url: jobUrl, extracted_skills: extractedSkills,
+            created_at: new Date().toISOString(),
+          });
+        } catch (e) {
+          console.warn('[gemini] Cache save failed:', e.message);
+        }
       }
 
       return res.status(200).json({ skills: extractedSkills, source: 'ai' });
