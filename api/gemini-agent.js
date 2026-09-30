@@ -1,23 +1,20 @@
 /**
- * Vercel Serverless Function: /api/lyzr
+ * Vercel Serverless Function: /api/gemini-agent
  *
- * T7 Multi-Agent Router — Migrated to LangGraph + LangChain
- *
- * Replaces the old if/else action routing with a LangGraph StateGraph.
+ * T7 Multi-Agent Router — LangGraph + LangChain + Google Gemini
  *
  * Graph shape:
  *
  *   Input → [router] → [profileAnalyzer | resumeOptimizer | chatTutor | skillValidator]
  *                                          ↓
- *                                    [normalizer] → Output
+ *                                      [normalizer] → Output
  *
- * Key improvements over old lyzr.js:
- *  ✅ Each agent is an isolated graph node — easy to test, modify, add
- *  ✅ Typed shared state (AgentState) — no more guessing what's in the payload
- *  ✅ Structured output (Zod schemas) — eliminates all manual normalization code
- *  ✅ Conditional edges replace the if/else chain
- *  ✅ LangSmith traces every node automatically (set LANGCHAIN_TRACING_V2=true)
- *  ✅ LYZR dependency completely removed — calls Gemini directly, saves API cost
+ * Features:
+ *  ✅ Each agent is an isolated graph node
+ *  ✅ Typed shared state (AgentState)
+ *  ✅ Structured output (Zod schemas)
+ *  ✅ Direct Google Gemini integration via @langchain/google-genai
+ *  ✅ Primary model: gemini-3.6-flash with automated fallback chain
  */
 
 import { StateGraph, END }      from '@langchain/langgraph';
@@ -33,7 +30,6 @@ import {
 } from './_langchain/llm.js';
 
 // ─── Shared Agent State ──────────────────────────────────────────────────────
-// Every node reads from and writes to this state object
 const INITIAL_STATE = {
   action:         '',   // 'analyzeProfile' | 'analyzeResume' | 'chatTutor' | 'validateSkill'
   payload:        {},   // Raw request payload
@@ -44,7 +40,6 @@ const INITIAL_STATE = {
 };
 
 // ─── Zod Schemas ─────────────────────────────────────────────────────────────
-
 const ProfileSchema = z.object({
   career_role:       z.string(),
   readiness_score:   z.union([z.number(), z.object({
@@ -97,9 +92,7 @@ const SkillQuizSchema = z.object({
 });
 
 // ─── Node: Router ─────────────────────────────────────────────────────────────
-// Reads action from state and routes to correct agent node
 function routerNode(state) {
-  // Just pass through — routing is done by conditional edges
   return state;
 }
 
@@ -123,6 +116,13 @@ async function profileAnalyzerNode(state) {
   let resumeText = '';
   if (resumeBase64) resumeText = await extractTextFromBase64(resumeBase64, mimeType);
 
+  const reqSkillsStr = Array.isArray(role?.required_skills)
+    ? role.required_skills.map(s => typeof s === 'string' ? s : s?.name).filter(Boolean).join(', ')
+    : '';
+  const prioSkillsStr = Array.isArray(role?.priority_skills)
+    ? role.priority_skills.map(s => typeof s === 'string' ? s : s?.name).filter(Boolean).join(', ')
+    : '';
+
   const prompt = `You are a senior career coach and AI placement advisor.
 
 Analyze this student's career profile and provide a detailed readiness assessment.
@@ -136,8 +136,8 @@ Student Profile:
 
 Target Role: ${role?.role_name || 'Software Developer'}
 Role Description: ${role?.description || ''}
-Required Skills: ${(role?.required_skills || []).join(', ')}
-Priority Skills: ${(role?.priority_skills || []).join(', ')}
+Required Skills: ${reqSkillsStr}
+Priority Skills: ${prioSkillsStr}
 
 ${resumeText ? `Resume Text (first 12000 chars):\n${resumeText.slice(0, 12000)}` : 'No resume provided.'}
 
@@ -152,10 +152,9 @@ Provide a complete JSON assessment with:
 - final_outcome: the expected placement outcome
 - motivation: an encouraging closing message`;
 
-  const model  = createStructuredModel(apiKey, ProfileSchema, preferredModel);
+  const model  = createStructuredModel(apiKey, ProfileSchema, preferredModel || 'gemini-3.6-flash');
   const parsed = await model.invoke(prompt);
 
-  // Normalize to consistent shape (same shape as old lyzr.js returned)
   const overallScore = typeof parsed.readiness_score === 'object'
     ? (parsed.readiness_score.overall ?? 0)
     : (parsed.readiness_score ?? 0);
@@ -202,13 +201,13 @@ Provide a complete JSON assessment with:
     final_outcome:        parsed.final_outcome || `Placement ready for ${role?.role_name || 'your target role'}`,
   };
 
-  return { result: normalized, agentName: 'ProfileAnalyzerAgent' };
+  return { result: normalized, agentName: 'GeminiProfileAnalyzer' };
 }
 
 // ─── Node: Resume Optimizer ──────────────────────────────────────────────────
 async function resumeOptimizerNode(state) {
   const { payload } = state;
-  const { resumeBase64, mimeType, targetRole } = payload;
+  const { resumeBase64, mimeType, targetRole, preferredModel } = payload;
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!resumeBase64) throw new Error('resumeBase64 is required for analyzeResume');
@@ -231,7 +230,7 @@ Provide:
 Resume Text:
 ${extractedText.slice(0, 15000)}`;
 
-  const model  = createStructuredModel(apiKey, ResumeSchema);
+  const model  = createStructuredModel(apiKey, ResumeSchema, preferredModel || 'gemini-3.6-flash');
   const parsed = await model.invoke(prompt);
 
   const strengths  = parsed.audit?.strengths || [];
@@ -263,18 +262,18 @@ ${extractedText.slice(0, 15000)}`;
     },
   };
 
-  return { result: normalized, agentName: 'ResumeOptimizerAgent' };
+  return { result: normalized, agentName: 'GeminiResumeOptimizer' };
 }
 
 // ─── Node: Chat Tutor ────────────────────────────────────────────────────────
 async function chatTutorNode(state) {
   const { payload } = state;
-  const { message, sessionId, studentContext } = payload;
+  const { message, sessionId, studentContext, preferredModel } = payload;
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!message) throw new Error('message is required for chatTutor');
 
-  const model = createChatModel('gemini-3.8-flash', apiKey, { maxOutputTokens: 800 });
+  const model = createChatModel(preferredModel || 'gemini-3.6-flash', apiKey, { maxOutputTokens: 800 });
 
   const prompt = ChatPromptTemplate.fromMessages([
     ['system', `You are T7 AI Tutor, a friendly and knowledgeable AI academic assistant on the T7 Learning Hub platform. Help students with their learning, answer their questions clearly, and guide them step-by-step.
@@ -301,13 +300,13 @@ Always personalize your responses. Be encouraging, practical, and concise.`],
     message,
   });
 
-  return { result: text, agentName: 'TutorBotAgent' };
+  return { result: text, agentName: 'GeminiTutorBot' };
 }
 
 // ─── Node: Skill Validator ───────────────────────────────────────────────────
 async function skillValidatorNode(state) {
   const { payload } = state;
-  const { skill, level, answers } = payload;
+  const { skill, level, answers, preferredModel } = payload;
   const apiKey = process.env.GEMINI_API_KEY;
 
   let prompt;
@@ -340,7 +339,7 @@ Return a JSON object with:
 - verified_level: NOT_VERIFIED (quiz not taken yet)`;
   }
 
-  const model  = createStructuredModel(apiKey, SkillQuizSchema);
+  const model  = createStructuredModel(apiKey, SkillQuizSchema, preferredModel || 'gemini-3.6-flash');
   const parsed = await model.invoke(prompt);
 
   const normalized = {
@@ -352,7 +351,7 @@ Return a JSON object with:
     verified_level:   parsed.verified_level || 'NOT_VERIFIED',
   };
 
-  return { result: normalized, agentName: 'SkillValidatorAgent' };
+  return { result: normalized, agentName: 'GeminiSkillValidator' };
 }
 
 // ─── Node: Error ─────────────────────────────────────────────────────────────
@@ -369,7 +368,7 @@ function buildAgentGraph() {
       userId:    { default: () => '' },
       result:    { default: () => null },
       agentName: { default: () => '' },
-      error:     { default: () => null }, // <-- This state channel is named 'error'
+      error:     { default: () => null },
     },
   });
 
@@ -378,7 +377,7 @@ function buildAgentGraph() {
   graph.addNode('resumeOptimizer', resumeOptimizerNode);
   graph.addNode('chatTutor',       chatTutorNode);
   graph.addNode('skillValidator',  skillValidatorNode);
-  graph.addNode('errorHandler',    errorNode); // <-- Renamed node from 'error' to 'errorHandler'
+  graph.addNode('errorHandler',    errorNode);
 
   graph.setEntryPoint('router');
 
@@ -387,7 +386,7 @@ function buildAgentGraph() {
     resumeOptimizer: 'resumeOptimizer',
     chatTutor:       'chatTutor',
     skillValidator:  'skillValidator',
-    errorHandler:    'errorHandler', // <-- Updated route reference
+    errorHandler:    'errorHandler',
   });
 
   graph.addEdge('profileAnalyzer', END);
@@ -399,7 +398,6 @@ function buildAgentGraph() {
   return graph.compile();
 }
 
-// Compile once (module-level singleton for Vercel function warm starts)
 const agentGraph = buildAgentGraph();
 
 // ─── Handler ─────────────────────────────────────────────────────────────────
@@ -416,7 +414,6 @@ export default async function handler(req, res) {
   const userId = payload.userId || 't7_user';
 
   try {
-    // Run the LangGraph
     const finalState = await agentGraph.invoke({
       action,
       payload,
@@ -430,7 +427,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: finalState.error });
     }
 
-    // chatTutor returns plain text; others return structured result objects
     if (action === 'chatTutor') {
       return res.status(200).json({ text: finalState.result, agent: finalState.agentName });
     }
@@ -438,7 +434,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ result: finalState.result, agent: finalState.agentName });
 
   } catch (err) {
-    console.error('[/api/lyzr] Unhandled error:', err);
+    console.error('[/api/gemini-agent] Unhandled error:', err);
 
     const isQuotaError = err?.message?.includes('429') ||
                          err?.message?.includes('Too Many Requests') ||
@@ -449,7 +445,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         error: 'QUOTA_EXCEEDED',
         result: null,
-        message: 'Gemini API daily quota reached (free tier: 20 req/day). Analysis will resume once quota resets. You can add a paid API key in Settings to remove this limit.',
+        message: 'Gemini API daily quota reached. Analysis will resume once quota resets.',
       });
     }
 

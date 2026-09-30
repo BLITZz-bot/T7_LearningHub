@@ -358,20 +358,20 @@ const StudentProfileModal = ({ isOpen, onClose, lastAnalysis, initialEditMode = 
                 </div>
               </div>
 
-              {/* LYZR AI Status Card (replaces Gemini section) */}
+              {/* Gemini AI Status Card */}
               <div className="p-5 bg-gradient-to-br from-zinc-900 to-zinc-950 rounded-2xl border border-zinc-800 text-white">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-violet-500 to-indigo-600 flex items-center justify-center">
                     <Zap className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-white">LYZR AI Agents</h4>
-                    <p className="text-[11px] text-zinc-400">Your profile is analyzed by role-based AI agents</p>
+                    <h4 className="text-sm font-bold text-white">Gemini Multi-Agent AI</h4>
+                    <p className="text-[11px] text-zinc-400">Powered by Google Gemini 3.6 Flash & LangGraph</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 p-3 bg-emerald-950/50 border border-emerald-800/50 rounded-xl">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                  <span className="text-xs text-emerald-300 font-medium">AI agents are active and configured by your administrator</span>
+                  <span className="text-xs text-emerald-300 font-medium">AI placement agents are active and ready</span>
                 </div>
               </div>
 
@@ -474,7 +474,7 @@ const StudentProfileModal = ({ isOpen, onClose, lastAnalysis, initialEditMode = 
                 </div>
               </div>
 
-              {/* LYZR AI Status (View Mode) */}
+              {/* Gemini AI Status (View Mode) */}
               <div>
                 <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-3">AI Engine</h3>
                 <div className="p-4 bg-gradient-to-br from-zinc-900 to-zinc-950 text-white rounded-2xl border border-zinc-800 flex items-center gap-3">
@@ -483,10 +483,10 @@ const StudentProfileModal = ({ isOpen, onClose, lastAnalysis, initialEditMode = 
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-white">LYZR AI Agents</span>
+                      <span className="text-sm font-bold text-white">Gemini Multi-Agent AI</span>
                       <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Active</span>
                     </div>
-                    <p className="text-xs text-zinc-400 mt-0.5">Role-based AI — Profile Analyzer · Resume Optimizer · TutorBot</p>
+                    <p className="text-xs text-zinc-400 mt-0.5">Role-based AI — Profile Analyzer · Resume Optimizer · TutorBot (Gemini 3.6 Flash)</p>
                   </div>
                 </div>
               </div>

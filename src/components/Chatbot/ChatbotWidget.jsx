@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { buildSystemPrompt, callLyzrTutor, detectIntent, getQuickReplies } from "./chatbot";
+import { buildSystemPrompt, callGeminiTutor, detectIntent, getQuickReplies } from "./chatbot";
 import "./chatbot.css";
 
 const TypingIndicator = () => (
@@ -86,7 +86,7 @@ What would you like to know about your progress or career path today?`
             readiness_score: userProfile.readiness_score || 0,
           }
         : null;
-      const reply = await callLyzrTutor(updatedMessages, systemPrompt, studentContext);
+      const reply = await callGeminiTutor(updatedMessages, systemPrompt, studentContext);
       const botMsg = { role: "assistant", content: reply, timestamp: new Date() };
       setMessages((prev) => [...prev, botMsg]);
       const intent = detectIntent(text);
