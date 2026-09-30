@@ -11,9 +11,9 @@ const ALL_ROLES = [
 ];
 
 const MODELS = [
-  ['gemini-3.1-flash-lite', 'Gemini 3.1 Flash Lite (Default / Fastest)'],
+  ['gemini-3.6-flash', 'Gemini 3.6 Flash (Default)'],
   ['gemini-3.5-flash', 'Gemini 3.5 Flash'],
-  ['gemini-3.6-flash', 'Gemini 3.6 Flash'],
+  ['gemini-3.1-flash-lite', 'Gemini 3.1 Flash Lite'],
   ['gemini-3.7-flash', 'Gemini 3.7 Flash'],
   ['gemini-3.8-flash', 'Gemini 3.8 Flash'],
   ['gemini-3.1-pro-preview', 'Gemini 3.1 Pro Preview (Paid Tier)'],
@@ -22,7 +22,7 @@ const MODELS = [
 export default function UploadZone({ onUpload, isLoading, hasPrevious, onViewPrevious }) {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedRole, setSelectedRole] = useState('Software Developer');
-  const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite');
+  const [selectedModel, setSelectedModel] = useState('gemini-3.6-flash');
   const [selectedExperience, setSelectedExperience] = useState('Student (Internship)');
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileName, setFileName] = useState(null);

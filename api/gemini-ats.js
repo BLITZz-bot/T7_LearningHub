@@ -1,87 +1,55 @@
 /**
  * Vercel Serverless Function: /api/gemini-ats
  *
- * T7 ATS Resume Analyzer — Migrated to LangChain
+ * T7 ATS Resume Analyzer — LangChain + Gemini
  *
- * Key improvements over old gemini-ats.js:
- *  ✅ .withStructuredOutput(schema)    → no more JSON.parse + markdown stripping
- *  ✅ .withFallbacks([...])            → replaces the manual for-loop fallback
- *  ✅ createScoringModel (temp=0)      → deterministic scores, no 2-5pt drift
- *  ✅ Explicit scoring rubric in prompt → consistent criteria across all calls
- *  ✅ Forgiving Zod schema (.default)  → partial outputs patched, not rejected
- *  ✅ Auto-repair retry on ZodError    → second chance before giving up
- *  ✅ Graceful degradation fallback    → student never sees a blank crash screen
+ *  ✅ .withStructuredOutput(schema) → type-safe structured JSON from Gemini
+ *  ✅ .withFallbacks([...])         → automatic model fallback chain
+ *  ✅ createScoringModel (temp=0)   → deterministic scores, no variance
+ *  ✅ Explicit rubric in prompt     → consistent criteria every call
+ *  ✅ Nullable Zod schema           → no hardcoded placeholder scores
+ *  ✅ Auto-repair on parse error    → retry with repair prompt before giving up
+ *  ✅ Graceful degradation fallback → never crash with a blank screen
  */
 
-import { z }                          from 'zod';
-import { ZodError }                   from 'zod';
+import { z }      from 'zod';
+import { ZodError } from 'zod';
 import { setCors, extractTextFromBase64, createScoringModel } from './_langchain/llm.js';
 
-// ─── Layer 1: FORGIVING Schema ────────────────────────────────────────────────
-// .default() → if Gemini omits a field, use a safe value instead of throwing.
-// .catch()   → if a field has the wrong type (e.g. string instead of int),
-//              recover with the default instead of crashing the whole request.
+// ─── ATS Schema ───────────────────────────────────────────────────────────────
+// All score fields are nullable so we never return a fake/hardcoded number.
+// .catch(null) → if Gemini returns the wrong type, safely fall back to null.
+// .optional()  → field is allowed to be absent in the model response.
 const ATSSchema = z.object({
-  target_role_detected:  z.string()
-                          .catch('Role not detected')
-                          .default('Role not detected')
-                          .describe('The role being analyzed for'),
+  target_role_detected:  z.string().optional().default('Unknown Role'),
 
-  ats_parseability:      z.number().int().min(0).max(100)
-                          .catch(50).default(50)
-                          .describe('ATS parseability score 0-100'),
+  ats_parseability:      z.number().int().min(0).max(100).nullable().catch(null).optional(),
+  impact_quantification: z.number().int().min(0).max(100).nullable().catch(null).optional(),
+  skill_match:           z.number().int().min(0).max(100).nullable().catch(null).optional(),
+  formatting_quality:    z.number().int().min(0).max(100).nullable().catch(null).optional(),
+  overall_readiness:     z.number().int().min(0).max(100).nullable().catch(null).optional(),
 
-  impact_quantification: z.number().int().min(0).max(100)
-                          .catch(50).default(50)
-                          .describe('Quantified impact score 0-100'),
+  reality_check_message: z.string().optional().default(''),
 
-  skill_match:           z.number().int().min(0).max(100)
-                          .catch(50).default(50)
-                          .describe('Skill match % against role requirements'),
+  matched_skills:       z.array(z.string()).optional().default([]),
+  missing_skills:       z.array(z.string()).optional().default([]),
+  soft_skills_detected: z.array(z.string()).optional().default([]),
 
-  formatting_quality:    z.number().int().min(0).max(100)
-                          .catch(50).default(50)
-                          .describe('Formatting and structure score 0-100'),
-
-  overall_readiness:     z.number().int().min(0).max(100)
-                          .catch(50).default(50)
-                          .describe('Weighted overall readiness score 0-100'),
-
-  reality_check_message: z.string()
-                          .catch('Analysis completed. Please review your scores above.')
-                          .default('Analysis completed. Please review your scores above.')
-                          .describe('Personalized career advice paragraph'),
-
-  matched_skills:        z.array(z.string()).catch([]).default([])
-                          .describe('Skills found in resume that match the target role'),
-
-  missing_skills:        z.array(z.string()).catch([]).default([])
-                          .describe('Important skills for the role not found in resume'),
-
-  soft_skills_detected:  z.array(z.string()).catch([]).default([])
-                          .describe('Soft skills detected in resume content'),
-
-  score_breakdown:       z.object({
-    ats_parseability_reason:      z.string().catch('').default(''),
-    impact_quantification_reason: z.string().catch('').default(''),
-    skill_match_reason:           z.string().catch('').default(''),
-    formatting_quality_reason:    z.string().catch('').default(''),
-  }).catch({
+  score_breakdown: z.object({
+    ats_parseability_reason:      z.string().optional().default(''),
+    impact_quantification_reason: z.string().optional().default(''),
+    skill_match_reason:           z.string().optional().default(''),
+    formatting_quality_reason:    z.string().optional().default(''),
+  }).optional().default({
     ats_parseability_reason:      '',
     impact_quantification_reason: '',
     skill_match_reason:           '',
     formatting_quality_reason:    '',
-  }).default({
-    ats_parseability_reason:      '',
-    impact_quantification_reason: '',
-    skill_match_reason:           '',
-    formatting_quality_reason:    '',
-  }).describe('One-sentence rationale for each numeric score'),
+  }),
 });
 
-// ─── Layer 3: Safe Defaults (used if ALL retries fail) ───────────────────────
-// Returns a meaningful "we tried but couldn't score precisely" response
-// instead of a blank 500 error screen.
+// ─── Graceful Fallback (only returned when ALL model calls fail) ──────────────
+// All scores are null — never show fake/invented numbers to the student.
 const GRACEFUL_FALLBACK = (targetRoleText, reason = '') => ({
   target_role_detected:  targetRoleText || 'Unknown Role',
   ats_parseability:      null,
@@ -89,17 +57,24 @@ const GRACEFUL_FALLBACK = (targetRoleText, reason = '') => ({
   skill_match:           null,
   formatting_quality:    null,
   overall_readiness:     null,
-  reality_check_message: 'We were unable to complete the full ATS analysis at this time. Please try re-uploading your resume or try again in a moment.',
-  matched_skills:        [],
-  missing_skills:        [],
-  soft_skills_detected:  [],
-  score_breakdown:       { ats_parseability_reason: '', impact_quantification_reason: '', skill_match_reason: '', formatting_quality_reason: '' },
-  score:                 null,
-  summary:               'Analysis could not be completed. Please try again.',
-  action_plan:           'Try re-uploading your resume in PDF format.',
-  agent:                 'GeminiATSAnalyzer',
-  partial_result:        true,   // ← frontend can check this flag to show a warning
-  failure_reason:        reason, // ← useful for debugging in LangSmith / logs
+  reality_check_message: reason
+    ? `Analysis could not be completed. Error: ${reason}`
+    : 'Analysis could not be completed. Please re-upload your resume or try again.',
+  matched_skills:       [],
+  missing_skills:       [],
+  soft_skills_detected: [],
+  score_breakdown: {
+    ats_parseability_reason:      '',
+    impact_quantification_reason: '',
+    skill_match_reason:           '',
+    formatting_quality_reason:    '',
+  },
+  score:          null,
+  summary:        'ATS analysis could not be completed.',
+  action_plan:    'Please check your Gemini API key and quota, then try again.',
+  agent:          'GeminiATSAnalyzer',
+  partial_result: true,
+  failure_reason: reason,
 });
 
 export default async function handler(req, res) {
@@ -113,7 +88,7 @@ export default async function handler(req, res) {
   }
 
   const { payload = {} } = req.body || {};
-  const { resumeBase64, mimeType, targetRole, studentContext = {} } = payload;
+  const { resumeBase64, mimeType, targetRole, studentContext = {}, preferredModel, customApiKey } = payload;
 
   if (!resumeBase64) return res.status(400).json({ error: 'resumeBase64 is required' });
 
@@ -173,7 +148,7 @@ Resume Text:
 ${extractedText.slice(0, 15000)}`;
 
     // 3. Deterministic scoring model — temperature=0, topK=1 → same input = same score
-    const model = createScoringModel(GEMINI_API_KEY, ATSSchema);
+    const model = createScoringModel(customApiKey || GEMINI_API_KEY, ATSSchema, preferredModel);
 
     let result;
 
@@ -186,7 +161,9 @@ ${extractedText.slice(0, 15000)}`;
       const isSchemaError = firstErr instanceof ZodError ||
                             firstErr?.name === 'ZodError' ||
                             firstErr?.message?.includes('ZodError') ||
-                            firstErr?.message?.includes('validation');
+                            firstErr?.message?.includes('validation') ||
+                            firstErr?.name === 'OutputParserException' ||
+                            firstErr?.message?.includes('OUTPUT_PARSING_FAILURE');
 
       if (isSchemaError) {
         // ── Layer 2: AUTO-REPAIR ───────────────────────────────────────────────
@@ -232,26 +209,45 @@ ${JSON.stringify(firstErr.received ?? {}, null, 2)}`;
           });
         }
       } else {
-        // Not a schema error (e.g. network issue, API key problem) — re-throw for proper 500
-        throw firstErr;
+        console.warn('[/api/gemini-ats] Model execution issue, returning graceful fallback:', firstErr.message);
+        return res.status(200).json({
+          result: GRACEFUL_FALLBACK(targetRoleText, firstErr.message),
+        });
       }
     }
 
     return res.status(200).json({
       result: {
         ...result,
-        score:       result.overall_readiness ?? 0,
-        summary:     result.reality_check_message || '',
-        action_plan: result.reality_check_message || '',
-        agent:       'GeminiATSAnalyzer',
-        partial_result: false, // ← explicitly mark as a full successful result
+        score:          result.overall_readiness ?? null,
+        summary:        result.reality_check_message || '',
+        action_plan:    result.reality_check_message || '',
+        agent:          'GeminiATSAnalyzer',
+        partial_result: false,
       },
     });
 
   } catch (err) {
-    // Only non-schema errors reach here (auth failures, network timeouts, etc.)
+    // Detect quota / rate-limit errors — return graceful 200 instead of crashing with 500
+    const isQuotaError = err?.message?.includes('429') ||
+                         err?.message?.includes('Too Many Requests') ||
+                         err?.message?.includes('quota') ||
+                         err?.message?.includes('rate') ||
+                         err?.status === 429;
+
+    if (isQuotaError) {
+      console.warn('[/api/gemini-ats] Quota exhausted across all models, returning graceful fallback.');
+      return res.status(200).json({
+        result: GRACEFUL_FALLBACK(
+          targetRoleText,
+          'Gemini API daily quota reached (free tier: 20 req/day). Analysis will resume once quota resets. You can add a paid API key in Settings to remove this limit.'
+        ),
+      });
+    }
+
+    // Auth / network / unexpected errors → return as 503 so the client knows it is a server issue
     console.error('[/api/gemini-ats] Fatal error:', err);
-    return res.status(500).json({
+    return res.status(503).json({
       error:   err.message || 'Internal Server Error',
       code:    err.name    || 'UNKNOWN_ERROR',
     });

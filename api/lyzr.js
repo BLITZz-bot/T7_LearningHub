@@ -116,8 +116,8 @@ function routingFunction(state) {
 // ─── Node: Profile Analyzer ──────────────────────────────────────────────────
 async function profileAnalyzerNode(state) {
   const { payload } = state;
-  const { skills, role, branch, year, cgpa, resumeBase64, mimeType, sessionId } = payload;
-  const apiKey       = process.env.GEMINI_API_KEY;
+  const { skills, role, branch, year, cgpa, resumeBase64, mimeType, sessionId, customApiKey, preferredModel } = payload;
+  const apiKey       = customApiKey || process.env.GEMINI_API_KEY;
   const isBeginnerMode = !skills || skills.length === 0;
 
   let resumeText = '';
@@ -152,7 +152,7 @@ Provide a complete JSON assessment with:
 - final_outcome: the expected placement outcome
 - motivation: an encouraging closing message`;
 
-  const model  = createStructuredModel(apiKey, ProfileSchema);
+  const model  = createStructuredModel(apiKey, ProfileSchema, preferredModel);
   const parsed = await model.invoke(prompt);
 
   // Normalize to consistent shape (same shape as old lyzr.js returned)
@@ -439,6 +439,20 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('[/api/lyzr] Unhandled error:', err);
-    return res.status(500).json({ error: 'Agent error', detail: err.message });
+
+    const isQuotaError = err?.message?.includes('429') ||
+                         err?.message?.includes('Too Many Requests') ||
+                         err?.message?.includes('quota') ||
+                         err?.status === 429;
+
+    if (isQuotaError) {
+      return res.status(200).json({
+        error: 'QUOTA_EXCEEDED',
+        result: null,
+        message: 'Gemini API daily quota reached (free tier: 20 req/day). Analysis will resume once quota resets. You can add a paid API key in Settings to remove this limit.',
+      });
+    }
+
+    return res.status(503).json({ error: 'Agent error', detail: err.message });
   }
 }

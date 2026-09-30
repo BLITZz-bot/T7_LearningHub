@@ -5,6 +5,8 @@ import lyzrHandler from './api/lyzr.js'
 import dbHandler from './api/db.js'
 import authHandler from './api/auth.js'
 import geminiHandler from './api/gemini.js'
+import geminiAtsHandler from './api/gemini-ats.js'
+import quizHandler from './api/quiz.js'
 
 function apiDevMiddlewarePlugin(env) {
   return {
@@ -73,6 +75,16 @@ function apiDevMiddlewarePlugin(env) {
 
         if (urlObj.pathname === '/api/gemini') {
           handleBodyRequest(geminiHandler);
+          return;
+        }
+
+        if (urlObj.pathname === '/api/gemini-ats') {
+          handleBodyRequest(geminiAtsHandler);
+          return;
+        }
+
+        if (urlObj.pathname === '/api/quiz') {
+          handleBodyRequest(quizHandler);
           return;
         }
 

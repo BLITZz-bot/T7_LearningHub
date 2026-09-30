@@ -332,7 +332,9 @@ const StudentDashboard = () => {
               cgpa: userProfile?.cgpa || '',
               year: userProfile?.passoutYear || userProfile?.year || '',
               branch: userProfile?.branch || ''
-            }
+            },
+            customApiKey: userProfile?.geminiApiKey,
+            preferredModel: userProfile?.geminiModel,
           });
         } catch (atsErr) {
           console.warn('Gemini ATS direct analysis warning:', atsErr);
