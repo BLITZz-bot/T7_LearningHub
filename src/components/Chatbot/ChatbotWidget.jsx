@@ -74,8 +74,7 @@ What would you like to know about your progress or career path today?`
 
     try {
       const systemPrompt = buildSystemPrompt(userProfile);
-      // Uses LYZR TutorBotAgent (persistent memory, personalized tutoring).
-      // Falls back to Gemini automatically if LYZR not yet configured.
+      // Uses LangGraph Gemini TutorBot (personalized tutoring via /api/gemini-agent).
       const studentContext = userProfile
         ? {
             uid: userProfile.uid || userProfile.id,

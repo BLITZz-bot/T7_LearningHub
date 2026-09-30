@@ -14,7 +14,6 @@ import StudentProfileModal from './StudentProfileModal';
 import YouTubeTrackerModal from './YouTubeTrackerModal';
 import FullJobMarketView from './FullJobMarketView';
 import T7AiMentor from './T7AiMentor';
-// ModelSelector removed — LYZR manages AI models internally
 import { 
   LogOut,
   Search,

@@ -3,7 +3,7 @@
 This document outlines the modern multi-agent AI architecture of the T7 Learning Hub. The system recently migrated from a monolithic legacy `if/else` based routing system (formerly reliant on `lyzr`) to a robust, node-based **LangGraph StateGraph** powered by **LangChain** and **Google Gemini**.
 
 ## 1. High-Level Architecture
-The AI backend (`/api/lyzr.js`) operates as a directed graph where each request flows through a series of specialized nodes.
+The AI backend (`/api/gemini-agent.js`) operates as a directed graph where each request flows through a series of specialized nodes.
 
 **Graph Shape:**
 ```mermaid
@@ -46,7 +46,7 @@ const INITIAL_STATE = {
 };
 ```
 
-### B. The LangGraph Nodes (`api/lyzr.js`)
+### B. The LangGraph Nodes (`api/gemini-agent.js`)
 
 #### 1. Router Node (`routerNode` & `routingFunction`)
 The entry point of the graph. It inspects `state.action` and uses a `ConditionalEdge` to map the request to the correct specific agent node. If the action is unrecognized, it routes to the `errorHandler`.

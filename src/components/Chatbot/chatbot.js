@@ -1,6 +1,6 @@
 // ============================================================
 // T7 AI Chatbot - Core Logic
-// Powered by LYZR TutorBotAgent (via /api/lyzr)
+// Powered by LangGraph Gemini TutorBot (via /api/gemini-agent)
 // ============================================================
 
 /**
