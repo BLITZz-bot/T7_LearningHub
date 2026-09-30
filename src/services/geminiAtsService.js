@@ -43,11 +43,16 @@ export const analyzeResumeGemini = async ({
   });
 
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
+    const text = await res.text().catch(() => '');
+    let data = null;
+    try { data = JSON.parse(text); } catch {}
+    if (res.status === 504 || text.includes('FUNCTION_INVOCATION_TIMEOUT') || text.includes('An error occurred')) {
+      throw new Error('ATS analysis timed out on the server. Please try again in a few moments.');
+    }
     throw new Error(data?.error || `Gemini ATS proxy error (${res.status})`);
   }
 
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   const result = data.result;
 
   return {

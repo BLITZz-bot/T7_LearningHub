@@ -1,6 +1,6 @@
 // ============================================================
 // T7 AI Chatbot - Core Logic
-// Powered by LYZR TutorBotAgent (via /api/lyzr)
+// Powered by LangGraph Gemini TutorBot (via /api/gemini-agent)
 // ============================================================
 
 /**
@@ -46,34 +46,46 @@ Respond in clean, readable text. Use bullet points and short paragraphs. Never u
 }
 
 // ============================================================
-// LYZR TUTOR AGENT CALL
+// GEMINI TUTOR AGENT CALL
 // ============================================================
 /**
- * callLyzrTutor — Calls LYZR TutorBotAgent via /api/lyzr
+ * callGeminiTutor — Calls Gemini TutorBotAgent via /api/gemini-agent
  * The API key is NEVER stored in the browser.
- * LYZR provides persistent memory per student session.
  */
-export async function callLyzrTutor(messages, systemPrompt, studentContext = null, preferredModel = null) {
+export async function callGeminiTutor(messages, systemPrompt, studentContext = null, preferredModel = null) {
   const lastMessage = messages[messages.length - 1]?.content || '';
   const userId = studentContext?.uid || null;
 
-  const res = await fetch('/api/lyzr', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: 'chatTutor',
-      payload: {
-        message: lastMessage,
-        sessionId: `tutor_${userId || 'anon'}`,
-        studentContext,
-        userId,
-      },
-    }),
-  });
+  let res;
+  try {
+    res = await fetch('/api/gemini-agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'chatTutor',
+        payload: {
+          message: lastMessage,
+          sessionId: `tutor_${userId || 'anon'}`,
+          studentContext,
+          userId,
+          preferredModel: preferredModel || 'gemini-3.6-flash',
+        },
+      }),
+    });
 
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error || 'TutorBot connection failed. Please try again.');
-  if (!data.text) throw new Error('Empty response from TutorBot. Please try again.');
+  } catch (e) {
+    throw new Error('Connection failed. Please check your network.');
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    let data = null;
+    try { data = JSON.parse(text); } catch {}
+    throw new Error(data?.error || data?.message || 'Tutor connection failed. Please try again.');
+  }
+
+  const data = await res.json().catch(() => ({}));
+  if (!data.text) throw new Error('Empty response from AI Tutor. Please try again.');
   return data.text;
 }
 

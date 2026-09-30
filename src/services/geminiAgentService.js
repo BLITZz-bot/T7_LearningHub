@@ -1,27 +1,58 @@
+
+
+
 /**
- * LYZR AI Agent Service — T7 Learning Hub
+ * Gemini AI Agent Service — T7 Learning Hub
  *
- * All LYZR agent calls are proxied through /api/lyzr (server-side, key never in browser).
- * This is the ONLY AI service — Gemini has been removed.
+ * All multi-agent operations are proxied through /api/gemini-agent
+ * (or legacy /api/lyzr fallback), keeping API keys strictly server-side.
+ * Powered by LangGraph + Google Gemini (default: gemini-3.6-flash).
  *
  * Agents:
- *   ProfileAnalyzerAgent  → analyzeStudentProfile()   replaces old Gemini roadmap call
- *   ResumeOptimizerAgent  → analyzeResumeLyzr()        replaces old Gemini ATS call
- *   TutorBotAgent         → callLyzrTutor()            replaces old Gemini chatbot call
- *   SkillValidatorAgent   → generateSkillQuiz()        new feature (Phase 2)
- *                           gradeSkillQuiz()
+ *   ProfileAnalyzerAgent  → analyzeStudentProfile()   Placement readiness & phased roadmap
+ *   ResumeOptimizerAgent  → analyzeResumeGeminiAgent() ATS audit, keyword gaps & bullet rewrites
+ *   TutorBotAgent         → callGeminiTutor()         Context-aware conversational tutor
+ *   SkillValidatorAgent   → generateSkillQuiz()       Role-calibrated skill quizzes
+ *                           gradeSkillQuiz()          Skill quiz grading & verification
  */
 
-// ─── Internal proxy caller ────────────────────────────────────────────────────
-const callLyzrProxy = async (action, payload = {}) => {
-  const res = await fetch('/api/lyzr', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, payload }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.error || data?.detail || data?.message || `LYZR proxy error (${res.status})`);
-  return data;
+// ─── Safe Internal Proxy Caller (Zero Unsafe JSON Parsing) ───────────────────
+const callAgentProxy = async (action, payload = {}) => {
+  let res;
+  try {
+    res = await fetch('/api/gemini-agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, payload }),
+    });
+  } catch (netErr) {
+    throw new Error('Unable to connect to AI server. Please check your internet connection.');
+  }
+
+  // Safe parsing: NEVER call res.json() without checking res.ok first!
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    let errJson = null;
+    try {
+      errJson = JSON.parse(text);
+    } catch {}
+
+    if (res.status === 504 || text.includes('FUNCTION_INVOCATION_TIMEOUT') || text.includes('An error occurred')) {
+      throw new Error('AI analysis timed out on the server. The model is taking longer than expected. Please try again.');
+    }
+
+    if (res.status === 503 || errJson?.error === 'GEMINI_NOT_CONFIGURED') {
+      throw new Error('Google Gemini API key is missing. Please add GEMINI_API_KEY to your environment settings.');
+    }
+
+    throw new Error(errJson?.error || errJson?.detail || errJson?.message || `AI service error (${res.status})`);
+  }
+
+  try {
+    return await res.json();
+  } catch (parseErr) {
+    throw new Error('Invalid response received from AI service. Please retry.');
+  }
 };
 
 // ─── Helper: File → base64 ─────────────────────────────────────────────────────
@@ -48,7 +79,7 @@ export const analyzeStudentProfile = async ({
   resumeFile = null,
   userId = null,
   customApiKey = null,
-  preferredModel = null,
+  preferredModel = 'gemini-3.6-flash',
 }) => {
   let resumeBase64 = null;
   let mimeType = null;
@@ -58,7 +89,7 @@ export const analyzeStudentProfile = async ({
     mimeType = encoded.mimeType;
   }
 
-  const data = await callLyzrProxy('analyzeProfile', {
+  const data = await callAgentProxy('analyzeProfile', {
     skills: studentSkills,
     role: {
       role_name: selectedRole.role_name,
@@ -74,10 +105,10 @@ export const analyzeStudentProfile = async ({
     userId,
     sessionId: `profile_${userId}_${Date.now()}`,
     customApiKey,
-    preferredModel,
+    preferredModel: preferredModel || 'gemini-3.6-flash',
   });
 
-  const result = data.result;
+  const result = data.result || {};
 
   return {
     ...result,
@@ -103,7 +134,7 @@ export const analyzeStudentProfile = async ({
     resume_meta: resumeFile
       ? { file_name: resumeFile.name, file_type: resumeFile.type || 'application/pdf' }
       : null,
-    _agent: 'LYZR_ProfileAnalyzerAgent',
+    _agent: 'Gemini_ProfileAnalyzerAgent',
   };
 };
 
@@ -111,24 +142,26 @@ export const analyzeStudentProfile = async ({
 // AGENT 2: Resume Optimizer
 // Called from: Results.jsx → handleAtsUpload()
 // ─────────────────────────────────────────────────────────────────────────────
-export const analyzeResumeLyzr = async ({
+export const analyzeResumeGeminiAgent = async ({
   resumeFile,
   targetRole = 'Software Developer',
   userId = null,
+  preferredModel = 'gemini-3.6-flash',
 }) => {
   if (!resumeFile) throw new Error('Resume file is required');
 
   const { base64, mimeType } = await fileToBase64(resumeFile);
 
-  const data = await callLyzrProxy('analyzeResume', {
+  const data = await callAgentProxy('analyzeResume', {
     resumeBase64: base64,
     mimeType,
     targetRole: typeof targetRole === 'string' ? targetRole : targetRole?.role_name || 'Software Developer',
     userId,
     sessionId: `resume_${userId}_${Date.now()}`,
+    preferredModel: preferredModel || 'gemini-3.6-flash',
   });
 
-  const result = data.result;
+  const result = data.result || {};
 
   return {
     ...result,
@@ -155,51 +188,54 @@ export const analyzeResumeLyzr = async ({
       file_name: resumeFile.name,
       file_type: resumeFile.type || 'application/pdf',
     },
-    _agent: 'LYZR_ResumeOptimizerAgent',
+    _agent: 'Gemini_ResumeOptimizerAgent',
   };
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AGENT 3: TutorBot
-// Called from: chatbot.js → callLyzrTutor()
+// Called from: chatbot.js → callGeminiTutor()
 // ─────────────────────────────────────────────────────────────────────────────
-export const callLyzrTutor = async ({
+export const callGeminiTutor = async ({
   message,
   sessionId,
   studentContext = null,
   userId = null,
+  preferredModel = 'gemini-3.6-flash',
 }) => {
-  const data = await callLyzrProxy('chatTutor', {
+  const data = await callAgentProxy('chatTutor', {
     message,
     sessionId: sessionId || `tutor_${userId || 'anon'}`,
     studentContext,
     userId,
+    preferredModel: preferredModel || 'gemini-3.6-flash',
   });
   return data.text || '';
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AGENT 4: Skill Validator — Phase 2
-// Called from: SkillValidatorModal (to be built)
+// AGENT 4: Skill Validator
 // ─────────────────────────────────────────────────────────────────────────────
-export const generateSkillQuiz = async ({ skill, level = 'intermediate', userId = null }) => {
-  const data = await callLyzrProxy('validateSkill', {
+export const generateSkillQuiz = async ({ skill, level = 'intermediate', userId = null, preferredModel = 'gemini-3.6-flash' }) => {
+  const data = await callAgentProxy('validateSkill', {
     skill,
     level,
     answers: null,
     userId,
     sessionId: `quiz_${skill}_${userId}_${Date.now()}`,
+    preferredModel: preferredModel || 'gemini-3.6-flash',
   });
   return data.result;
 };
 
-export const gradeSkillQuiz = async ({ skill, level, answers, userId = null }) => {
-  const data = await callLyzrProxy('validateSkill', {
+export const gradeSkillQuiz = async ({ skill, level, answers, userId = null, preferredModel = 'gemini-3.6-flash' }) => {
+  const data = await callAgentProxy('validateSkill', {
     skill,
     level,
     answers,
     userId,
     sessionId: `grade_${skill}_${userId}_${Date.now()}`,
+    preferredModel: preferredModel || 'gemini-3.6-flash',
   });
   return data.result;
 };

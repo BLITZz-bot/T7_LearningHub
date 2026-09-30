@@ -5,7 +5,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { analyzeStudentProfile } from '../../services/lyzrAgentService';
+import { analyzeStudentProfile } from '../../services/geminiAgentService';
 import { analyzeResumeGemini } from '../../services/geminiAtsService';
 import { saveAnalysis, getLatestAnalysis, getVideoLearning, getVideoLearningSkills, saveResumeScan } from '../../services/apiService';
 import { industryRoles, allSkills, BRANCH_CAREER_MAP } from '../../data/industrySkills';
@@ -14,7 +14,6 @@ import StudentProfileModal from './StudentProfileModal';
 import YouTubeTrackerModal from './YouTubeTrackerModal';
 import FullJobMarketView from './FullJobMarketView';
 import T7AiMentor from './T7AiMentor';
-// ModelSelector removed — LYZR manages AI models internally
 import { 
   LogOut,
   Search,
@@ -381,8 +380,8 @@ const StudentDashboard = () => {
       navigate('/results', { state: { analysis: analysisResult, role: selectedRole, userSkills: selectedSkills } });
     } catch (err) {
       console.error('Analysis error:', err);
-      if (err?.message?.includes('LYZR_NOT_CONFIGURED')) {
-        setError('Lyzr AI agents are pending configuration. Please add LYZR_API_KEY and LYZR_AGENT_PROFILE to your .env file.');
+      if (err?.message?.includes('GEMINI_NOT_CONFIGURED') || err?.message?.includes('API key missing')) {
+        setError('Google Gemini API key is pending configuration. Please add GEMINI_API_KEY to your environment settings.');
       } else {
         setError(err?.message || 'Analysis failed. Please try again.');
       }

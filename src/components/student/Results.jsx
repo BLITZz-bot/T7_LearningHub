@@ -2821,7 +2821,7 @@ const Results = () => {
             year: userProfile?.year || analysis?.year || '',
             cgpa: userProfile?.cgpa || analysis?.cgpa || '',
 
-            // Career profile (from Lyzr Agent A)
+            // Career profile (from Gemini Agent)
             targetRole: role?.role_name || analysis?.career_role || 'Software Developer',
             readinessScore: readiness_score,
             honestAssessment: honest_assessment,

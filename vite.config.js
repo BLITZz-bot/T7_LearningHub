@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import jobsHandler from './api/jobs.js'
-import lyzrHandler from './api/lyzr.js'
+import geminiAgentHandler from './api/gemini-agent.js'
 import dbHandler from './api/db.js'
 import authHandler from './api/auth.js'
 import geminiHandler from './api/gemini.js'
@@ -58,8 +58,8 @@ function apiDevMiddlewarePlugin(env) {
           return;
         }
 
-        if (urlObj.pathname === '/api/lyzr') {
-          handleBodyRequest(lyzrHandler);
+        if (urlObj.pathname === '/api/gemini-agent' || urlObj.pathname === '/api/lyzr') {
+          handleBodyRequest(geminiAgentHandler);
           return;
         }
 
