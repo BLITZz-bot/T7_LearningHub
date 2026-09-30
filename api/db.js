@@ -216,21 +216,25 @@ export default async function handler(req, res) {
         if (analysisData.ats_analysis) {
           const ats = analysisData.ats_analysis;
           const meta = analysisData.resume_meta || {};
-          await supabase.from('resume_scans').insert({
-            user_id: userId,
-            analysis_id: data.id,
-            file_name: meta.file_name || meta.name || 'resume.pdf',
-            file_type: meta.file_type || 'application/pdf',
-            size_kb: meta.size_kb || 0,
-            ats_score: ats.score || 0,
-            summary: ats.summary || '',
-            strengths: ats.strengths || [],
-            issues: ats.issues || [],
-            keyword_gaps: ats.keyword_gaps || [],
-            suggested_keywords: ats.suggested_keywords || [],
-            section_scores: ats.section_scores || {},
-            rewrite_suggestions: ats.rewrite_suggestions || []
-          }).catch(e => console.warn('Auto ATS save note:', e.message));
+          try {
+            await supabase.from('resume_scans').insert({
+              user_id: userId,
+              analysis_id: data.id,
+              file_name: meta.file_name || meta.name || 'resume.pdf',
+              file_type: meta.file_type || 'application/pdf',
+              size_kb: meta.size_kb || 0,
+              ats_score: ats.score || 0,
+              summary: ats.summary || '',
+              strengths: ats.strengths || [],
+              issues: ats.issues || [],
+              keyword_gaps: ats.keyword_gaps || [],
+              suggested_keywords: ats.suggested_keywords || [],
+              section_scores: ats.section_scores || {},
+              rewrite_suggestions: ats.rewrite_suggestions || []
+            });
+          } catch (e) {
+            console.warn('Auto ATS save note:', e.message);
+          }
         }
 
         // Auto-log activity event

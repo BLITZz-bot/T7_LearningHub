@@ -129,16 +129,20 @@ export default async function handler(req, res) {
         // Auto-provision student profile row
         if (data?.user) {
           const t7Id = 'T7-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-          await supabase.from('profiles').upsert({
-            id: data.user.id,
-            email: data.user.email,
-            full_name: fullName || '',
-            college: meta.college || 'Engineering College',
-            department: meta.branch || 'Computer Science',
-            year_of_study: meta.passoutYear || '3rd Year',
-            phone: meta.phone || '',
-            t7_account_id: t7Id
-          }).catch(err => console.warn('Profile provisioning note:', err.message));
+          try {
+            await supabase.from('profiles').upsert({
+              id: data.user.id,
+              email: data.user.email,
+              full_name: fullName || '',
+              college: meta.college || 'Engineering College',
+              department: meta.branch || 'Computer Science',
+              year_of_study: meta.passoutYear || '3rd Year',
+              phone: meta.phone || '',
+              t7_account_id: t7Id
+            });
+          } catch (err) {
+            console.warn('Profile provisioning note:', err.message);
+          }
         }
 
         return res.status(200).json({

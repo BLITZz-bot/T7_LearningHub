@@ -22,10 +22,10 @@ export const MODEL_REGISTRY = {
   'gemini-3.1-pro-preview': { name: 'Gemini 3.1 Pro Preview', tag: '🧠 Deep Intelligence (Paid Tier)' },
 };
 
-// Fallback order: starts with default Gemini 3.6 Flash, followed by the rest
+// Fallback order: starts with default Gemini 3.5 Flash, followed by the rest
 const ORDERED_MODELS = [
-  'gemini-3.6-flash',
   'gemini-3.5-flash',
+  'gemini-3.6-flash',
   'gemini-3.1-flash-lite',
   'gemini-3.7-flash',
   'gemini-3.8-flash',
@@ -46,7 +46,7 @@ export function createModel(modelId, apiKey, opts = {}) {
 
 // ─── Factory: Chat model with automatic fallback ──────────────────────────────
 export function createChatModel(primaryModelId, apiKey, opts = {}) {
-  const selected = primaryModelId || 'gemini-3.6-flash';
+  const selected = primaryModelId || 'gemini-3.5-flash';
   const primary = createModel(selected, apiKey, opts);
   const fallbacks = ORDERED_MODELS
     .filter(id => id !== selected)

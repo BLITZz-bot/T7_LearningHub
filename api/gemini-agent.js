@@ -152,7 +152,7 @@ Provide a complete JSON assessment with:
 - final_outcome: the expected placement outcome
 - motivation: an encouraging closing message`;
 
-  const model  = createStructuredModel(apiKey, ProfileSchema, preferredModel || 'gemini-3.6-flash');
+  const model  = createStructuredModel(apiKey, ProfileSchema, preferredModel || 'gemini-3.5-flash');
   const parsed = await model.invoke(prompt);
 
   const overallScore = typeof parsed.readiness_score === 'object'
