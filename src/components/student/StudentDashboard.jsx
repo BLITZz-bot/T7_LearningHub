@@ -319,11 +319,11 @@ const StudentDashboard = () => {
       });
 
       const selectedRole = industryRoles.find(r => r.id === careerInterest);
-      
-      let atsData = null;
-      if (resumeFile) {
-        try {
-          atsData = await analyzeResumeGemini({
+
+      // ─── Parallel AI Execution (Cuts latency by ~50%) ─────────────────────
+      // Fire ATS Resume Audit & Profile Roadmap Analysis simultaneously!
+      const atsPromise = resumeFile
+        ? analyzeResumeGemini({
             resumeFile,
             targetRole: selectedRole?.role_name || null,
             userId: currentUser?.uid,
@@ -334,14 +334,13 @@ const StudentDashboard = () => {
             },
             customApiKey: userProfile?.geminiApiKey,
             preferredModel: userProfile?.geminiModel,
-          });
-        } catch (atsErr) {
-          console.warn('Gemini ATS direct analysis warning:', atsErr);
-        }
-      }
+          }).catch(atsErr => {
+            console.warn('Gemini ATS direct analysis warning:', atsErr);
+            return null;
+          })
+        : Promise.resolve(null);
 
-      // Profile & Roadmap analysis
-      const analysisResult = await analyzeStudentProfile({
+      const profilePromise = analyzeStudentProfile({
         studentSkills: selectedSkills,
         selectedRole,
         allRoles: industryRoles,
@@ -354,6 +353,8 @@ const StudentDashboard = () => {
         preferredModel: userProfile?.geminiModel,
       });
 
+      const [atsData, analysisResult] = await Promise.all([atsPromise, profilePromise]);
+
       if (atsData?.ats_analysis) {
         analysisResult.ats_analysis = atsData.ats_analysis;
         analysisResult.resume_meta = atsData.resume_meta;
@@ -363,15 +364,20 @@ const StudentDashboard = () => {
         if (atsData.ats_analysis.reality_check_message) {
           analysisResult.honest_assessment = atsData.ats_analysis.reality_check_message;
         }
-        if (currentUser?.uid) {
-          await saveResumeScan(currentUser.uid, atsData.ats_analysis, null, atsData.resume_meta);
-        }
       }
 
-      await saveAnalysis(currentUser.uid, {
-        career_role: selectedRole.role_name,
-        ...analysisResult
-      });
+      // ─── Parallel Database Saves ──────────────────────────────────────────
+      const dbSaves = [];
+      if (currentUser?.uid) {
+        if (atsData?.ats_analysis) {
+          dbSaves.push(saveResumeScan(currentUser.uid, atsData.ats_analysis, null, atsData.resume_meta));
+        }
+        dbSaves.push(saveAnalysis(currentUser.uid, {
+          career_role: selectedRole.role_name,
+          ...analysisResult
+        }));
+      }
+      await Promise.all(dbSaves);
 
       if (currentUser?.uid) {
         localStorage.setItem(`t7_student_view_${currentUser.uid}`, 'results');
@@ -1435,7 +1441,7 @@ const StudentDashboard = () => {
           cgpa: userProfile?.cgpa || lastAnalysis?.cgpa || '',
 
           // Career profile
-          targetRole: industryRoles.find(r => r.id === careerInterest)?.role_name || userProfile?.career_interest || userProfile?.targetRole || lastAnalysis?.career_role || 'Software Developer',
+          targetRole: industryRoles.find(r => r.id === careerInterest)?.role_name || userProfile?.career_interest || userProfile?.targetRole || lastAnalysis?.career_role || '',
           readinessScore: lastAnalysis?.readiness_score || lastAnalysis?.analysis?.readiness_score,
           honestAssessment: lastAnalysis?.honest_assessment || lastAnalysis?.analysis?.honest_assessment,
           finalOutcome: lastAnalysis?.final_outcome || lastAnalysis?.analysis?.final_outcome,

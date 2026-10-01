@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed. Use GET.' });
 
-  const { role = 'Software Developer', location = 'India', source = 'all', page = '1' } = req.query;
+  const { role = '', location = 'India', source = 'all', page = '1' } = req.query;
   const pageNum = parseInt(page, 10) || 1;
 
   // Server-only env vars — no VITE_ prefix, never bundled into frontend
@@ -37,7 +37,7 @@ export default async function handler(req, res) {
     fetchPromises.push(
       (async () => {
         try {
-          const query = encodeURIComponent(`${role} in ${location}`);
+          const query = encodeURIComponent(role ? `${role} in ${location}` : `fresher openings in ${location}`);
           const url = `https://jsearch.p.rapidapi.com/search-v2?query=${query}&page=${pageNum}&num_pages=1`;
           const r = await fetch(url, {
             headers: {
@@ -77,7 +77,7 @@ export default async function handler(req, res) {
     fetchPromises.push(
       (async () => {
         try {
-          const what = encodeURIComponent(role);
+          const what = encodeURIComponent(role || 'freshers');
           const url = `https://api.adzuna.com/v1/api/jobs/in/search/${pageNum}?app_id=${ADZUNA_APP_ID}&app_key=${ADZUNA_APP_KEY}&what=${what}&results_per_page=10&content-type=application/json`;
           const r = await fetch(url);
           if (!r.ok) throw new Error(`Adzuna ${r.status}: ${await r.text()}`);
@@ -115,7 +115,7 @@ export default async function handler(req, res) {
           const r = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ keywords: role, location, page: pageNum }),
+            body: JSON.stringify({ keywords: role || 'fresher graduate', location, page: pageNum }),
           });
           if (!r.ok) throw new Error(`Jooble ${r.status}`);
           const data = await r.json();

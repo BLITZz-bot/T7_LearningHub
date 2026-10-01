@@ -61,7 +61,7 @@ export function createStructuredModel(apiKey, zodSchema, preferredModelId = null
     ids = [preferredModelId, ...ORDERED_MODELS.filter(id => id !== preferredModelId)];
   }
   const [primary, ...rest] = ids.map(id =>
-    createModel(id, apiKey, { temperature: 0.1, maxOutputTokens: 8192 }).withStructuredOutput(zodSchema)
+    createModel(id, apiKey, { temperature: 0.1, maxOutputTokens: 2500 }).withStructuredOutput(zodSchema)
   );
   return primary.withFallbacks({ fallbacks: rest });
 }
@@ -75,10 +75,8 @@ export function createScoringModel(apiKey, zodSchema, preferredModelId = null) {
   }
   const [primary, ...rest] = ids.map(id =>
     createModel(id, apiKey, {
-      temperature: 0,        // ← Fully deterministic: same input = same score
-      topK:        1,        // ← Always pick the single most probable token
-      topP:        1,        // ← No nucleus sampling randomness
-      maxOutputTokens: 8192,
+      temperature: 0,
+      maxOutputTokens: 2500,
     }).withStructuredOutput(zodSchema)
   );
   return primary.withFallbacks({ fallbacks: rest });
