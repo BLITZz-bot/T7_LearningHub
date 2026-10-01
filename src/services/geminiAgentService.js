@@ -146,7 +146,7 @@ export const analyzeResumeGeminiAgent = async ({
   resumeFile,
   targetRole = '',
   userId = null,
-  preferredModel = 'gemini-3.6-flash',
+  preferredModel = 'gemini-3.5-flash',
 }) => {
   if (!resumeFile) throw new Error('Resume file is required');
 
@@ -158,7 +158,7 @@ export const analyzeResumeGeminiAgent = async ({
     targetRole: typeof targetRole === 'string' ? targetRole : (targetRole?.role_name || ''),
     userId,
     sessionId: `resume_${userId}_${Date.now()}`,
-    preferredModel: preferredModel || 'gemini-3.6-flash',
+    preferredModel: preferredModel || 'gemini-3.5-flash',
   });
 
   const result = data.result || {};
@@ -228,14 +228,14 @@ export const generateSkillQuiz = async ({ skill, level = 'intermediate', userId 
   return data.result;
 };
 
-export const gradeSkillQuiz = async ({ skill, level, answers, userId = null, preferredModel = 'gemini-3.6-flash' }) => {
+export const gradeSkillQuiz = async ({ skill, level, answers, userId = null, preferredModel = 'gemini-3.5-flash' }) => {
   const data = await callAgentProxy('validateSkill', {
     skill,
     level,
     answers,
     userId,
     sessionId: `grade_${skill}_${userId}_${Date.now()}`,
-    preferredModel: preferredModel || 'gemini-3.6-flash',
+    preferredModel: preferredModel || 'gemini-3.5-flash',
   });
   return data.result;
 };

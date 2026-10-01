@@ -171,6 +171,7 @@ const Results = () => {
   const [resumeError, setResumeError] = useState('');
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
   const [viewJobsMode, setViewJobsMode] = useState(false);
+  const [atsHistory, setAtsHistory] = useState([]);
 
   // AI Recommended Courses with Pedagogical Rationale
   const [aiCourses, setAiCourses] = useState([]);
@@ -182,6 +183,81 @@ const Results = () => {
       ...prev,
       [idx]: !prev[idx],
     }));
+  };
+
+  const [selectedPlatformSkill, setSelectedPlatformSkill] = useState('');
+
+  const OFFICIAL_DOCS = {
+    'react native': 'https://reactnative.dev/docs/getting-started',
+    'react': 'https://react.dev/learn',
+    'kotlin': 'https://kotlinlang.org/docs/home.html',
+    'android': 'https://developer.android.com/guide',
+    'android sdk': 'https://developer.android.com/guide',
+    'firebase': 'https://firebase.google.com/docs/guides',
+    'java': 'https://dev.java/learn/',
+    'spring boot': 'https://spring.io/guides',
+    'spring': 'https://spring.io/guides',
+    'python': 'https://docs.python.org/3/tutorial/',
+    'docker': 'https://docs.docker.com/get-started/',
+    'kubernetes': 'https://kubernetes.io/docs/tutorials/',
+    'javascript': 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide',
+    'typescript': 'https://www.typescriptlang.org/docs/',
+    'html': 'https://developer.mozilla.org/en-US/docs/Learn/HTML',
+    'css': 'https://developer.mozilla.org/en-US/docs/Learn/CSS',
+    'node.js': 'https://nodejs.org/en/learn',
+    'nodejs': 'https://nodejs.org/en/learn',
+    'sql': 'https://www.w3schools.com/sql/',
+    'mongodb': 'https://www.mongodb.com/docs/manual/tutorial/',
+    'git': 'https://git-scm.com/doc',
+    'system design': 'https://github.com/donnemartin/system-design-primer',
+    'dsa': 'https://www.geeksforgeeks.org/data-structures/',
+    'data structures': 'https://www.geeksforgeeks.org/data-structures/',
+    'c++': 'https://en.cppreference.com/w/',
+    'c': 'https://en.cppreference.com/w/c',
+    'aws': 'https://aws.amazon.com/getting-started/',
+    'gcp': 'https://cloud.google.com/docs',
+    'flutter': 'https://docs.flutter.dev/',
+    'swift': 'https://developer.apple.com/swift/',
+    'vue': 'https://vuejs.org/guide/introduction.html',
+    'angular': 'https://angular.dev/',
+    'next.js': 'https://nextjs.org/docs',
+    'express': 'https://expressjs.com/',
+    'tailwind': 'https://tailwindcss.com/docs',
+  };
+
+  const getOfficialDocUrl = (skill) => {
+    const key = (skill || '').toLowerCase().trim();
+    if (OFFICIAL_DOCS[key]) return OFFICIAL_DOCS[key];
+    for (const [k, v] of Object.entries(OFFICIAL_DOCS)) {
+      if (key.includes(k) || k.includes(key)) return v;
+    }
+    return `https://devdocs.io/`;
+  };
+
+  const getPlatformRecommendation = (skillName) => {
+    const s = (skillName || '').toLowerCase();
+    if (['react native', 'android', 'kotlin', 'flutter', 'firebase', 'docker', 'kubernetes'].some(k => s.includes(k))) {
+      return {
+        best: 'official-docs',
+        reason: 'Authoritative getting started & API guide',
+      };
+    }
+    if (['dsa', 'data structures', 'algorithms', 'sql', 'system design'].some(k => s.includes(k))) {
+      return {
+        best: 'geeksforgeeks',
+        reason: 'Placement interview questions & notes',
+      };
+    }
+    if (['react', 'javascript', 'python', 'java', 'spring', 'html', 'css', 'node'].some(k => s.includes(k))) {
+      return {
+        best: 'freecodecamp',
+        reason: '100% free full-length masterclass',
+      };
+    }
+    return {
+      best: 'github',
+      reason: 'Open-source starter projects & cheat sheets',
+    };
   };
 
   useEffect(() => {
@@ -357,8 +433,20 @@ const Results = () => {
   const motivation = analysis.motivation || '';
   const final_outcome = analysis.final_outcome || analysis.final_goal || '';
 
-  const ats_analysis = localAtsAnalysis;
-  const resume_meta = localResumeMeta;
+  const ats_analysis = localAtsAnalysis || analysis?.ats_analysis || null;
+  const resume_meta = localResumeMeta || analysis?.resume_meta || null;
+
+  const atsScore = ats_analysis
+    ? (typeof ats_analysis.overall_readiness === 'number'
+        ? ats_analysis.overall_readiness
+        : typeof ats_analysis.score === 'number'
+          ? ats_analysis.score
+          : typeof ats_analysis.score === 'object' && ats_analysis.score !== null
+            ? (ats_analysis.score.score ?? ats_analysis.score.overall ?? null)
+            : typeof ats_analysis.ats_score === 'number'
+              ? ats_analysis.ats_score
+              : null)
+    : null;
 
 
   const handleAtsUpload = async (e) => {
@@ -841,78 +929,178 @@ const Results = () => {
           <div className="absolute top-0 right-0 w-64 h-64 bg-zinc-800 rounded-full -translate-y-1/2 translate-x-1/2"></div>
 
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center gap-8">
-            {/* Score Circle */}
-            <div className="flex-shrink-0">
-              <div className="relative w-40 h-40">
-                <svg className="w-full h-full transform -rotate-90">
-                  <circle cx="80" cy="80" r="70" stroke="rgba(255,255,255,0.1)" strokeWidth="14" fill="none" />
-                  <circle cx="80" cy="80" r="70"
-                    stroke={readiness_score >= 70 ? '#10b981' : readiness_score >= 50 ? '#f59e0b' : '#ef4444'}
-                    strokeWidth="14" fill="none"
-                    strokeDasharray={`${2 * Math.PI * 70}`}
-                    strokeDashoffset={`${2 * Math.PI * 70 * (1 - readiness_score / 100)}`}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-5xl font-black text-white">{readiness_score}%</span>
-                  <span className="text-zinc-400 text-base">Ready</span>
+            {/* Score Gauges (Career Placement Readiness + Resume ATS Score) */}
+            <div className="flex-shrink-0 flex items-center gap-6 sm:gap-8 justify-center flex-wrap sm:flex-nowrap">
+              {/* Career Placement Readiness Gauge */}
+              <div className="flex flex-col items-center">
+                <div className="relative w-36 h-36">
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle cx="72" cy="72" r="60" stroke="rgba(255,255,255,0.08)" strokeWidth="12" fill="none" />
+                    <circle cx="72" cy="72" r="60"
+                      stroke={readiness_score >= 70 ? '#10b981' : readiness_score >= 50 ? '#f59e0b' : '#ef4444'}
+                      strokeWidth="12" fill="none"
+                      strokeDasharray={`${2 * Math.PI * 60}`}
+                      strokeDashoffset={`${2 * Math.PI * 60 * (1 - readiness_score / 100)}`}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-4xl font-black text-white">{readiness_score}%</span>
+                    <span className="text-emerald-400 text-xs font-bold uppercase tracking-wider mt-0.5">Role Ready</span>
+                  </div>
                 </div>
+                <span className="text-xs font-semibold text-zinc-200 mt-2 text-center">
+                  Career Readiness
+                </span>
+                <span className="text-[11px] text-zinc-400 text-center">
+                  {matched_skills.length} of {matched_skills.length + missing_skills.length} skills
+                </span>
               </div>
+
+              {/* Resume ATS Score Gauge (Rendered whenever resume scan data is available) */}
+              {atsScore !== null && (
+                <div className="flex flex-col items-center pl-6 sm:pl-8 border-l border-zinc-800">
+                  <div className="relative w-36 h-36">
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle cx="72" cy="72" r="60" stroke="rgba(255,255,255,0.08)" strokeWidth="12" fill="none" />
+                      <circle cx="72" cy="72" r="60"
+                        stroke={atsScore >= 70 ? '#10b981' : atsScore >= 50 ? '#3b82f6' : '#ef4444'}
+                        strokeWidth="12" fill="none"
+                        strokeDasharray={`${2 * Math.PI * 60}`}
+                        strokeDashoffset={`${2 * Math.PI * 60 * (1 - atsScore / 100)}`}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-4xl font-black text-white">{atsScore}%</span>
+                      <span className="text-blue-400 text-xs font-bold uppercase tracking-wider mt-0.5">ATS Score</span>
+                    </div>
+                  </div>
+                  <span className="text-xs font-semibold text-zinc-200 mt-2 text-center">
+                    Resume ATS Score
+                  </span>
+                  <span className="text-[11px] text-zinc-400 text-center truncate max-w-[130px]" title={resume_meta?.file_name || 'Resume Scan'}>
+                    {resume_meta?.file_name || 'Resume Scan'}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Details */}
-            <div className="flex-1 text-white">
-              <div className="flex items-center justify-between gap-4 mb-3 flex-wrap">
-                <h1 className="text-3xl font-black">{role?.role_name || analysis.career_role || 'Target Role'}</h1>
+            <div className="flex-1 min-w-0 text-white">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div className="min-w-0">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 block mb-1">
+                    Target Career Role
+                  </span>
+                  <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight break-words">
+                    {role?.role_name || analysis.career_role || 'Target Role'}
+                  </h1>
+                </div>
                 {resume_meta?.file_name && (
-                  <span className="text-xs bg-zinc-800 text-zinc-300 px-3 py-1 rounded-full border border-zinc-700 flex items-center gap-1.5">
+                  <span className="self-start sm:self-auto text-xs bg-zinc-800 text-zinc-200 px-3.5 py-1.5 rounded-full border border-zinc-700 flex items-center gap-1.5 shrink-0 shadow-sm">
                     <FileText className="w-3.5 h-3.5 text-blue-400" />
-                    {resume_meta.file_name}
+                    <span className="font-semibold">{resume_meta.file_name}</span>
                   </span>
                 )}
               </div>
 
-              {/* 4 Circular Rings in a row (Replacing the square box) */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-2xl bg-zinc-800/40 border border-zinc-700/40 mb-5">
-                <CircularRing 
-                  percentage={ats_analysis?.ats_parseability ?? (score_breakdown?.resume_quality || 85)} 
-                  label="ATS Parseability" 
-                  colorClass="text-blue-400" 
-                  size={84} 
-                  strokeWidth={7}
-                />
-                <CircularRing 
-                  percentage={ats_analysis?.impact_quantification ?? (score_breakdown?.projects || 75)} 
-                  label="Impact & Quantification" 
-                  colorClass="text-purple-400" 
-                  size={84} 
-                  strokeWidth={7}
-                />
-                <CircularRing 
-                  percentage={ats_analysis?.skill_match ?? (score_breakdown?.technical_skills || 80)} 
-                  label="Skill Match" 
-                  colorClass="text-emerald-400" 
-                  size={84} 
-                  strokeWidth={7}
-                />
-                <CircularRing 
-                  percentage={ats_analysis?.formatting_quality ?? 90} 
-                  label="Formatting Quality" 
-                  colorClass="text-amber-400" 
-                  size={84} 
-                  strokeWidth={7}
-                />
+              {/* 4 Circular Rings - 100% Dynamic, Zero hardcoded values */}
+              <div className="p-4 rounded-2xl bg-zinc-800/40 border border-zinc-700/40 mb-5">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-3 flex items-center gap-1.5">
+                  {ats_analysis ? (
+                    <>
+                      <FileText className="w-3.5 h-3.5 text-blue-400" />
+                      <span>ATS Resume Metrics ({resume_meta?.file_name || 'Scanned Document'})</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trophy className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Career Readiness Metrics</span>
+                    </>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {ats_analysis ? (
+                    <>
+                      <CircularRing 
+                        percentage={ats_analysis?.ats_parseability ?? 0} 
+                        label="ATS Parseability" 
+                        colorClass="text-blue-400" 
+                        size={84} 
+                        strokeWidth={7}
+                      />
+                      <CircularRing 
+                        percentage={ats_analysis?.impact_quantification ?? 0} 
+                        label="Impact & Quantification" 
+                        colorClass="text-purple-400" 
+                        size={84} 
+                        strokeWidth={7}
+                      />
+                      <CircularRing 
+                        percentage={ats_analysis?.skill_match ?? 0} 
+                        label="Skill Match" 
+                        colorClass="text-emerald-400" 
+                        size={84} 
+                        strokeWidth={7}
+                      />
+                      <CircularRing 
+                        percentage={ats_analysis?.formatting_quality ?? 0} 
+                        label="Formatting Quality" 
+                        colorClass="text-amber-400" 
+                        size={84} 
+                        strokeWidth={7}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <CircularRing 
+                        percentage={score_breakdown?.technical_skills ?? score_breakdown?.technical ?? 0} 
+                        label="Technical Skills" 
+                        colorClass="text-emerald-400" 
+                        size={84} 
+                        strokeWidth={7}
+                      />
+                      <CircularRing 
+                        percentage={score_breakdown?.resume_quality ?? score_breakdown?.resume ?? 0} 
+                        label="Resume Quality" 
+                        colorClass="text-blue-400" 
+                        size={84} 
+                        strokeWidth={7}
+                      />
+                      <CircularRing 
+                        percentage={score_breakdown?.market_fit ?? 0} 
+                        label="Market Fit" 
+                        colorClass="text-purple-400" 
+                        size={84} 
+                        strokeWidth={7}
+                      />
+                      <CircularRing 
+                        percentage={score_breakdown?.profile_completeness ?? 0} 
+                        label="Profile Completeness" 
+                        colorClass="text-amber-400" 
+                        size={84} 
+                        strokeWidth={7}
+                      />
+                    </>
+                  )}
+                </div>
               </div>
 
-              {/* Gemini Reality Check & Action Plan Message (Below the rings) */}
-              {(ats_analysis?.reality_check_message || ats_analysis?.action_plan || honest_assessment) && (
+              {/* Reality Check & Action Plan Message */}
+              {(ats_analysis?.reality_check_message || ats_analysis?.action_plan || ats_analysis?.summary || honest_assessment) && (
                 <div className="p-4 bg-zinc-800/80 border border-zinc-700/60 rounded-2xl mb-5 shadow-inner">
                   <div className="flex items-start gap-3">
                     <Sparkles className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                    <p className="text-zinc-200 text-sm leading-relaxed">
-                      {ats_analysis?.reality_check_message || ats_analysis?.action_plan || honest_assessment}
-                    </p>
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-amber-400/90 mb-1">
+                        {ats_analysis ? 'Resume ATS Review & Reality Check' : 'Career Readiness Assessment'}
+                      </p>
+                      <p className="text-zinc-200 text-sm leading-relaxed">
+                        {ats_analysis?.reality_check_message || ats_analysis?.action_plan || ats_analysis?.summary || honest_assessment}
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
@@ -926,7 +1114,12 @@ const Results = () => {
                   <span className="px-3.5 py-1.5 bg-amber-500/20 text-amber-400 rounded-lg text-sm font-medium flex items-center gap-1.5">
                     📚 {missing_skills.length} to learn
                   </span>
-                  <span className="px-3.5 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-sm font-medium flex items-center gap-1.5">
+                  {atsScore !== null && (
+                    <span className="px-3.5 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-sm font-medium flex items-center gap-1.5">
+                      📄 {atsScore}% ATS resume score
+                    </span>
+                  )}
+                  <span className="px-3.5 py-1.5 bg-purple-500/20 text-purple-400 rounded-lg text-sm font-medium flex items-center gap-1.5">
                     📅 {learning_roadmap.length} months plan
                   </span>
                 </div>
@@ -1531,45 +1724,117 @@ const Results = () => {
                 )}
 
                 {/* Additional Resources */}
-                {missing_skills.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-zinc-100">
-                    <p className="text-xs font-semibold text-zinc-500 mb-2">MORE PLATFORMS</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <a
-                        href="https://www.udemy.com/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-100 transition-colors text-center"
-                      >
-                        <p className="text-xs font-semibold text-purple-900">Udemy</p>
-                      </a>
-                      <a
-                        href="https://www.coursera.org/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-100 transition-colors text-center"
-                      >
-                        <p className="text-xs font-semibold text-blue-900">Coursera</p>
-                      </a>
-                      <a
-                        href="https://www.freecodecamp.org/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 bg-green-50 hover:bg-green-100 rounded-lg border border-green-100 transition-colors text-center"
-                      >
-                        <p className="text-xs font-semibold text-green-900">freeCodeCamp</p>
-                      </a>
-                      <a
-                        href="https://scrimba.com/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 bg-orange-50 hover:bg-orange-100 rounded-lg border border-orange-100 transition-colors text-center"
-                      >
-                        <p className="text-xs font-semibold text-orange-900">Scrimba</p>
-                      </a>
+                {missing_skills.length > 0 && (() => {
+                  const activeSkill = selectedPlatformSkill && missing_skills.includes(selectedPlatformSkill)
+                    ? selectedPlatformSkill
+                    : missing_skills[0];
+                  const recommendation = getPlatformRecommendation(activeSkill);
+
+                  const platforms = [
+                    {
+                      id: 'official-docs',
+                      name: 'Official Docs & Guide',
+                      bg: 'bg-indigo-50 hover:bg-indigo-100 border-indigo-200 text-indigo-900',
+                      badgeBg: 'bg-indigo-600 text-white',
+                      url: getOfficialDocUrl(activeSkill),
+                      subtitle: 'Official Getting Started & Docs',
+                    },
+                    {
+                      id: 'freecodecamp',
+                      name: 'freeCodeCamp Masterclass',
+                      bg: 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-900',
+                      badgeBg: 'bg-emerald-600 text-white',
+                      url: `https://www.youtube.com/results?search_query=${encodeURIComponent('freeCodeCamp ' + activeSkill + ' course')}`,
+                      subtitle: '100% Free Complete Masterclass',
+                    },
+                    {
+                      id: 'geeksforgeeks',
+                      name: 'GeeksforGeeks Practice',
+                      bg: 'bg-green-50 hover:bg-green-100 border-green-200 text-green-900',
+                      badgeBg: 'bg-green-700 text-white',
+                      url: `https://www.geeksforgeeks.org/explore?page=1&sortBy=relevance&q=${encodeURIComponent(activeSkill)}`,
+                      subtitle: 'Interview Questions & Practice',
+                    },
+                    {
+                      id: 'github',
+                      name: 'GitHub Curated Repos',
+                      bg: 'bg-zinc-100 hover:bg-zinc-200 border-zinc-300 text-zinc-900',
+                      badgeBg: 'bg-zinc-800 text-white',
+                      url: `https://github.com/topics/${encodeURIComponent(activeSkill.toLowerCase().replace(/\s+/g, '-'))}`,
+                      subtitle: 'Awesome Lists & Starter Code',
+                    },
+                  ];
+
+                  return (
+                    <div className="mt-4 pt-4 border-t border-zinc-100 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
+                          Search Missing Skill on Platforms
+                        </p>
+                        <span className="text-[10px] text-zinc-400 font-medium">
+                          Target: <strong className="text-zinc-800">{activeSkill}</strong>
+                        </span>
+                      </div>
+
+                      {/* Missing Skill Selector Pills */}
+                      {missing_skills.length > 1 && (
+                        <div className="flex flex-wrap gap-1.5 items-center">
+                          <span className="text-[10px] text-zinc-400">Skill:</span>
+                          {missing_skills.slice(0, 5).map(sk => {
+                            const isSelected = sk === activeSkill;
+                            return (
+                              <button
+                                key={sk}
+                                onClick={() => setSelectedPlatformSkill(sk)}
+                                className={`text-[10px] px-2 py-0.5 rounded-md font-medium transition cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-zinc-900 text-white shadow-xs'
+                                    : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                                }`}
+                              >
+                                {sk}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Platform Buttons */}
+                      <div className="grid grid-cols-2 gap-2">
+                        {platforms.map(p => {
+                          const isBest = recommendation.best === p.id;
+                          return (
+                            <a
+                              key={p.id}
+                              href={p.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`relative p-2.5 rounded-xl border transition-all text-left group flex flex-col justify-between ${p.bg} ${
+                                isBest ? 'ring-2 ring-emerald-500 shadow-xs' : ''
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-bold">{p.name}</span>
+                                {isBest && (
+                                  <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider ${p.badgeBg}`}>
+                                    Best Pick
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] opacity-80 leading-tight">
+                                {isBest ? recommendation.reason : p.subtitle}
+                              </p>
+                              <div className="mt-1.5 flex items-center justify-between text-[10px] opacity-60 group-hover:opacity-100 transition-opacity">
+                                <span className="truncate">Search "{activeSkill}"</span>
+                                <ExternalLink className="w-3 h-3 flex-shrink-0 group-hover:translate-x-0.5 transition-transform ml-1" />
+                              </div>
+                            </a>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -1577,7 +1842,12 @@ const Results = () => {
 
         {/* Code Arena Tab */}
         {activeTab === 'code-arena' && (
-          <CodeArena profile={userProfile} />
+          <CodeArena 
+            profile={userProfile} 
+            targetRole={role?.role_name || analysis?.career_role}
+            matchedSkills={matched_skills}
+            missingSkills={missing_skills}
+          />
         )}
 
         {/* TAB: Roadmap */}
@@ -1944,7 +2214,7 @@ const Results = () => {
             {final_outcome && (
               <div className="bg-zinc-900 rounded-2xl p-8 text-white text-center">
                 <Award className="w-14 h-14 mx-auto mb-4 text-amber-400" />
-                <h3 className="text-2xl font-bold mb-3">🎓 After This Roadmap</h3>
+                <h3 className="text-2xl font-bold text-white mb-3">🎓 After This Roadmap</h3>
                 <p className="text-zinc-300 text-lg">{final_outcome}</p>
               </div>
             )}
@@ -2046,7 +2316,7 @@ const Results = () => {
                   <div className="bg-zinc-800/50 p-6 rounded-2xl border border-zinc-700/50">
                     <h3 className="text-lg font-semibold text-zinc-300 mb-4">Previous Scan</h3>
                     <div className="flex items-center gap-4 mb-6">
-                      <CircularRing percentage={atsHistory[1].overall_readiness || atsHistory[1].ats_score || 0} label="Readiness" colorClass="text-zinc-400" size={80} strokeWidth={6} />
+                      <CircularRing percentage={atsHistory[1].overall_readiness || atsHistory[1].ats_score || 0} label="ATS Score" colorClass="text-zinc-400" size={80} strokeWidth={6} />
                       <div>
                         <p className="text-sm font-medium text-white">{atsHistory[1].file_name || 'Previous Resume'}</p>
                         <p className="text-xs text-zinc-400 mt-0.5">Scanned: {new Date(atsHistory[1].created_at).toLocaleDateString()}</p>
@@ -2058,7 +2328,7 @@ const Results = () => {
                   <div className="bg-zinc-800/80 p-6 rounded-2xl border border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.1)]">
                     <h3 className="text-lg font-bold text-emerald-400 mb-4">Latest Scan</h3>
                     <div className="flex items-center gap-4 mb-6">
-                      <CircularRing percentage={atsHistory[0].overall_readiness || atsHistory[0].ats_score || 0} label="Readiness" colorClass="text-emerald-500" size={80} strokeWidth={6} />
+                      <CircularRing percentage={atsHistory[0].overall_readiness || atsHistory[0].ats_score || 0} label="ATS Score" colorClass="text-emerald-500" size={80} strokeWidth={6} />
                       <div>
                         <p className="text-sm font-medium text-white">{atsHistory[0].file_name || 'Latest Resume'}</p>
                         <p className="text-xs text-zinc-400 mt-0.5">Scanned: {new Date(atsHistory[0].created_at).toLocaleDateString()}</p>
@@ -2222,7 +2492,7 @@ const Results = () => {
                     <div className="flex flex-col lg:flex-row gap-12 relative z-10">
                       {/* Left: Overall Gauge */}
                       <div className="flex flex-col items-center justify-center bg-zinc-900/50 p-8 rounded-3xl border border-zinc-800 backdrop-blur-xl shrink-0">
-                        <CircularRing percentage={ats_analysis.overall_readiness || 0} label="Overall Ready" colorClass="text-emerald-400" size={160} strokeWidth={12} />
+                        <CircularRing percentage={ats_analysis.overall_readiness || 0} label="ATS Resume Score" colorClass="text-emerald-400" size={160} strokeWidth={12} />
                         <div className="mt-6 text-center">
                           <p className="text-sm font-semibold text-zinc-400">Target Role</p>
                           <p className="text-lg font-bold text-white mt-1">{role?.role_name || analysis?.career_role || 'Target Role'}</p>

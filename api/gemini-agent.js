@@ -135,15 +135,23 @@ const GRACEFUL_ATS_FALLBACK = (targetRoleText, reason = '') => ({
   failure_reason: reason,
 });
 
-// 3. Coding Challenge & Evaluation Schemas
+// 3. Coding Challenge & Evaluation Schemas (Hybrid: Code + MCQ - 100% Dynamic)
 const QuizQuestionsSchema = z.object({
   questions: z.array(
     z.object({
       id: z.number(),
+      type: z.enum(['mcq', 'code']),
+      skill: z.string(),
+      language: z.string(),
       title: z.string(),
       description: z.string(),
-      startingCode: z.string(),
-      language: z.enum(['javascript', 'html', 'css', 'python']),
+      // Coding questions
+      startingCode: z.string().optional(),
+      // MCQ questions
+      codeSnippet: z.string().optional(),
+      options: z.array(z.string()).optional(),
+      correctAnswerIndex: z.number().int().min(0).max(3).optional(),
+      explanation: z.string().optional(),
     })
   ).min(1).max(10),
 });
@@ -315,15 +323,15 @@ Student Profile:
 - Current Skills: ${isBeginnerMode ? '(Beginner — no skills listed)' : (skills || []).join(', ')}
 - Is Beginner: ${isBeginnerMode}
 
-Target Role: ${role?.role_name || 'Selected Career Goal'}
+Target Role: ${role?.role_name || ''}
 Role Description: ${role?.description || ''}
 Required Skills: ${reqSkillsStr}
 Priority Skills: ${prioSkillsStr}
 
-${resumeText ? `Resume Text (first 12000 chars):\n${resumeText.slice(0, 12000)}` : 'No resume provided.'}
+${resumeText ? `Resume Text (first 6000 chars):\n${resumeText.slice(0, 6000)}` : 'No resume provided.'}
 
 Provide a complete JSON assessment with:
-- career_role: "${role?.role_name || 'Selected Career Goal'}"
+- career_role: "${role?.role_name || ''}"
 - readiness_score: an integer from 0 to 100
 - score_breakdown: object with technical, resume, market_fit, profile_completeness (each an integer 0-100)
 - skills_have: array of matched skill strings that student already has
@@ -439,7 +447,7 @@ For score_breakdown, write ONE sentence explaining how you calculated each numer
 For reality_check_message, write a direct, honest, personalized 2-3 sentence career advice message.
 
 Resume Text:
-${extractedText.slice(0, 15000)}`;
+${extractedText.slice(0, 7000)}`;
 
   // Deterministic scoring model — temperature=0, topK=1
   const model = createScoringModel(apiKey, ATSSchema, preferredModel);
@@ -597,29 +605,47 @@ Provide:
     return { result: evaluation, agentName: 'GeminiSkillValidator' };
   }
 
-  // Generate challenges
-  const { targetRole, matchedSkills = [], missingSkills = [] } = studentContext;
-  const skillsHave = Array.isArray(matchedSkills) ? matchedSkills.join(', ') : (matchedSkills || '');
-  const skillsMissing = Array.isArray(missingSkills) ? missingSkills.join(', ') : (missingSkills || skill || '');
+  // Generate challenges dynamically for the student's exact target role and skill gaps
+  const { targetRole = '', matchedSkills = [], missingSkills = [] } = studentContext;
+  const skillsHave = Array.isArray(matchedSkills) ? matchedSkills.filter(Boolean).join(', ') : (matchedSkills || '');
+  const skillsMissing = Array.isArray(missingSkills) ? missingSkills.filter(Boolean).join(', ') : (missingSkills || skill || '');
 
-  const prompt = `You are an expert technical interviewer and mentor.
-The student is training for: ${targetRole || 'their chosen technical specialization'}
-Skills they already know: ${skillsHave || 'HTML, CSS'}
-Skills they are currently learning: ${skillsMissing || 'JavaScript, React'}
-Level: ${(level || 'Intermediate').toUpperCase()}
+  const prompt = `You are an expert technical interviewer creating a daily technical challenge tailored specifically to what this student is currently learning.
+${targetRole ? `Target Career Role: ${targetRole}` : ''}
+${skillsMissing ? `Skills Student Is Actively Learning Right Now (Missing Skills / Gaps): ${skillsMissing}` : ''}
+${skillsHave ? `Skills Student Already Knows: ${skillsHave}` : ''}
+${level ? `Target Difficulty Level: ${level.toUpperCase()}` : ''}
 
-Generate 5 coding challenges:
-- 3 should focus on their CURRENT learning goals (the skills they are learning)
-- 2 should test their EXISTING knowledge (spaced repetition)
+CRITICAL INSTRUCTION:
+Every question MUST be based directly on the skills and technologies the student is actively learning right now (${skillsMissing || skillsHave || targetRole}).
+Do NOT default to any hardcoded language or role. Use the exact programming language, framework, or technology of the skill being tested (e.g. Kotlin, Swift, Dart, Python, TypeScript, Go, Rust, Java, SQL, C++, React Native, Docker, etc.).
 
-For each challenge provide:
-- id: sequential number (1-5)
-- title: short descriptive title
-- description: clear problem statement with constraints
-- startingCode: a starter code scaffold (function/class stub with comments)
-- language: one of javascript, html, css, or python (based on the challenge)`;
+Generate 5 dynamic technical evaluation questions:
+- Exactly 3 Multiple-Choice Questions ("type": "mcq"): Focus on conceptual depth, predicting code output, identifying bugs, or choosing the best architectural approach for the specific skills they are learning.
+- Exactly 2 Hands-on Coding Challenges ("type": "code"): Practical function implementation or algorithmic problem in the language of the skill they are learning.
 
-  const model = createStructuredModel(apiKey, QuizQuestionsSchema);
+For each question:
+- id: 1 to 5
+- type: "mcq" or "code"
+- skill: The exact skill from their learning list being evaluated (e.g. "Kotlin", "SwiftUI", "Flutter", "Docker", "React Native", etc.)
+- language: The programming language or technology (e.g. "kotlin", "swift", "dart", "python", "typescript", "go", "java", "sql", etc.)
+- title: Short descriptive title
+- description: Clear problem statement or question
+
+IF type is "mcq":
+- codeSnippet: (Optional) 2-8 lines of code in that language if asking about output or bug analysis; otherwise empty string
+- options: Array of EXACTLY 4 distinct, plausible choices
+- correctAnswerIndex: Integer 0, 1, 2, or 3 pointing to the correct choice
+- explanation: Clear educational explanation of why the correct answer is right and why others are wrong
+
+IF type is "code":
+- startingCode: Starter code scaffold in the target language (function signature, parameters, comments)
+- options: []
+- correctAnswerIndex: 0
+- explanation: ""`;
+
+  const preferredModel = payload.preferredModel || 'gemini-3.5-flash';
+  const model = createStructuredModel(apiKey, QuizQuestionsSchema, preferredModel);
   const quizResult = await model.invoke(prompt);
 
   return { result: { questions: quizResult.questions }, agentName: 'GeminiSkillValidator' };
