@@ -55,9 +55,11 @@ export const AuthProvider = ({ children }) => {
           email: fallbackEmail,
           name: fallbackEmail.split('@')[0] || 'Student',
           role: 'student',
-          branch: 'Computer Science',
-          college: 'Engineering College',
-          passoutYear: '2026',
+          branch: '',
+          college: '',
+          passoutYear: '',
+          career_interest: '',
+          target_role: '',
           t7Id: generateT7Id(),
           skills: [],
           created_at: new Date().toISOString()
@@ -149,10 +151,12 @@ export const AuthProvider = ({ children }) => {
     const demoEmail = 'student@t7hub.local';
     return await login(demoEmail, 'password123').catch(async () => {
       return await signup(demoEmail, 'password123', {
-        name: 'Google Student',
-        college: 'Engineering College',
-        branch: 'Computer Science',
-        passoutYear: '2026'
+        name: 'Student',
+        college: '',
+        branch: '',
+        passoutYear: '',
+        career_interest: '',
+        target_role: ''
       });
     });
   };

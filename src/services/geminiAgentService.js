@@ -41,7 +41,7 @@ const callAgentProxy = async (action, payload = {}) => {
       throw new Error('AI analysis timed out on the server. The model is taking longer than expected. Please try again.');
     }
 
-    if (res.status === 503 || errJson?.error === 'GEMINI_NOT_CONFIGURED') {
+    if (errJson?.error === 'GEMINI_NOT_CONFIGURED') {
       throw new Error('Google Gemini API key is missing. Please add GEMINI_API_KEY to your environment settings.');
     }
 
@@ -144,7 +144,7 @@ export const analyzeStudentProfile = async ({
 // ─────────────────────────────────────────────────────────────────────────────
 export const analyzeResumeGeminiAgent = async ({
   resumeFile,
-  targetRole = 'Software Developer',
+  targetRole = '',
   userId = null,
   preferredModel = 'gemini-3.6-flash',
 }) => {
@@ -155,7 +155,7 @@ export const analyzeResumeGeminiAgent = async ({
   const data = await callAgentProxy('analyzeResume', {
     resumeBase64: base64,
     mimeType,
-    targetRole: typeof targetRole === 'string' ? targetRole : targetRole?.role_name || 'Software Developer',
+    targetRole: typeof targetRole === 'string' ? targetRole : (targetRole?.role_name || ''),
     userId,
     sessionId: `resume_${userId}_${Date.now()}`,
     preferredModel: preferredModel || 'gemini-3.6-flash',
@@ -239,3 +239,27 @@ export const gradeSkillQuiz = async ({ skill, level, answers, userId = null, pre
   });
   return data.result;
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AGENT 5: Dynamic Course & Video Recommender (Pedagogical Evaluation)
+// ─────────────────────────────────────────────────────────────────────────────
+export const getCourseRecommendations = async ({
+  skills = [],
+  targetRole = '',
+  userId = null,
+  preferredModel = 'gemini-3.5-flash',
+  customApiKey = null,
+  forceRefresh = false,
+}) => {
+  if (!skills || skills.length === 0) return [];
+  const data = await callAgentProxy('recommendCourses', {
+    skills,
+    targetRole,
+    userId,
+    preferredModel,
+    customApiKey,
+    forceRefresh,
+  });
+  return data.result?.recommendations || [];
+};
+

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { analyzeResumeGemini } from '../../services/geminiAtsService';
 import { getLatestAnalysis, getVideoLearning, getVideoLearningSkills, saveResumeScan, getResumeHistory, fetchQuizActivity } from '../../services/apiService';
+import { getCourseRecommendations } from '../../services/geminiAgentService';
 import { industryRoles } from '../../data/industrySkills';
 import YouTubeTrackerModal from './YouTubeTrackerModal';
 import T7AiMentor from './T7AiMentor';
@@ -169,8 +170,79 @@ const Results = () => {
   const [isParsingResume, setIsParsingResume] = useState(false);
   const [resumeError, setResumeError] = useState('');
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
-  const [atsHistory, setAtsHistory] = useState([]);
   const [viewJobsMode, setViewJobsMode] = useState(false);
+
+  // AI Recommended Courses with Pedagogical Rationale
+  const [aiCourses, setAiCourses] = useState([]);
+  const [loadingAiCourses, setLoadingAiCourses] = useState(false);
+  const [expandedCourses, setExpandedCourses] = useState({ 0: true });
+
+  const toggleCourseExpand = (idx) => {
+    setExpandedCourses(prev => ({
+      ...prev,
+      [idx]: !prev[idx],
+    }));
+  };
+
+  useEffect(() => {
+    if (!analysis) return;
+    const rawMissing = analysis.missing_skills || analysis.skills_missing || [];
+    const missing = rawMissing
+      .map(s => (typeof s === 'string' ? s : (s?.skill || s?.name || '')).trim())
+      .filter(Boolean);
+
+    if (missing.length === 0) {
+      setAiCourses([]);
+      return;
+    }
+
+    const targetSkills = missing.slice(0, 4);
+    const roleName = analysis?.career_role || role?.role_name || '';
+    const cacheKey = `t7_courses_eval_v2_${roleName ? roleName.toLowerCase().replace(/\s+/g, '_') : 'custom'}_${targetSkills.slice().sort().join('_').toLowerCase()}`;
+    const cached = localStorage.getItem(cacheKey);
+
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setAiCourses(parsed);
+          return;
+        }
+      } catch (_) {}
+    }
+
+    let isMounted = true;
+    const fetchCourses = async () => {
+      setLoadingAiCourses(true);
+      try {
+        const recommendations = await getCourseRecommendations({
+          skills: targetSkills,
+          targetRole: roleName,
+          userId: currentUser?.uid || userProfile?.t7Id,
+        });
+        if (isMounted && recommendations && recommendations.length > 0) {
+          setAiCourses(recommendations);
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify(recommendations));
+          } catch (_) {}
+        }
+      } catch (err) {
+        console.error('Failed to load AI course recommendations:', err);
+      } finally {
+        if (isMounted) setLoadingAiCourses(false);
+      }
+    };
+
+    fetchCourses();
+    return () => { isMounted = false; };
+  }, [
+    analysis?.career_role,
+    role?.role_name,
+    currentUser?.uid,
+    userProfile?.t7Id,
+    (analysis?.missing_skills || analysis?.skills_missing || []).join(','),
+  ]);
+
 
   const fetchAtsHistory = async () => {
     if (!currentUser?.uid) return;
@@ -1251,212 +1323,212 @@ const Results = () => {
               )}
             </div>
 
-            {/* Course Manager Section */}
-            <div className="bg-white rounded-2xl p-4 shadow-lg border border-zinc-100">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-bold text-zinc-900 text-base flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-blue-600" />
-                  Recommended Courses
-                </h2>
+            {/* Course Manager Section — AI Pedagogical Recommendations */}
+            <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-lg border border-zinc-100">
+              <div className="flex items-center justify-between mb-3.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-zinc-900 text-sm sm:text-base flex items-center gap-1.5">
+                      Recommended Courses
+                    </h2>
+                    <p className="text-[11px] text-zinc-500">
+                      Click any skill to expand full pedagogical review & video
+                    </p>
+                  </div>
+                </div>
+                {missing_skills.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const targetSkills = missing_skills.slice(0, 4);
+                      const roleName = analysis?.career_role || role?.role_name || '';
+                      const cacheKey = `t7_courses_eval_v2_${roleName ? roleName.toLowerCase().replace(/\s+/g, '_') : 'custom'}_${targetSkills.slice().sort().join('_').toLowerCase()}`;
+                      try { localStorage.removeItem(cacheKey); } catch (_) {}
+                      setLoadingAiCourses(true);
+                      getCourseRecommendations({
+                        skills: targetSkills,
+                        targetRole: roleName,
+                        userId: currentUser?.uid || userProfile?.t7Id,
+                        forceRefresh: true,
+                      }).then(res => {
+                        if (res?.length) {
+                          setAiCourses(res);
+                          try { localStorage.setItem(cacheKey, JSON.stringify(res)); } catch (_) {}
+                        }
+                      }).finally(() => setLoadingAiCourses(false));
+                    }}
+                    disabled={loadingAiCourses}
+                    title="Refresh AI Course Recommendations"
+                    className="p-1.5 rounded-lg border border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 transition cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingAiCourses ? 'animate-spin text-blue-600' : ''}`} />
+                  </button>
+                )}
               </div>
 
               <div className="space-y-3">
-                {/* Generate course recommendations based on missing skills */}
-                {(() => {
-                  // Course database with real links
-                  const courseDatabase = {
-                    'react': {
-                      name: 'React - The Complete Guide',
-                      platform: 'Udemy',
-                      url: 'https://www.udemy.com/course/react-the-complete-guide-incl-redux/',
-                      icon: '⚛️',
-                      color: 'blue'
-                    },
-                    'javascript': {
-                      name: 'JavaScript: Complete Course',
-                      platform: 'freeCodeCamp',
-                      url: 'https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/',
-                      icon: '📜',
-                      color: 'yellow'
-                    },
-                    'node.js': {
-                      name: 'Node.js Developer Course',
-                      platform: 'Udemy',
-                      url: 'https://www.udemy.com/course/the-complete-nodejs-developer-course-2/',
-                      icon: '🟢',
-                      color: 'green'
-                    },
-                    'nodejs': {
-                      name: 'Node.js Developer Course',
-                      platform: 'Udemy',
-                      url: 'https://www.udemy.com/course/the-complete-nodejs-developer-course-2/',
-                      icon: '🟢',
-                      color: 'green'
-                    },
-                    'python': {
-                      name: 'Python for Everybody',
-                      platform: 'Coursera',
-                      url: 'https://www.coursera.org/specializations/python',
-                      icon: '🐍',
-                      color: 'emerald'
-                    },
-                    'dsa': {
-                      name: 'Data Structures & Algorithms',
-                      platform: 'freeCodeCamp',
-                      url: 'https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/',
-                      icon: '🧩',
-                      color: 'purple'
-                    },
-                    'data structures': {
-                      name: 'Data Structures & Algorithms',
-                      platform: 'freeCodeCamp',
-                      url: 'https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures/',
-                      icon: '🧩',
-                      color: 'purple'
-                    },
-                    'algorithms': {
-                      name: 'Algorithms Specialization',
-                      platform: 'Coursera',
-                      url: 'https://www.coursera.org/specializations/algorithms',
-                      icon: '🧮',
-                      color: 'purple'
-                    },
-                    'system design': {
-                      name: 'System Design Interview',
-                      platform: 'ByteByteGo',
-                      url: 'https://bytebytego.com/',
-                      icon: '🏗️',
-                      color: 'pink'
-                    },
-                    'typescript': {
-                      name: 'TypeScript Complete Course',
-                      platform: 'Scrimba',
-                      url: 'https://scrimba.com/learn/typescript',
-                      icon: '📘',
-                      color: 'blue'
-                    },
-                    'mongodb': {
-                      name: 'MongoDB University',
-                      platform: 'MongoDB',
-                      url: 'https://learn.mongodb.com/',
-                      icon: '🍃',
-                      color: 'green'
-                    },
-                    'sql': {
-                      name: 'SQL for Data Science',
-                      platform: 'Coursera',
-                      url: 'https://www.coursera.org/learn/sql-for-data-science',
-                      icon: '🗄️',
-                      color: 'blue'
-                    },
-                    'docker': {
-                      name: 'Docker Mastery',
-                      platform: 'Udemy',
-                      url: 'https://www.udemy.com/course/docker-mastery/',
-                      icon: '🐳',
-                      color: 'cyan'
-                    },
-                    'git': {
-                      name: 'Git & GitHub Crash Course',
-                      platform: 'freeCodeCamp',
-                      url: 'https://www.freecodecamp.org/news/git-and-github-crash-course/',
-                      icon: '📦',
-                      color: 'orange'
-                    },
-                    'aws': {
-                      name: 'AWS Certified Developer',
-                      platform: 'AWS Training',
-                      url: 'https://aws.amazon.com/training/',
-                      icon: '☁️',
-                      color: 'amber'
-                    },
-                    'express': {
-                      name: 'Express.js Fundamentals',
-                      platform: 'freeCodeCamp',
-                      url: 'https://www.freecodecamp.org/news/free-8-hour-node-express-course/',
-                      icon: '🚂',
-                      color: 'zinc'
-                    },
-                    'html': {
-                      name: 'Learn HTML',
-                      platform: 'YouTube',
-                      url: 'https://www.youtube.com/results?search_query=html+tutorial',
-                      icon: '📺',
-                      color: 'red'
-                    },
-                    'css': {
-                      name: 'Learn CSS',
-                      platform: 'YouTube',
-                      url: 'https://www.youtube.com/results?search_query=css+tutorial',
-                      icon: '📺',
-                      color: 'red'
-                    }
-                  };
-
-                  // Map missing skills to courses
-                  const recommendedCourses = missing_skills
-                    .slice(0, 4) // Show top 4
-                    .map(skill => {
-                      const normalizedSkill = skill.toLowerCase().trim();
-                      const course = courseDatabase[normalizedSkill] || {
-                        name: `Learn ${skill}`,
-                        platform: 'YouTube',
-                        url: `https://www.youtube.com/results?search_query=${encodeURIComponent(skill + ' tutorial')}`,
-                        icon: '📺',
-                        color: 'red'
-                      };
-                      return { ...course, skill };
-                    });
-
-                  const colorClasses = {
-                    blue: 'bg-blue-50 border-blue-100 hover:bg-blue-100',
-                    yellow: 'bg-yellow-50 border-yellow-100 hover:bg-yellow-100',
-                    green: 'bg-green-50 border-green-100 hover:bg-green-100',
-                    emerald: 'bg-emerald-50 border-emerald-100 hover:bg-emerald-100',
-                    purple: 'bg-purple-50 border-purple-100 hover:bg-purple-100',
-                    pink: 'bg-pink-50 border-pink-100 hover:bg-pink-100',
-                    cyan: 'bg-cyan-50 border-cyan-100 hover:bg-cyan-100',
-                    orange: 'bg-orange-50 border-orange-100 hover:bg-orange-100',
-                    amber: 'bg-amber-50 border-amber-100 hover:bg-amber-100',
-                    zinc: 'bg-zinc-50 border-zinc-100 hover:bg-zinc-100',
-                    red: 'bg-red-50 border-red-100 hover:bg-red-100'
-                  };
-
-                  return recommendedCourses.length > 0 ? (
-                    <div>
-                      <p className="text-xs font-semibold text-zinc-500 mb-2">FOR YOUR MISSING SKILLS</p>
-                      <div className="space-y-2">
-                        {recommendedCourses.map((course, idx) => (
-                          <a
-                            key={idx}
-                            href={course.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`block p-3 rounded-lg border transition-all cursor-pointer ${colorClasses[course.color]}`}
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1 flex items-start gap-2">
-                                <span className="text-xl">{course.icon}</span>
-                                <div className="flex-1">
-                                  <p className="font-semibold text-sm text-zinc-900 mb-0.5">{course.name}</p>
-                                  <p className="text-xs text-zinc-600">{course.platform}</p>
-                                  <p className="text-xs text-zinc-500 mt-1">Learn: {course.skill}</p>
-                                </div>
-                              </div>
-                              <ExternalLink className="w-4 h-4 text-zinc-400 flex-shrink-0 ml-2" />
-                            </div>
-                          </a>
-                        ))}
+                {loadingAiCourses && aiCourses.length === 0 ? (
+                  <div className="space-y-2.5 py-2">
+                    <div className="p-3.5 rounded-xl border border-blue-100 bg-blue-50/60 flex items-center gap-3 animate-pulse">
+                      <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-xs font-bold text-blue-900">Gemini AI is analyzing top courses...</p>
+                        <p className="text-[10px] text-blue-700/80">Evaluating pedagogical clarity and syllabus depth for your missing skills.</p>
                       </div>
                     </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <Trophy className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
-                      <p className="font-semibold text-zinc-900">All caught up!</p>
-                      <p className="text-sm text-zinc-500">You have all the required skills</p>
-                    </div>
-                  );
-                })()}
+                    {[1, 2].map(n => (
+                      <div key={n} className="p-3 rounded-xl border border-zinc-100 bg-zinc-50 animate-pulse space-y-2">
+                        <div className="h-4 bg-zinc-200 rounded w-3/4" />
+                        <div className="h-3 bg-zinc-200 rounded w-1/2" />
+                      </div>
+                    ))}
+                  </div>
+                ) : aiCourses.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {aiCourses.map((course, idx) => {
+                      const isExpanded = !!expandedCourses[idx];
+                      return (
+                        <div
+                          key={idx}
+                          className={`rounded-xl border transition-all overflow-hidden ${
+                            isExpanded
+                              ? 'border-blue-200 bg-white shadow-xs ring-1 ring-blue-100'
+                              : 'border-zinc-200 bg-zinc-50/50 hover:bg-white hover:border-zinc-300'
+                          }`}
+                        >
+                          {/* Accordion Header Bar — Click anywhere to toggle */}
+                          <div
+                            onClick={() => toggleCourseExpand(idx)}
+                            className="p-3 flex items-center justify-between gap-2.5 cursor-pointer select-none transition-colors"
+                          >
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <span className="flex-shrink-0 px-2 py-0.5 text-[11px] font-bold rounded-md bg-purple-50 text-purple-700 border border-purple-200/80">
+                                {course.skill}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="font-bold text-xs text-zinc-900 truncate leading-snug">
+                                  {course.course_title}
+                                </p>
+                                <p className="text-[11px] text-zinc-500 truncate">
+                                  {course.instructor_channel} {course.duration ? `• ${course.duration}` : ''}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <div
+                                className={`p-1 rounded-md text-zinc-400 transition-transform duration-200 ${
+                                  isExpanded ? 'rotate-180 text-blue-600 bg-blue-50' : 'hover:text-zinc-600'
+                                }`}
+                              >
+                                <ChevronDown className="w-4 h-4" />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Accordion Dropdown Content */}
+                          {isExpanded && (
+                            <div className="px-3.5 pb-3.5 pt-2 border-t border-zinc-100 space-y-3 bg-zinc-50/30">
+                              {/* Metadata Tags */}
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-red-50 text-red-700 border border-red-200/80 flex items-center gap-1">
+                                  <Youtube className="w-3 h-3 text-red-600" />
+                                  {course.platform || 'YouTube'}
+                                </span>
+                                {course.duration && (
+                                  <span className="text-[10px] font-semibold text-zinc-600 flex items-center gap-1 bg-white border border-zinc-200 px-2 py-0.5 rounded-md">
+                                    <Clock className="w-3 h-3 text-zinc-500" /> {course.duration}
+                                  </span>
+                                )}
+                                {course.difficulty_level && (
+                                  <span className="text-[10px] font-medium text-zinc-600 bg-white border border-zinc-200 px-2 py-0.5 rounded-md">
+                                    {course.difficulty_level}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Key Topics */}
+                              {Array.isArray(course.key_topics) && course.key_topics.length > 0 && (
+                                <div>
+                                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">
+                                    Key Concepts Covered
+                                  </p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {course.key_topics.map((topic, tidx) => (
+                                      <span
+                                        key={tidx}
+                                        className="text-[10px] font-medium px-2 py-0.5 bg-white text-zinc-700 rounded-md border border-zinc-200"
+                                      >
+                                        {topic}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Pedagogical Explanation Box */}
+                              {course.why_recommended && (
+                                <div className="p-3 rounded-xl bg-amber-50/90 border border-amber-200/80">
+                                  <p className="text-[11px] font-bold text-amber-900 flex items-center gap-1.5 mb-1">
+                                    <Lightbulb className="w-3.5 h-3.5 text-amber-700 flex-shrink-0" />
+                                    Why this video explains {course.skill} best:
+                                  </p>
+                                  <p className="text-xs text-amber-950 leading-relaxed font-normal">
+                                    {course.why_recommended}
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* Full-Width Direct Watch Button */}
+                              <a
+                                href={course.direct_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full py-2 px-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer group"
+                              >
+                                <Play className="w-3.5 h-3.5 fill-current" />
+                                <span>Watch Course on {course.platform || 'YouTube'}</span>
+                                <ExternalLink className="w-3.5 h-3.5 opacity-80 group-hover:translate-x-0.5 transition-transform" />
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : missing_skills.length > 0 ? (
+                  <div className="p-4 rounded-xl border border-zinc-200 bg-zinc-50 text-center space-y-2">
+                    <p className="text-xs font-bold text-zinc-600 uppercase tracking-wide">
+                      Missing: {missing_skills.slice(0, 4).join(', ')}
+                    </p>
+                    <button
+                      onClick={() => {
+                        const targetSkills = missing_skills.slice(0, 4);
+                        const roleName = analysis?.career_role || role?.role_name || '';
+                        setLoadingAiCourses(true);
+                        getCourseRecommendations({
+                          skills: targetSkills,
+                          targetRole: roleName,
+                          userId: currentUser?.uid || userProfile?.t7Id,
+                        }).then(res => {
+                          if (res?.length) setAiCourses(res);
+                        }).finally(() => setLoadingAiCourses(false));
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Curate Top Courses</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <Trophy className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
+                    <p className="font-semibold text-xs text-zinc-900">All caught up!</p>
+                    <p className="text-[11px] text-zinc-500">You meet all core skill requirements.</p>
+                  </div>
+                )}
 
                 {/* Additional Resources */}
                 {missing_skills.length > 0 && (
@@ -2153,7 +2225,7 @@ const Results = () => {
                         <CircularRing percentage={ats_analysis.overall_readiness || 0} label="Overall Ready" colorClass="text-emerald-400" size={160} strokeWidth={12} />
                         <div className="mt-6 text-center">
                           <p className="text-sm font-semibold text-zinc-400">Target Role</p>
-                          <p className="text-lg font-bold text-white mt-1">{role?.role_name || 'Software Developer'}</p>
+                          <p className="text-lg font-bold text-white mt-1">{role?.role_name || analysis?.career_role || 'Target Role'}</p>
                         </div>
                       </div>
 
@@ -2822,7 +2894,7 @@ const Results = () => {
             cgpa: userProfile?.cgpa || analysis?.cgpa || '',
 
             // Career profile (from Gemini Agent)
-            targetRole: role?.role_name || analysis?.career_role || 'Software Developer',
+            targetRole: role?.role_name || analysis?.career_role || '',
             readinessScore: readiness_score,
             honestAssessment: honest_assessment,
             finalOutcome: final_outcome,

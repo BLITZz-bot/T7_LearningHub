@@ -267,8 +267,8 @@ export const fetchJobMarketInsights = async ({
   }
 
   const isAllRoles = roleId === 'all' || roleName === 'All Tech Roles' || roleName === 'All Roles' || !roleId;
-  const matchedRole = !isAllRoles ? (industryRoles.find(r => r.id === roleId || r.role_name === roleName) || industryRoles[0]) : null;
-  const queryRole = isAllRoles ? 'Developer' : (roleName || matchedRole?.role_name || 'Software Developer');
+  const matchedRole = !isAllRoles ? (industryRoles.find(r => r.id === roleId || r.role_name === roleName) || null) : null;
+  const queryRole = isAllRoles ? (roleName && roleName !== 'All Tech Roles' && roleName !== 'All Roles' ? roleName : '') : (roleName || matchedRole?.role_name || '');
 
   const isAuto = provider === 'auto' || provider === 'all';
 
