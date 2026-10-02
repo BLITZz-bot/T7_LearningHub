@@ -1,16 +1,34 @@
-# React + Vite
+# T7 ATS Resume Analyzer — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Web client for the T7 ATS Resume Analyzer component of the T7 Learning Hub.
 
-Currently, two official plugins are available:
+## Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The ATS Resume Analyzer frontend provides students with an interactive user interface to upload resumes (PDF/DOCX), choose target career roles, view real-time ATS scoring rubrics, and inspect keyword gap analyses and bullet point rewrite suggestions.
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Document Upload**: Supports PDF and DOCX resume parsing.
+- **Role Alignment**: Match resumes against specific software and engineering job roles.
+- **ATS Metrics Dashboard**: Displays parseability, impact quantification, skill match, and formatting scores.
+- **Keyword & Bullet Rewrites**: Clear suggestions to convert passive bullet points into high-impact, quantified achievements.
 
-## Expanding the Oxlint configuration
+## Tech Stack
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+- **Framework**: React 18
+- **Build Tool**: Vite
+- **Styling**: Tailwind CSS
+- **Backend Service**: Connects to the FastAPI / Python backend (`https://t7-learninghub-ats.onrender.com` or local `http://localhost:8000`) and the LangGraph `/api/gemini-agent` orchestrator.
+
+## Development
+
+```bash
+# Install dependencies
+npm install
+
+# Start local dev server
+npm run dev
+
+# Production build
+npm run build
+```

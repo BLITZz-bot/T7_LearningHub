@@ -9,7 +9,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/React-18.2-61DAFB?logo=react&logoColor=black" alt="React 18" />
   <img src="https://img.shields.io/badge/Vite-5.0-646CFF?logo=vite&logoColor=white" alt="Vite 5" />
-  <img src="https://img.shields.io/badge/AI_Engine-Lyzr_Multi--Agent-FF4B4B?logo=ai&logoColor=white" alt="Lyzr AI" />
+  <img src="https://img.shields.io/badge/AI_Orchestrator-LangGraph_StateGraph-1C3C3C?logo=langchain&logoColor=white" alt="LangGraph" />
+  <img src="https://img.shields.io/badge/AI_Engine-LangChain_%26_Google_Gemini-4285F4?logo=google&logoColor=white" alt="LangChain & Gemini" />
   <img src="https://img.shields.io/badge/Database-Supabase_PostgreSQL-3ECF8E?logo=supabase&logoColor=white" alt="Supabase" />
   <img src="https://img.shields.io/badge/Serverless-Vercel_Edge-000000?logo=vercel&logoColor=white" alt="Vercel" />
   <img src="https://img.shields.io/badge/Styling-TailwindCSS_3.4-38B2AC?logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
@@ -36,7 +37,7 @@ Every year, **over 1.5 million engineering and computer application students gra
 3. **The Final-Semester Blindspot**: Students often discover skill deficiencies only during final-year campus placement rounds when remediation time is minimal.
 
 **T7 Learning Hub** solves this challenge through an end-to-end ecosystem combining:
-* **Role-Anchored Multi-Agent AI Auditing** (via Lyzr AI Framework)
+* **Role-Anchored Multi-Agent AI Auditing** (powered by LangChain & LangGraph StateGraph with Google Gemini)
 * **Deterministic Skill Gap Diagnostics** across 9 specialized computer science and engineering disciplines
 * **Live Job Market Intelligence** ingested from 5 real-time career platforms
 * **Autonomous Focus Guardrails** powered by a companion Manifest V3 Chrome Extension
@@ -50,23 +51,26 @@ flowchart TB
     subgraph Client["🖥️ Student Client Application (React 18 + Vite)"]
         Dashboard["Student Command Center (StudentDashboard.jsx)"]
         RoadmapView["Dynamic Roadmap & Results (Results.jsx)"]
-        TutorBot["T7 SKILL_BOT AI Mentor (ChatbotWidget.jsx)"]
+        TutorBot["T7 AI Mentor (ChatbotWidget.jsx)"]
         AcademicTutor["T7 Academic DeepTutor (AcademicPage.jsx)"]
         JobMarketUI["Live Job Market & Compare Engine"]
         ChromeExt["🧩 T7 Extension (Manifest V3 Guardrail)"]
     end
 
     subgraph Gateway["⚡ Secure Serverless Gateway Layer (Vercel Serverless / Node.js Middleware)"]
-        LyzrProxy["/api/lyzr (AI Multi-Agent Gateway)"]
+        AgentProxy["/api/gemini-agent (LangGraph Multi-Agent Orchestrator)"]
         DbProxy["/api/db (Zero-Secret Supabase Gateway)"]
         JobProxy["/api/jobs (Live Opportunity Pipeline)"]
     end
 
-    subgraph AI_Core["🧠 Lyzr Multi-Agent AI Orchestrator"]
-        AgentProfile["ProfileAnalyzerAgent\n(Readiness Score & Roadmap Phases)"]
-        AgentResume["ResumeOptimizerAgent\n(ATS Scanner & Bullet Point Auditor)"]
-        AgentTutor["TutorBotAgent\n(Interactive Career Guidance)"]
-        AgentValidator["SkillValidatorAgent\n(Role-Specific Knowledge Engine)"]
+    subgraph AI_Core["🧠 LangGraph Multi-Agent StateGraph"]
+        AgentProfile["profileAnalyzerNode\n(Readiness Score & 4-Phase Roadmap)"]
+        AgentResume["resumeOptimizerNode\n(Deterministic ATS Scoring & Rubric)"]
+        AgentTutor["chatTutorNode\n(Context-Aware AI Mentor & Session History)"]
+        AgentValidator["skillValidatorNode\n(Dynamic Coding & MCQ Challenge Engine)"]
+        AgentExtractor["skillExtractorNode\n(JD Scraping & Skill Extraction)"]
+        AgentRecommender["courseRecommenderNode\n(Pedagogical Courses & Verified URLs)"]
+        AgentExam["skillExamValidatorNode\n(10-Question 5-Pillar Certification Exam)"]
     end
 
     subgraph Job_Pipelines["🌐 Real-Time Job Market Aggregation"]
@@ -83,16 +87,17 @@ flowchart TB
         ResumeScans["resume_scans Table\n(ATS Metrics, Weakness Flags, Rewrites)"]
         Activities["user_activities Table\n(Audit Trails & Milestone Completion)"]
         VideoSync["video_learning Table\n(Extension Watch Records & Quality Ratings)"]
+        ScrapedJobs["t7_scraped_jobs Table\n(Cached Job Skills)"]
     end
 
     Client --> Gateway
     ChromeExt --> Gateway
 
-    LyzrProxy --> AI_Core
+    AgentProxy --> AI_Core
     DbProxy --> Persistence
     JobProxy --> Job_Pipelines
 
-    AI_Core --> Analyses
+    AI_Core --> DbProxy
     Job_Pipelines --> JobMarketUI
 ```
 
@@ -175,30 +180,56 @@ T7 Learning Hub is explicitly calibrated around **9 high-demand computer science
 
 ---
 
-## 🤖 Multi-Agent AI Framework (Powered by Lyzr)
+## 🤖 Multi-Agent AI Framework (Powered by LangChain, LangGraph & Google Gemini)
 
-The platform has migrated from monolithic prompt completions to a **decoupled multi-agent architecture** managed through serverless functions:
+The platform runs on a compiled **LangGraph `StateGraph`** (`@langchain/langgraph` + `@langchain/google-genai`), orchestrating 7 specialized nodes:
 
-### 1. `ProfileAnalyzerAgent`
-* **Purpose:** Evaluates academic profile, self-declared skills, and resume PDF against verified role standards.
+### 1. `profileAnalyzerNode` (GeminiProfileAnalyzer)
+* **Purpose:** Evaluates academic profile, self-declared skills, and resume against verified role standards.
 * **Scoring Dimensions:**
   * **Technical Skill Match (40%):** Exact overlap with high-priority role requirements.
   * **Resume Quality & ATS Compatibility (25%):** Quantifiable metrics, action verbs, clear formatting.
   * **Market Hiring Bar (20%):** Tier-1/Tier-2 benchmark difficulty index.
   * **Profile Completeness (15%):** Projects, degree timeline, credentials.
-* **Output:** Generates a structured multi-phase learning roadmap, quick-win action items, and missing skill priority rankings.
+* **Output:** Produces a structured 4-phase learning roadmap, quick-win action items, and missing skill priority rankings via `ProfileSchema` (Zod).
 
-### 2. `ResumeOptimizerAgent`
-* **Purpose:** Performs in-depth technical resume auditing.
-* **Capabilities:** Extracts technical keywords, identifies recruiter red flags, and rewrites passive bullet points into high-impact statements using Google's **Action Verb + Context + Quantified Metric** formula.
+### 2. `resumeOptimizerNode` (GeminiATSAnalyzer)
+* **Purpose:** Performs deterministic technical resume auditing.
+* **Mechanism:** Uses a zero-temperature model (`temperature: 0, topK: 1`) to ensure identical ATS scores on identical input resumes.
+* **Scoring Rubric:**
+  * **ATS Parseability (0–100):** Section completeness & deduction for unparsable layouts.
+  * **Impact Quantification (0–100):** Percentage of bullets with measurable KPIs.
+  * **Skill Match (0–100):** Top 10 target role skill overlap percentage.
+  * **Formatting Quality (0–100):** Clean layout, typography, and length checks.
+* **Self-Healing:** Built-in auto-repair loop that detects `ZodError` or parsing exceptions, repairs JSON fields, or gracefully falls back with `GRACEFUL_ATS_FALLBACK`.
 
-### 3. `TutorBotAgent` (T7 SKILL_BOT)
-* **Purpose:** Context-aware interactive student mentor.
-* **Capabilities:** Maintains session memory, answers technical questions, clarifies roadmap steps, and guides students toward high-yield learning resources.
+### 3. `chatTutorNode` (GeminiTutorBot)
+* **Purpose:** Context-aware interactive student mentor (T7 AI Mentor).
+* **Capabilities:** Uses `RunnableWithMessageHistory` + `InMemoryChatMessageHistory` with unique `sessionId` keys.
+* **Deep Grounding:** Injects full student context into system prompts: CGPA, branch, passout year, target role, ATS scores, missing skills, roadmap phases, and YouTube watch history.
 
-### 4. `SkillValidatorAgent`
-* **Purpose:** Dynamic quiz and badge engine.
-* **Capabilities:** Formulates role-calibrated technical assessments to validate competencies before awarding verified profile badges.
+### 4. `skillValidatorNode` (GeminiSkillValidator)
+* **Purpose:** Coding challenge generator and code solution grader.
+* **Dual Operation:**
+  * **Generation Mode:** Uses dynamic session entropy to produce 100% fresh questions based on the student's active skill gaps: 3 conceptual/bug-prediction MCQs + 2 hands-on coding challenges with starter scaffolds for Monaco Editor.
+  * **Evaluation Mode:** Deep code grading analyzing correctness, algorithmic efficiency, edge cases, and optimal solutions.
+
+### 5. `skillExtractorNode` (GeminiSkillExtractor)
+* **Purpose:** Job Description (JD) text extraction and skill mining.
+* **Capabilities:** Checks Supabase `t7_scraped_jobs` cache first, falls back to Python scraper backend, and uses Gemini structured extraction to identify technical skills, tools, and languages.
+
+### 6. `courseRecommenderNode` (GeminiCourseRecommender)
+* **Purpose:** Recommends top-rated educational courses from YouTube, freeCodeCamp, MIT OCW, Harvard CS50, and Coursera.
+* **Integrity:** In-memory caching (`courseCache`) plus real-time YouTube oEmbed verification that automatically heals broken/404 links via automated search query resolution.
+
+### 7. `skillExamValidatorNode` (GeminiSkillExamValidator)
+* **Purpose:** Generates official 10-Question Skill Certification Exams.
+* **5 Core Pillars:**
+  1. *Syntax & Idioms* (Language primitives, typing, control flow)
+  2. *OOP & Paradigms* (Inheritance, polymorphism, composition)
+  3. *Collections & Data* (Data structures, transformations, memory)
+  4. *Concurrency & Async* (Threading, async/await, race conditions)
+  5. *Architecture & Best Practices* (Design patterns, clean code, error handling)
 
 ---
 
@@ -222,15 +253,15 @@ T7 Learning Hub ingests and standardizes active job postings across **5 major em
 
 A companion Chrome Extension designed to eliminate distraction and turn video consumption into verified academic credits:
 * **Algorithmic Blocker:** Suppresses YouTube Shorts, sidebar recommendations, and clickbait during active learning sessions.
-* **Watch Time Verification:** Tracks active, in-tab video study duration and syncs metrics directly to Supabase via the student's **T7 ID**.
+* **Watch Time Verification:** Tracks active, in-tab video study duration and syncs metrics directly to Supabase via the student's **T7 ID** (`/api/db`).
 * **Content Quality Scorer:** Uses automated evaluation heuristics to rate video educational depth and relevance.
 
 ---
 
 ## 🔒 Enterprise Zero-Trust Security Model
 
-* **Zero Client Secrets:** Sensitive API keys (`LYZR_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RAPIDAPI_KEY`, `ADZUNA_APP_KEY`, `JOOBLE_API_KEY`) are stored strictly in server-side environment variables and are never bundled into client JavaScript.
-* **Serverless Gateways:** All database and AI requests flow through `/api/db` and `/api/lyzr`, enforcing payload validation and sanitization.
+* **Zero Client Secrets:** Sensitive API keys (`GEMINI_API_KEY`, `LANGCHAIN_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RAPIDAPI_KEY`, `ADZUNA_APP_KEY`, `JOOBLE_API_KEY`) are stored strictly in server-side environment variables and are never bundled into client JavaScript.
+* **Serverless Gateways:** All database and AI requests flow through `/api/db`, `/api/gemini-agent`, and `/api/jobs`, enforcing payload validation and sanitization.
 * **Local Vite Proxy:** In local development, `vite.config.js` simulates production serverless routes via custom Node.js middleware, allowing local `.env` variables to function identically to production Vercel edge environments.
 
 ---
@@ -239,9 +270,12 @@ A companion Chrome Extension designed to eliminate distraction and turn video co
 
 | Domain | Technologies |
 | :--- | :--- |
-| **Frontend UI** | React 18.2, Vite 5.0, Tailwind CSS 3.4, Lucide React, Modern Vanilla CSS |
+| **Frontend UI** | React 18.2, Vite 5.0, Tailwind CSS 3.4, Lucide React, Monaco Editor (`@monaco-editor/react`) |
 | **Routing** | React Router v6 (v7 Future Flags enabled) |
-| **AI Multi-Agent System**| Lyzr AI Agent Framework (`https://agent.lyzr.ai`) |
+| **AI Multi-Agent System**| LangChain (`@langchain/core`, `@langchain/google-genai`), LangGraph (`@langchain/langgraph`), Zod Schema Validation |
+| **AI Models (Gemini)** | Gemini 3.6 Flash, Gemini 3.5 Flash, Gemini 3.1 Flash Lite, Gemini 3.7 Flash, Gemini 3.8 Flash, Gemini 3.1 Pro Preview |
+| **Observability** | LangSmith Tracing (`LANGCHAIN_TRACING_V2=true`) |
+| **Document Processing** | `pdf-parse` (PDF Extraction), `mammoth` (DOCX/DOC Extraction) |
 | **Database & Auth** | Supabase Enterprise PostgreSQL, Row Level Security, Secure Service Gateway |
 | **Serverless Architecture**| Vercel Serverless Functions (`/api/*`), Node.js HTTP Proxies |
 | **Job Market APIs** | JSearch (RapidAPI), Adzuna REST API, Jooble API, Arbeitnow API, The Muse API |
@@ -270,12 +304,13 @@ Create a `.env` file in the project root based on `.env.example`:
 # --- DeepTutor / Academic Mode ---
 VITE_DEEPTUTOR_URL=http://localhost:3782
 
-# --- LYZR AI AGENTS (Server-Only — https://agent.lyzr.ai) ---
-LYZR_API_KEY=your_lyzr_api_key_here
-LYZR_AGENT_PROFILE=your_profile_analyzer_agent_id
-LYZR_AGENT_RESUME=your_resume_optimizer_agent_id
-LYZR_AGENT_TUTOR=your_tutor_agent_id
-LYZR_AGENT_VALIDATOR=your_skill_validator_agent_id
+# --- GOOGLE GEMINI AI (Server-Only) ---
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# --- LANGCHAIN & LANGGRAPH OBSERVABILITY (Optional / Server-Only) ---
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=your_langsmith_api_key_here
+LANGCHAIN_PROJECT=T7-Learning-Hub
 
 # --- LIVE JOB MARKET AGGREGATORS (Server-Only) ---
 RAPIDAPI_KEY=your_rapidapi_key_here
@@ -287,6 +322,9 @@ JOOBLE_API_KEY=your_jooble_api_key_here
 SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
 SUPABASE_ANON_KEY=your_supabase_anon_key_here
+
+# --- Python Backend / Render API (JD Scraping) ---
+NEXT_PUBLIC_API_URL=https://t7-learninghub-ats.onrender.com
 ```
 
 ### 4. Start Development Server
@@ -306,8 +344,8 @@ npm run build
 
 1. Open Google Chrome and navigate to `chrome://extensions/`.
 2. Enable **Developer mode** via the top-right toggle.
-3. Click **Load unpacked** and select the `T7extension/` folder from this repository.
-4. Copy your **T7 ID** from your Student Profile on the dashboard and paste it into the extension popup to link session tracking.
+3. Click **Load unpacked** and select the `T7-extension/` folder from this repository.
+4. Copy your **T7 Account ID** from your Student Profile on the dashboard and paste it into the extension popup to link session tracking.
 
 ---
 

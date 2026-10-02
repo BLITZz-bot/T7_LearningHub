@@ -4,8 +4,8 @@
 /**
  * Gemini AI Agent Service — T7 Learning Hub
  *
- * All multi-agent operations are proxied through /api/gemini-agent
- * (or legacy /api/lyzr fallback), keeping API keys strictly server-side.
+ * All multi-agent operations are proxied through /api/gemini-agent,
+ * keeping API keys strictly server-side.
  * Powered by LangGraph + Google Gemini (default: gemini-3.6-flash).
  *
  * Agents:
