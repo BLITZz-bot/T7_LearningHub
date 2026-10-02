@@ -14,7 +14,7 @@ import {
   Upload, RefreshCw
 } from 'lucide-react';
 import { analyzeResumeGemini } from '../../services/geminiAtsService';
-import { getLatestAnalysis, getVideoLearning, getVideoLearningSkills, saveResumeScan, getResumeHistory, fetchQuizActivity } from '../../services/apiService';
+import { getLatestAnalysis, getVideoLearning, getVideoLearningSkills, saveResumeScan, getResumeHistory, fetchQuizActivity, saveSkillCertification, fetchSkillCertifications } from '../../services/apiService';
 import { getCourseRecommendations, generateSkillCertificationExam } from '../../services/geminiAgentService';
 import { industryRoles } from '../../data/industrySkills';
 import YouTubeTrackerModal from './YouTubeTrackerModal';
@@ -111,6 +111,27 @@ const Results = () => {
       }
     };
     loadQuizActivity();
+
+    // Sync verified certifications and exam scores from Supabase
+    const loadCertifications = async () => {
+      const uid = currentUser?.uid || userProfile?.t7Id;
+      if (!uid) return;
+      try {
+        const dbCerts = await fetchSkillCertifications(uid);
+        if (dbCerts && typeof dbCerts === 'object' && Object.keys(dbCerts).length > 0) {
+          setCertifications(prev => {
+            const merged = { ...prev, ...dbCerts };
+            try {
+              localStorage.setItem(`t7_skill_certifications_${uid}`, JSON.stringify(merged));
+            } catch (_) {}
+            return merged;
+          });
+        }
+      } catch (err) {
+        console.warn('Could not load certifications from Supabase:', err);
+      }
+    };
+    loadCertifications();
   }, [currentUser?.uid, userProfile?.t7Id]);
 
   const copyT7Id = () => {
@@ -741,6 +762,21 @@ const Results = () => {
       localStorage.setItem(`t7_skill_certifications_${uid}`, JSON.stringify(updated));
     } catch (e) {
       console.error('Failed to save skill certification:', e);
+    }
+
+    // Persist verified certification / attempt directly to Supabase
+    const targetUserId = currentUser?.uid || userProfile?.t7Id;
+    if (targetUserId) {
+      saveSkillCertification(targetUserId, {
+        skill: cleanSkill,
+        tier: activeExamSkill?.difficulty || 'Intermediate',
+        score: scorePercent,
+        passed,
+        credentialId: passed ? credentialId : null,
+        pillarScores,
+        attemptedAt: result.passedAt,
+        passedAt: passed ? result.passedAt : null,
+      }).catch(err => console.warn('Supabase certification sync note:', err));
     }
   };
 
