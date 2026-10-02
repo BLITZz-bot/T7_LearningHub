@@ -640,6 +640,151 @@ export default async function handler(req, res) {
         return res.status(200).json({ activity: data });
       }
 
+      // -----------------------------------------------------------
+      // 8. Skill Certifications & Exam Progress
+      // -----------------------------------------------------------
+      case 'saveCertification': {
+        const { userId, certData = {} } = payload;
+        if (!userId) return res.status(400).json({ error: 'userId is required' });
+        const { skill, tier = 'Intermediate', score = 0, passed = false, credentialId = null, pillarScores = {}, attemptedAt, passedAt } = certData;
+        if (!skill) return res.status(400).json({ error: 'skill is required' });
+
+        const record = {
+          user_id: userId,
+          skill: skill.trim(),
+          tier: tier,
+          score: Math.round(Number(score)),
+          passed: Boolean(passed),
+          credential_id: credentialId,
+          pillar_scores: pillarScores,
+          attempted_at: attemptedAt || new Date().toISOString(),
+          passed_at: passed ? (passedAt || new Date().toISOString()) : null,
+          created_at: new Date().toISOString()
+        };
+
+        let saved = null;
+
+        // 1. Try upserting into dedicated skill_certifications table
+        try {
+          const { data, error } = await supabase
+            .from('skill_certifications')
+            .upsert(record, { onConflict: 'user_id,skill' })
+            .select()
+            .maybeSingle();
+
+          if (!error && data) {
+            saved = data;
+          }
+        } catch (tableErr) {
+          console.warn('skill_certifications table note:', tableErr.message);
+        }
+
+        // 2. Also update profiles.certifications JSONB as a universal fallback/cache
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('certifications')
+            .eq('id', userId)
+            .maybeSingle();
+
+          const existingCerts = profile?.certifications || {};
+          const updatedCerts = {
+            ...existingCerts,
+            [skill.toLowerCase()]: {
+              skill,
+              tier,
+              score: Math.round(Number(score)),
+              passed: Boolean(passed),
+              credentialId,
+              pillarScores,
+              attemptedAt: record.attempted_at,
+              passedAt: record.passed_at,
+            },
+            [skill]: {
+              skill,
+              tier,
+              score: Math.round(Number(score)),
+              passed: Boolean(passed),
+              credentialId,
+              pillarScores,
+              attemptedAt: record.attempted_at,
+              passedAt: record.passed_at,
+            }
+          };
+
+          await supabase
+            .from('profiles')
+            .update({ certifications: updatedCerts, updated_at: new Date().toISOString() })
+            .eq('id', userId);
+        } catch (profErr) {
+          console.warn('profiles.certifications cache update note:', profErr.message);
+        }
+
+        // 3. Log into user_activities timeline
+        try {
+          await supabase.from('user_activities').insert({
+            user_id: userId,
+            activity_type: 'skill_exam',
+            title: passed 
+              ? `Passed ${skill} ${tier} Certification (${Math.round(score)}%)` 
+              : `Attempted ${skill} ${tier} Exam (${Math.round(score)}%)`,
+            description: passed ? `Official Credential ID: ${credentialId}` : `Score: ${Math.round(score)}% (Requires ≥80% to certify)`,
+            metadata: { skill, tier, score, passed, credentialId }
+          });
+        } catch (_) {}
+
+        return res.status(200).json({ success: true, certification: saved || record });
+      }
+
+      case 'getCertifications': {
+        const { userId } = payload;
+        if (!userId) return res.status(400).json({ error: 'userId is required' });
+
+        const resultsMap = {};
+
+        // 1. Try querying skill_certifications table
+        try {
+          const { data, error } = await supabase
+            .from('skill_certifications')
+            .select('*')
+            .eq('user_id', userId);
+
+          if (!error && Array.isArray(data) && data.length > 0) {
+            data.forEach(row => {
+              const skillKey = (row.skill || '').toLowerCase();
+              const item = {
+                skill: row.skill,
+                tier: row.tier,
+                score: row.score,
+                passed: row.passed,
+                credentialId: row.credential_id,
+                pillarScores: row.pillar_scores || {},
+                attemptedAt: row.attempted_at,
+                passedAt: row.passed_at
+              };
+              resultsMap[skillKey] = item;
+              resultsMap[row.skill] = item;
+            });
+            return res.status(200).json({ certifications: resultsMap });
+          }
+        } catch (_) {}
+
+        // 2. Fallback to profiles.certifications JSONB
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('certifications')
+            .eq('id', userId)
+            .maybeSingle();
+
+          if (profile?.certifications && typeof profile.certifications === 'object') {
+            return res.status(200).json({ certifications: profile.certifications });
+          }
+        } catch (_) {}
+
+        return res.status(200).json({ certifications: {} });
+      }
+
       default:
         return res.status(400).json({ error: `Unknown action: "${action}"` });
     }
@@ -659,6 +804,7 @@ const devDb = {
   scans: new Map(),
   videos: new Map(),
   quizActivities: new Map(),
+  certifications: new Map(),
 };
 
 function handleDevFallback(action, payload, res) {
@@ -845,6 +991,21 @@ function handleDevFallback(action, payload, res) {
         list.push(updatedActivity);
       }
       return res.status(200).json({ activity: updatedActivity, devMode: true });
+    }
+
+    case 'saveCertification': {
+      const { certData = {} } = payload;
+      const skillKey = (certData.skill || '').toLowerCase();
+      if (!devDb.certifications.has(userId)) devDb.certifications.set(userId, {});
+      const userCerts = devDb.certifications.get(userId);
+      userCerts[skillKey] = certData;
+      userCerts[certData.skill] = certData;
+      return res.status(200).json({ success: true, certification: certData, devMode: true });
+    }
+
+    case 'getCertifications': {
+      const certs = devDb.certifications.get(userId) || {};
+      return res.status(200).json({ certifications: certs, devMode: true });
     }
 
     default:

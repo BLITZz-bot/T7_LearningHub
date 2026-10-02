@@ -135,15 +135,23 @@ const GRACEFUL_ATS_FALLBACK = (targetRoleText, reason = '') => ({
   failure_reason: reason,
 });
 
-// 3. Coding Challenge & Evaluation Schemas
+// 3. Coding Challenge & Evaluation Schemas (Hybrid: Code + MCQ - 100% Dynamic)
 const QuizQuestionsSchema = z.object({
   questions: z.array(
     z.object({
       id: z.number(),
+      type: z.enum(['mcq', 'code']),
+      skill: z.string(),
+      language: z.string(),
       title: z.string(),
       description: z.string(),
-      startingCode: z.string(),
-      language: z.enum(['javascript', 'html', 'css', 'python']),
+      // Coding questions
+      startingCode: z.string().describe('Starter scaffold code for code type, or empty string for mcq'),
+      // MCQ questions
+      codeSnippet: z.string().describe('Code snippet for mcq output/bug analysis, or empty string'),
+      options: z.array(z.string()).describe('Array of 4 options for mcq, or empty array for code'),
+      correctAnswerIndex: z.number().int().min(0).max(3).describe('Zero-based index (0, 1, 2, or 3) of the correct answer for mcq, or 0 for code'),
+      explanation: z.string().describe('Educational explanation of why the correct answer is right and why others are wrong'),
     })
   ).min(1).max(10),
 });
@@ -175,6 +183,23 @@ const CourseRecommendationSchema = z.object({
 
 const CoursesListSchema = z.object({
   recommendations: z.array(CourseRecommendationSchema),
+});
+
+// 6. Skill Certification Exam Schema (10 Dynamic Scenario Questions across 5 Pillars)
+const SkillExamSchema = z.object({
+  skill: z.string(),
+  difficulty: z.string(),
+  questions: z.array(
+    z.object({
+      id: z.number(),
+      pillar: z.string().describe('One of: Syntax & Idioms, OOP & Paradigms, Collections & Data, Concurrency & Async, Architecture & Best Practices'),
+      question: z.string().describe('Clear scenario, code-reading problem, or architectural question'),
+      codeSnippet: z.string().describe('Optional code snippet or empty string'),
+      options: z.array(z.string()).length(4).describe('Exactly 4 distinct, plausible choices'),
+      correctAnswerIndex: z.number().int().min(0).max(3).describe('Zero-based index (0, 1, 2, or 3) of the correct answer'),
+      explanation: z.string().describe('Educational explanation of why this answer is correct and why other options fail'),
+    })
+  ).length(10),
 });
 
 // In-memory course cache to avoid redundant token spend and ensure sub-second response
@@ -276,13 +301,15 @@ function routerNode(state) {
 
 function routingFunction(state) {
   const routes = {
-    analyzeProfile:   'profileAnalyzer',
-    analyzeResume:    'resumeOptimizer',
-    chatTutor:        'chatTutor',
-    quiz:             'skillValidator',
-    validateSkill:    'skillValidator',
-    scrapeSkills:     'skillExtractor',
-    recommendCourses: 'courseRecommender',
+    analyzeProfile:    'profileAnalyzer',
+    analyzeResume:     'resumeOptimizer',
+    chatTutor:         'chatTutor',
+    quiz:              'skillValidator',
+    validateSkill:     'skillValidator',
+    scrapeSkills:      'skillExtractor',
+    recommendCourses:  'courseRecommender',
+    skillExam:         'skillExamValidator',
+    generateSkillExam: 'skillExamValidator',
   };
   return routes[state.action] || 'errorHandler';
 }
@@ -315,15 +342,15 @@ Student Profile:
 - Current Skills: ${isBeginnerMode ? '(Beginner — no skills listed)' : (skills || []).join(', ')}
 - Is Beginner: ${isBeginnerMode}
 
-Target Role: ${role?.role_name || 'Selected Career Goal'}
+Target Role: ${role?.role_name || ''}
 Role Description: ${role?.description || ''}
 Required Skills: ${reqSkillsStr}
 Priority Skills: ${prioSkillsStr}
 
-${resumeText ? `Resume Text (first 12000 chars):\n${resumeText.slice(0, 12000)}` : 'No resume provided.'}
+${resumeText ? `Resume Text (first 6000 chars):\n${resumeText.slice(0, 6000)}` : 'No resume provided.'}
 
 Provide a complete JSON assessment with:
-- career_role: "${role?.role_name || 'Selected Career Goal'}"
+- career_role: "${role?.role_name || ''}"
 - readiness_score: an integer from 0 to 100
 - score_breakdown: object with technical, resume, market_fit, profile_completeness (each an integer 0-100)
 - skills_have: array of matched skill strings that student already has
@@ -439,7 +466,7 @@ For score_breakdown, write ONE sentence explaining how you calculated each numer
 For reality_check_message, write a direct, honest, personalized 2-3 sentence career advice message.
 
 Resume Text:
-${extractedText.slice(0, 15000)}`;
+${extractedText.slice(0, 7000)}`;
 
   // Deterministic scoring model — temperature=0, topK=1
   const model = createScoringModel(apiKey, ATSSchema, preferredModel);
@@ -597,29 +624,55 @@ Provide:
     return { result: evaluation, agentName: 'GeminiSkillValidator' };
   }
 
-  // Generate challenges
-  const { targetRole, matchedSkills = [], missingSkills = [] } = studentContext;
-  const skillsHave = Array.isArray(matchedSkills) ? matchedSkills.join(', ') : (matchedSkills || '');
-  const skillsMissing = Array.isArray(missingSkills) ? missingSkills.join(', ') : (missingSkills || skill || '');
+  // Generate challenges dynamically for the student's exact target role and skill gaps
+  const { targetRole = '', matchedSkills = [], missingSkills = [] } = studentContext;
+  const skillsHave = Array.isArray(matchedSkills) ? matchedSkills.filter(Boolean).join(', ') : (matchedSkills || '');
+  const skillsMissing = Array.isArray(missingSkills) ? missingSkills.filter(Boolean).join(', ') : (missingSkills || skill || '');
 
-  const prompt = `You are an expert technical interviewer and mentor.
-The student is training for: ${targetRole || 'their chosen technical specialization'}
-Skills they already know: ${skillsHave || 'HTML, CSS'}
-Skills they are currently learning: ${skillsMissing || 'JavaScript, React'}
-Level: ${(level || 'Intermediate').toUpperCase()}
+  const sessionEntropy = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-Generate 5 coding challenges:
-- 3 should focus on their CURRENT learning goals (the skills they are learning)
-- 2 should test their EXISTING knowledge (spaced repetition)
+  const prompt = `You are an expert technical interviewer creating a dynamic, fresh daily technical challenge tailored specifically to what this student is currently learning.
+${targetRole ? `Target Career Role: ${targetRole}` : ''}
+${skillsMissing ? `Skills Student Is Actively Learning Right Now (Missing Skills / Gaps): ${skillsMissing}` : ''}
+${skillsHave ? `Skills Student Already Knows: ${skillsHave}` : ''}
+${level ? `Target Difficulty Level: ${level.toUpperCase()}` : ''}
+Session Variation Key: ${sessionEntropy}
 
-For each challenge provide:
-- id: sequential number (1-5)
-- title: short descriptive title
-- description: clear problem statement with constraints
-- startingCode: a starter code scaffold (function/class stub with comments)
-- language: one of javascript, html, css, or python (based on the challenge)`;
+CRITICAL DIVERSITY & NOVELTY INSTRUCTION:
+- Every question MUST be based directly on the skills and technologies the student is actively learning right now (${skillsMissing || skillsHave || targetRole}).
+- You MUST generate 100% FRESH, UNIQUE, AND DIVERSE questions every time.
+- DO NOT repeat standard cliché textbook questions (e.g. DO NOT ask basic "which hook is used for mounting / componentDidMount", basic syntax definitions, or generic trivia).
+- Explore diverse engineering areas: performance optimization, asynchronous flows, error handling, state architecture, edge cases, memory leaks, security, concurrency, native integration, or real-world debugging scenarios.
+- Do NOT default to any hardcoded language or role. Use the exact programming language, framework, or technology of the skill being tested (e.g. Kotlin, Swift, Dart, Python, TypeScript, Go, Rust, Java, SQL, C++, React Native, Docker, etc.).
 
-  const model = createStructuredModel(apiKey, QuizQuestionsSchema);
+Generate 5 dynamic technical evaluation questions:
+- Exactly 3 Multiple-Choice Questions ("type": "mcq"): Focus on conceptual depth, predicting code output, identifying bugs, or choosing the best architectural approach for the specific skills they are learning.
+- Exactly 2 Hands-on Coding Challenges ("type": "code"): Practical function implementation or algorithmic problem in the language of the skill they are learning.
+
+For each question:
+- id: 1 to 5
+- type: "mcq" or "code"
+- skill: The exact skill from their learning list being evaluated (e.g. "Kotlin", "SwiftUI", "Flutter", "Docker", "React Native", etc.)
+- language: The programming language or technology (e.g. "kotlin", "swift", "dart", "python", "typescript", "go", "java", "sql", etc.)
+- title: Short descriptive title
+- description: Clear problem statement or question
+
+IF type is "mcq":
+- startingCode: ""
+- codeSnippet: (Optional) 2-8 lines of code in that language if asking about output or bug analysis; otherwise empty string
+- options: Array of EXACTLY 4 distinct, plausible choices
+- correctAnswerIndex: Integer 0, 1, 2, or 3 pointing to the correct choice (0 = first option, 1 = second option, 2 = third option, 3 = fourth option)
+- explanation: Clear educational explanation of why the correct answer is right and why others are wrong
+
+IF type is "code":
+- startingCode: Starter code scaffold in the target language (function signature, parameters, comments)
+- codeSnippet: ""
+- options: []
+- correctAnswerIndex: 0
+- explanation: ""`;
+
+  const preferredModel = payload.preferredModel || 'gemini-3.5-flash';
+  const model = createStructuredModel(apiKey, QuizQuestionsSchema, preferredModel, { temperature: 0.85 });
   const quizResult = await model.invoke(prompt);
 
   return { result: { questions: quizResult.questions }, agentName: 'GeminiSkillValidator' };
@@ -821,7 +874,55 @@ For EACH skill, provide:
   }
 }
 
-// Node 7: Error Handler
+// Node 7: Skill Certification Exam Agent (10 Dynamic Scenario Questions across 5 Pillars)
+async function skillExamValidatorNode(state) {
+  const { payload } = state;
+  const { skill, difficulty = 'Intermediate', role = '', preferredModel, customApiKey } = payload;
+  const apiKey = customApiKey || process.env.GEMINI_API_KEY;
+
+  if (!skill) throw new Error('Skill name is required for skillExam');
+
+  const entropySeed = Math.random().toString(36).substring(2, 10) + '_' + Date.now();
+
+  const prompt = `You are a Principal Technical Interviewer and University Placement Assessor.
+Generate an official 10-Question Skill Certification Exam for the skill: "${skill}".
+
+Exam Specifications:
+- Skill: "${skill}"
+- Target Level: "${difficulty}" (Beginner = Core syntax, primitive types, control flow & fundamentals; Intermediate = Job-ready application, error handling, standard libraries & idioms; Advanced = Concurrency, internals, performance optimization, system design & production pitfalls)
+- Target Career Role: "${role || 'Software Engineer'}"
+- Dynamic Entropy Seed: ${entropySeed}
+
+Exam Distribution:
+Provide EXACTLY 10 multiple-choice questions distributed across these 5 Core Pillars (2 questions per pillar):
+1. Pillar 1: Syntax & Idioms (Language basics, typing, control flow, keywords)
+2. Pillar 2: OOP & Paradigms (Object-oriented/functional design, inheritance, interfaces, polymorphism, composition)
+3. Pillar 3: Collections & Data (Data structures, transformations, immutability, memory allocation)
+4. Pillar 4: Concurrency & Async (Threading, async/await, coroutines/promises, race conditions, event loops)
+5. Pillar 5: Architecture & Best Practices (Design patterns, clean code, error handling, edge cases, production pitfalls)
+
+Rules:
+- Questions must be real-world, practical scenarios or code snippets, NOT trivia or superficial definitions.
+- For each question:
+  * id: 1 to 10
+  * pillar: Exact pillar name (e.g. "Syntax & Idioms", "OOP & Paradigms", "Collections & Data", "Concurrency & Async", "Architecture & Best Practices")
+  * question: Clear question text or scenario description
+  * codeSnippet: Optional formatted code snippet (or empty string if not code-reading)
+  * options: Array of EXACTLY 4 distinct, plausible choices
+  * correctAnswerIndex: Integer (0, 1, 2, or 3) indicating the single correct answer
+  * explanation: Clear pedagogical explanation of why the correct option is right and why others are wrong
+- All questions MUST strictly match the requested difficulty level: ${difficulty}.`;
+
+  const model = createStructuredModel(apiKey, SkillExamSchema, preferredModel || 'gemini-3.5-flash', {
+    temperature: 0.85,
+    maxOutputTokens: 4000,
+  });
+
+  const exam = await model.invoke(prompt);
+  return { result: exam, agentName: 'GeminiSkillExamValidator' };
+}
+
+// Node 8: Error Handler
 function errorHandlerNode(state) {
   return { error: `Unrecognized action: "${state.action}"`, result: null };
 }
@@ -839,34 +940,37 @@ function buildAgentGraph() {
     },
   });
 
-  graph.addNode('router',            routerNode);
-  graph.addNode('profileAnalyzer',   profileAnalyzerNode);
-  graph.addNode('resumeOptimizer',   resumeOptimizerNode);
-  graph.addNode('chatTutor',         chatTutorNode);
-  graph.addNode('skillValidator',    skillValidatorNode);
-  graph.addNode('skillExtractor',    skillExtractorNode);
-  graph.addNode('courseRecommender', courseRecommenderNode);
-  graph.addNode('errorHandler',      errorHandlerNode);
+  graph.addNode('router',             routerNode);
+  graph.addNode('profileAnalyzer',    profileAnalyzerNode);
+  graph.addNode('resumeOptimizer',    resumeOptimizerNode);
+  graph.addNode('chatTutor',          chatTutorNode);
+  graph.addNode('skillValidator',     skillValidatorNode);
+  graph.addNode('skillExtractor',     skillExtractorNode);
+  graph.addNode('courseRecommender',  courseRecommenderNode);
+  graph.addNode('skillExamValidator', skillExamValidatorNode);
+  graph.addNode('errorHandler',       errorHandlerNode);
 
   graph.setEntryPoint('router');
 
   graph.addConditionalEdges('router', routingFunction, {
-    profileAnalyzer:   'profileAnalyzer',
-    resumeOptimizer:   'resumeOptimizer',
-    chatTutor:         'chatTutor',
-    skillValidator:    'skillValidator',
-    skillExtractor:    'skillExtractor',
-    courseRecommender: 'courseRecommender',
-    errorHandler:      'errorHandler',
+    profileAnalyzer:    'profileAnalyzer',
+    resumeOptimizer:    'resumeOptimizer',
+    chatTutor:          'chatTutor',
+    skillValidator:     'skillValidator',
+    skillExtractor:     'skillExtractor',
+    courseRecommender:  'courseRecommender',
+    skillExamValidator: 'skillExamValidator',
+    errorHandler:       'errorHandler',
   });
 
-  graph.addEdge('profileAnalyzer',   END);
-  graph.addEdge('resumeOptimizer',   END);
-  graph.addEdge('chatTutor',         END);
-  graph.addEdge('skillValidator',    END);
-  graph.addEdge('skillExtractor',    END);
-  graph.addEdge('courseRecommender', END);
-  graph.addEdge('errorHandler',      END);
+  graph.addEdge('profileAnalyzer',    END);
+  graph.addEdge('resumeOptimizer',    END);
+  graph.addEdge('chatTutor',          END);
+  graph.addEdge('skillValidator',     END);
+  graph.addEdge('skillExtractor',     END);
+  graph.addEdge('courseRecommender',  END);
+  graph.addEdge('skillExamValidator', END);
+  graph.addEdge('errorHandler',       END);
 
   return graph.compile();
 }

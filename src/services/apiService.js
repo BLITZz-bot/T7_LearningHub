@@ -145,3 +145,16 @@ export const logQuizActivity = async (userId, date, questionsSolved, totalScore)
   return res.activity || null;
 };
 
+// ----------------------------------------------------------------
+// 8. Skill Certifications & Exam Progress (Supabase Sync)
+// ----------------------------------------------------------------
+export const saveSkillCertification = async (userId, certData) => {
+  const res = await callDbProxy('saveCertification', { userId, certData });
+  return res.certification || certData;
+};
+
+export const fetchSkillCertifications = async (userId) => {
+  const res = await callDbProxy('getCertifications', { userId });
+  return res.certifications || {};
+};
+

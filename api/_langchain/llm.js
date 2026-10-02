@@ -55,13 +55,15 @@ export function createChatModel(primaryModelId, apiKey, opts = {}) {
 }
 
 // ─── Factory: Structured output model with fallback chain ────────────────────
-export function createStructuredModel(apiKey, zodSchema, preferredModelId = null) {
+export function createStructuredModel(apiKey, zodSchema, preferredModelId = null, opts = {}) {
   let ids = [...ORDERED_MODELS];
   if (preferredModelId && preferredModelId !== 'auto') {
     ids = [preferredModelId, ...ORDERED_MODELS.filter(id => id !== preferredModelId)];
   }
+  const temperature = opts.temperature ?? 0.1;
+  const maxOutputTokens = opts.maxOutputTokens ?? 2500;
   const [primary, ...rest] = ids.map(id =>
-    createModel(id, apiKey, { temperature: 0.1, maxOutputTokens: 2500 }).withStructuredOutput(zodSchema)
+    createModel(id, apiKey, { temperature, maxOutputTokens, ...opts }).withStructuredOutput(zodSchema)
   );
   return primary.withFallbacks({ fallbacks: rest });
 }

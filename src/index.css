@@ -18,6 +18,23 @@ h1, h2, h3, h4, h5, h6 {
   @apply font-bold tracking-tight text-zinc-900;
 }
 
+/* Inherit text color inside dark containers */
+.text-white h1, .text-white h2, .text-white h3, .text-white h4, .text-white h5, .text-white h6,
+[class*="bg-zinc-9"] h1, [class*="bg-zinc-9"] h2, [class*="bg-zinc-9"] h3, [class*="bg-zinc-9"] h4, [class*="bg-zinc-9"] h5, [class*="bg-zinc-9"] h6,
+[class*="bg-zinc-8"] h1, [class*="bg-zinc-8"] h2, [class*="bg-zinc-8"] h3, [class*="bg-zinc-8"] h4, [class*="bg-zinc-8"] h5, [class*="bg-zinc-8"] h6 {
+  color: inherit;
+}
+
+/* Explicit high-contrast typography scoped strictly to the skill certification exam modal */
+.skill-exam-modal h1,
+.skill-exam-modal h2,
+.skill-exam-modal h3,
+.skill-exam-modal h4,
+.skill-exam-modal h5,
+.skill-exam-modal h6 {
+  color: #09090b !important;
+}
+
 p {
   @apply text-zinc-600;
 }
