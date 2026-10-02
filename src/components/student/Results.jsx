@@ -926,72 +926,6 @@ const Results = () => {
 
 
 
-  // Portfolio: Option 1 True Exam Progress
-  // Core skills start at 75% ('Self-Reported • Unverified').
-  // Gap skills start at 0% ('Not Started • Take Exam').
-  // When an exam is taken under 80%, progress displays the actual exam score (e.g. 50%).
-  // When an exam is passed (>= 80%), progress advances to 100% ('Certified & Verified').
-  const portfolioCourses = [
-    ...userSkills.slice(0, 6).map((skill) => {
-      const skillName = typeof skill === 'string' ? skill : skill.name || skill;
-      const cert = certifications[skillName?.toLowerCase()] || certifications[skillName];
-      const isCertified = !!(cert && (cert.score >= 80 || cert.passed));
-      const hasAttempted = !!(cert && !isCertified && cert.score !== undefined);
-      const targetTier = 'Intermediate';
-      const latestTier = cert?.tier || targetTier;
-      const latestScore = cert?.score !== undefined ? cert.score : null;
-
-      return {
-        name: skillName,
-        type: 'core',
-        progress: isCertified ? 100 : (hasAttempted ? Math.max(0, cert.score) : 75),
-        status: isCertified ? 'Certified & Verified' : (hasAttempted ? `Scored: ${cert.score}% • Retake to Certify` : 'Self-Reported • Unverified'),
-        certified: isCertified,
-        attempted: hasAttempted,
-        targetTier,
-        latestTier,
-        latestScore,
-        verifiedTier: cert?.tier || targetTier,
-        verifiedScore: latestScore,
-        credentialId: cert?.credentialId || null,
-        passedAt: cert?.passedAt || null,
-      };
-    }),
-    ...missing_skills.slice(0, 6).map((skill) => {
-      const skillName = typeof skill === 'string' ? skill : skill.name || skill;
-      const cert = certifications[skillName?.toLowerCase()] || certifications[skillName];
-      const isCertified = !!(cert && (cert.score >= 80 || cert.passed));
-      const hasAttempted = !!(cert && !isCertified && cert.score !== undefined);
-      const targetTier = 'Beginner';
-      const latestTier = cert?.tier || targetTier;
-      const latestScore = cert?.score !== undefined ? cert.score : null;
-
-      return {
-        name: skillName,
-        type: 'gap',
-        progress: isCertified ? 100 : (hasAttempted ? Math.max(0, cert.score) : 0),
-        status: isCertified ? 'Certified & Verified' : (hasAttempted ? `Scored: ${cert.score}% • Retake to Certify` : 'Not Started'),
-        certified: isCertified,
-        attempted: hasAttempted,
-        targetTier,
-        latestTier,
-        latestScore,
-        verifiedTier: cert?.tier || targetTier,
-        verifiedScore: latestScore,
-        credentialId: cert?.credentialId || null,
-        passedAt: cert?.passedAt || null,
-      };
-    }),
-  ];
-
-  const totalPortfolioCourses = portfolioCourses.length;
-  const certifiedPortfolioCourses = portfolioCourses.filter((c) => c.certified).length;
-  const completedPortfolioCourses = portfolioCourses.filter((c) => c.progress === 100).length;
-  const inProgressPortfolioCourses = portfolioCourses.filter((c) => c.progress < 100).length;
-  const avgPortfolioProgress = totalPortfolioCourses > 0
-    ? Math.round(portfolioCourses.reduce((sum, c) => sum + c.progress, 0) / totalPortfolioCourses)
-    : 0;
-
   // Show the user's actual skills as strengths, AI gaps as learning targets
   const strengthCourses = userSkills.slice(0, 4).map(s => typeof s === 'string' ? s : s.name || s);
   const uncertifiedMissing = missing_skills
@@ -1000,6 +934,8 @@ const Results = () => {
   const learningCourses = uncertifiedMissing.length > 0
     ? uncertifiedMissing.slice(0, 4)
     : (missing_skills.length > 0 ? [missing_skills[0]] : ['All Certified! 🎉']);
+
+  // Unified master skill catalog: Every single skill (core & gaps) with zero truncation
   const allTargetSkills = [
     ...missing_skills.map(s => ({
       name: typeof s === 'string' ? s : s.name || s,
@@ -1014,6 +950,46 @@ const Results = () => {
   ].filter((item, idx, self) =>
     item.name && idx === self.findIndex(t => t.name.toLowerCase() === item.name.toLowerCase())
   );
+
+  // Portfolio: Option 1 True Exam Progress
+  // Synchronized 1:1 with allTargetSkills (Skill Exams list)
+  // Core skills start at 75% ('Self-Reported • Unverified').
+  // Gap skills start at 0% ('Not Started').
+  // When an exam is taken under 80%, progress displays the actual exam score (e.g. 50%).
+  // When an exam is passed (>= 80%), progress advances to 100% ('Certified & Verified').
+  const portfolioCourses = allTargetSkills.map((item) => {
+    const skillName = item.name;
+    const cert = certifications[skillName?.toLowerCase()] || certifications[skillName];
+    const isCertified = !!(cert && (cert.score >= 80 || cert.passed));
+    const hasAttempted = !!(cert && !isCertified && cert.score !== undefined);
+    const targetTier = item.type === 'gap' ? 'Beginner' : 'Intermediate';
+    const latestTier = cert?.tier || targetTier;
+    const latestScore = cert?.score !== undefined ? cert.score : null;
+
+    return {
+      name: skillName,
+      type: item.type,
+      progress: isCertified ? 100 : (hasAttempted ? Math.max(0, cert.score) : (item.type === 'core' ? 75 : 0)),
+      status: isCertified ? 'Certified & Verified' : (hasAttempted ? `Scored: ${cert.score}% • Retake to Certify` : (item.type === 'core' ? 'Self-Reported • Unverified' : 'Not Started')),
+      certified: isCertified,
+      attempted: hasAttempted,
+      targetTier,
+      latestTier,
+      latestScore,
+      verifiedTier: cert?.tier || targetTier,
+      verifiedScore: latestScore,
+      credentialId: cert?.credentialId || null,
+      passedAt: cert?.passedAt || null,
+    };
+  });
+
+  const totalPortfolioCourses = portfolioCourses.length;
+  const certifiedPortfolioCourses = portfolioCourses.filter((c) => c.certified).length;
+  const completedPortfolioCourses = portfolioCourses.filter((c) => c.progress === 100).length;
+  const inProgressPortfolioCourses = portfolioCourses.filter((c) => c.progress < 100).length;
+  const avgPortfolioProgress = totalPortfolioCourses > 0
+    ? Math.round(portfolioCourses.reduce((sum, c) => sum + c.progress, 0) / totalPortfolioCourses)
+    : 0;
 
   const getScoreColor = (score) => {
     if (score >= 70) return 'text-emerald-500';
@@ -3946,7 +3922,7 @@ const Results = () => {
                     <p className="text-[11px] text-zinc-300 font-medium">Verified Skills</p>
                   </div>
                   <div className="bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/10 text-center">
-                    <p className="text-2xl font-black text-emerald-300">70%</p>
+                    <p className="text-2xl font-black text-emerald-300">80%</p>
                     <p className="text-[11px] text-zinc-300 font-medium">Passing Cutoff</p>
                   </div>
                   <div className="bg-white/10 backdrop-blur-md rounded-xl px-4 py-2 border border-white/10 text-center">
@@ -3962,7 +3938,7 @@ const Results = () => {
               {allTargetSkills.map((item, idx) => {
                 const cleanName = item.name;
                 const cert = certifications[cleanName.toLowerCase()] || certifications[cleanName];
-                const isVerified = cert && cert.score >= 70;
+                const isVerified = !!(cert && (cert.score >= 80 || cert.passed));
                 const currentTier = skillExamTiers[cleanName] || cert?.tier || 'Intermediate';
 
                 return (
