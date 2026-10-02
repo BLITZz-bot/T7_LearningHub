@@ -14,7 +14,7 @@ import {
   Upload, RefreshCw
 } from 'lucide-react';
 import { analyzeResumeGemini } from '../../services/geminiAtsService';
-import { getLatestAnalysis, getVideoLearning, getVideoLearningSkills, saveResumeScan, getResumeHistory, fetchQuizActivity, saveSkillCertification, fetchSkillCertifications } from '../../services/apiService';
+import { getLatestAnalysis, getVideoLearning, getVideoLearningSkills, saveResumeScan, getResumeHistory, fetchQuizActivity, logQuizActivity, saveSkillCertification, fetchSkillCertifications } from '../../services/apiService';
 import { getCourseRecommendations, generateSkillCertificationExam } from '../../services/geminiAgentService';
 import { industryRoles } from '../../data/industrySkills';
 import YouTubeTrackerModal from './YouTubeTrackerModal';
@@ -777,6 +777,16 @@ const Results = () => {
         attemptedAt: result.passedAt,
         passedAt: passed ? result.passedAt : null,
       }).catch(err => console.warn('Supabase certification sync note:', err));
+
+      // Also sync to Daily Learning Activity Heatmap (Score, Solved, Streak)
+      const todayStr = new Date().toISOString().split('T')[0];
+      const existingToday = (quizActivities || []).find(a => a.date === todayStr);
+      const newSolved = (existingToday?.questions_solved || 0) + (examQuestions?.length || 10);
+      const newScore = (existingToday?.total_score || 0) + (scorePercent * 5);
+      logQuizActivity(targetUserId, todayStr, newSolved, newScore)
+        .then(() => fetchQuizActivity(targetUserId))
+        .then(updated => { if (updated && Array.isArray(updated)) setQuizActivities(updated); })
+        .catch(err => console.warn('Learning activity log note:', err));
     }
   };
 
