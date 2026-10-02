@@ -263,3 +263,25 @@ export const getCourseRecommendations = async ({
   return data.result?.recommendations || [];
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// AGENT 6: Skill Certification Exam Agent (10-Question 5-Pillar Assessment)
+// ─────────────────────────────────────────────────────────────────────────────
+export const generateSkillCertificationExam = async ({
+  skill,
+  difficulty = 'Intermediate',
+  role = '',
+  userId = null,
+  preferredModel = 'gemini-3.5-flash',
+  customApiKey = null,
+}) => {
+  const data = await callAgentProxy('skillExam', {
+    skill,
+    difficulty,
+    role,
+    userId,
+    preferredModel,
+    customApiKey,
+  });
+  return data.result;
+};
+
