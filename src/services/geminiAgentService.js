@@ -4,8 +4,8 @@
 /**
  * Gemini AI Agent Service — T7 Learning Hub
  *
- * All multi-agent operations are proxied through /api/gemini-agent
- * (or legacy /api/lyzr fallback), keeping API keys strictly server-side.
+ * All multi-agent operations are proxied through /api/gemini-agent,
+ * keeping API keys strictly server-side.
  * Powered by LangGraph + Google Gemini (default: gemini-3.6-flash).
  *
  * Agents:
@@ -271,7 +271,7 @@ export const generateSkillCertificationExam = async ({
   difficulty = 'Intermediate',
   role = '',
   userId = null,
-  preferredModel = 'gemini-3.5-flash',
+  preferredModel = 'gemini-3.1-flash-lite',
   customApiKey = null,
 }) => {
   const data = await callAgentProxy('skillExam', {
@@ -279,7 +279,7 @@ export const generateSkillCertificationExam = async ({
     difficulty,
     role,
     userId,
-    preferredModel,
+    preferredModel: preferredModel || 'gemini-3.1-flash-lite',
     customApiKey,
   });
   return data.result;

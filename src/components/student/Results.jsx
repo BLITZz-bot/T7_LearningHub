@@ -58,9 +58,19 @@ const Results = () => {
   const { currentUser, userProfile, logout } = useAuth();
   const [expandedMonth, setExpandedMonth] = useState(0);
   const [activeTab, setActiveTab] = useState('home');
+  const [hasVisitedCodeArena, setHasVisitedCodeArena] = useState(false);
+  // Pre-fetched questions for Code Arena — fetched in background on page load so
+  // the tab renders instantly instead of waiting for a cold Gemini call.
+  const [prefetchedCodeArenaQuestions, setPrefetchedCodeArenaQuestions] = useState([]);
   const [selectedRoadmap, setSelectedRoadmap] = useState(null);
   const [selectedVideoCourse, setSelectedVideoCourse] = useState(null);
   const [viewMode, setViewMode] = useState('skill'); // 'skill' or 'academic'
+
+  useEffect(() => {
+    if (activeTab === 'code-arena') {
+      setHasVisitedCodeArena(true);
+    }
+  }, [activeTab]);
 
   // YouTube Tracker & Extension Sync state
   const [videoLearning, setVideoLearning] = useState([]);
@@ -189,7 +199,52 @@ const Results = () => {
     fetchLatestIfMissing();
   }, [currentUser?.uid, analysis]);
 
+  // ── Background pre-fetch for Code Arena ────────────────────────────────────
+  // Fires ~3 seconds after the page loads so that by the time the student clicks
+  // the Code Arena tab, questions are already ready. Runs only when we have
+  // analysis data (skills) available, and skips if questions are already cached.
+  useEffect(() => {
+    if (prefetchedCodeArenaQuestions.length > 0) return; // already prefetched
+    const missingSkillsDerived = (
+      analysis?.missing_skills || analysis?.skills_missing || []
+    ).map(s => typeof s === 'string' ? s : (s?.skill || s?.name || '')).filter(Boolean);
+    const matchedSkillsDerived = analysis?.matched_skills || analysis?.skills_have || [];
+    const roleName = analysis?.career_role || role?.role_name || '';
+    if (!roleName && missingSkillsDerived.length === 0) return; // no data yet
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/quiz', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'generate',
+            preferredModel: userProfile?.geminiModel || 'gemini-3.1-flash-lite',
+            studentContext: {
+              ...(userProfile || {}),
+              targetRole: roleName,
+              matchedSkills: matchedSkillsDerived,
+              missingSkills: missingSkillsDerived,
+            },
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.questions?.length > 0) {
+            setPrefetchedCodeArenaQuestions(data.questions);
+          }
+        }
+      } catch (_) {
+        // Silent fail — CodeArena will fetch on its own if pre-fetch missed
+      }
+    }, 3000); // 3-second delay so it doesn't compete with above-fold data loads
+
+    return () => clearTimeout(timer);
+  }, [analysis?.career_role, role?.role_name]);
+  // ───────────────────────────────────────────────────────────────────────────
+
   // Back to setup handler: sets student view to 'setup' so next reload/login opens setup
+
   const handleBackToSetup = () => {
     if (currentUser?.uid) {
       localStorage.setItem(`t7_student_view_${currentUser.uid}`, 'setup');
@@ -682,6 +737,7 @@ const Results = () => {
         difficulty: tier,
         role: role?.role_name || analysis?.career_role || 'Software Engineer',
         userId: currentUser?.uid,
+        preferredModel: userProfile?.geminiModel || 'gemini-3.1-flash-lite',
       });
 
       if (!examData?.questions || examData.questions.length === 0) {
@@ -2661,14 +2717,17 @@ const Results = () => {
           </div>
         )}
 
-        {/* Code Arena Tab */}
-        {activeTab === 'code-arena' && (
-          <CodeArena 
-            profile={userProfile} 
-            targetRole={role?.role_name || analysis?.career_role}
-            matchedSkills={matched_skills}
-            missingSkills={missing_skills}
-          />
+        {/* Code Arena Tab — kept mounted once visited so switching tabs is instant and preserves state */}
+        {(hasVisitedCodeArena || activeTab === 'code-arena') && (
+          <div className={activeTab === 'code-arena' ? 'block' : 'hidden'}>
+            <CodeArena 
+              profile={userProfile} 
+              targetRole={role?.role_name || analysis?.career_role}
+              matchedSkills={matched_skills}
+              missingSkills={missing_skills}
+              prefetchedQuestions={prefetchedCodeArenaQuestions}
+            />
+          </div>
         )}
 
         {/* TAB: Roadmap */}

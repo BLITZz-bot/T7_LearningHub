@@ -58,7 +58,7 @@ function apiDevMiddlewarePlugin(env) {
           return;
         }
 
-        if (urlObj.pathname === '/api/gemini-agent' || urlObj.pathname === '/api/lyzr') {
+        if (urlObj.pathname === '/api/gemini-agent') {
           handleBodyRequest(geminiAgentHandler);
           return;
         }

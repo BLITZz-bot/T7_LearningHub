@@ -469,7 +469,7 @@ Resume Text:
 ${extractedText.slice(0, 7000)}`;
 
   // Deterministic scoring model — temperature=0, topK=1
-  const model = createScoringModel(apiKey, ATSSchema, preferredModel);
+  const model = createScoringModel(apiKey, ATSSchema, preferredModel || 'gemini-3.1-flash-lite');
   let result;
 
   try {
@@ -541,7 +541,7 @@ async function chatTutorNode(state) {
 
   if (!message?.trim()) throw new Error('message is required for chatTutor');
 
-  const activeModelKey = MODEL_REGISTRY[requestedModel] ? requestedModel : 'gemini-3.6-flash';
+  const activeModelKey = MODEL_REGISTRY[requestedModel] ? requestedModel : 'gemini-3.1-flash-lite';
   const systemPrompt = buildMentorSystemPrompt(studentContext);
 
   const model = createChatModel(activeModelKey, apiKey, { maxOutputTokens: 1024 });
@@ -618,7 +618,7 @@ Provide:
 - feedback: specific, constructive feedback explaining what went right or wrong
 - optimalSolution: the best/cleanest way to write this solution`;
 
-    const model = createStructuredModel(apiKey, QuizEvaluationSchema);
+    const model = createStructuredModel(apiKey, QuizEvaluationSchema, payload.preferredModel || 'gemini-3.1-flash-lite');
     const evaluation = await model.invoke(prompt);
 
     return { result: evaluation, agentName: 'GeminiSkillValidator' };
@@ -671,7 +671,7 @@ IF type is "code":
 - correctAnswerIndex: 0
 - explanation: ""`;
 
-  const preferredModel = payload.preferredModel || 'gemini-3.5-flash';
+  const preferredModel = payload.preferredModel || 'gemini-3.1-flash-lite';
   const model = createStructuredModel(apiKey, QuizQuestionsSchema, preferredModel, { temperature: 0.85 });
   const quizResult = await model.invoke(prompt);
 
@@ -913,7 +913,7 @@ Rules:
   * explanation: Clear pedagogical explanation of why the correct option is right and why others are wrong
 - All questions MUST strictly match the requested difficulty level: ${difficulty}.`;
 
-  const model = createStructuredModel(apiKey, SkillExamSchema, preferredModel || 'gemini-3.5-flash', {
+  const model = createStructuredModel(apiKey, SkillExamSchema, preferredModel || 'gemini-3.1-flash-lite', {
     temperature: 0.85,
     maxOutputTokens: 4000,
   });

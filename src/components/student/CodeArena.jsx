@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { 
   Play, 
   CheckCircle, 
@@ -16,10 +16,13 @@ import {
   Send,
   AlertCircle
 } from 'lucide-react';
-import Editor from '@monaco-editor/react';
+// Lazy-load Monaco Editor — it's ~2MB and only needed when a code question is visible.
+// This prevents it from blocking the initial Code Arena render.
+const Editor = lazy(() => import('@monaco-editor/react'));
 import { logQuizActivity, fetchQuizActivity } from '../../services/apiService';
 
-export default function CodeArena({ profile, targetRole, matchedSkills, missingSkills }) {
+// prefetchedQuestions: optionally passed by Results.jsx after background pre-fetch
+export default function CodeArena({ profile, targetRole, matchedSkills, missingSkills, prefetchedQuestions }) {
   const [questions, setQuestions] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -52,6 +55,7 @@ export default function CodeArena({ profile, targetRole, matchedSkills, missingS
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'generate',
+          preferredModel: profile?.geminiModel || 'gemini-3.1-flash-lite',
           studentContext: {
             ...(profile || {}),
             targetRole: targetRole || profile?.targetRole || '',
@@ -72,10 +76,40 @@ export default function CodeArena({ profile, targetRole, matchedSkills, missingS
     setLoading(false);
   };
 
+  // Stabilize skillsDep with useMemo so that new array references from the parent
+  // (e.g. Results.jsx re-renders) don't trigger a spurious re-fetch of questions.
+  const skillsDep = useMemo(
+    () => JSON.stringify(missingSkills) + '_' + JSON.stringify(matchedSkills),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(missingSkills), JSON.stringify(matchedSkills)]
+  );
+
   // Sync today's activity on mount or when skills/role change
-  const skillsDep = JSON.stringify(missingSkills) + '_' + JSON.stringify(matchedSkills);
   useEffect(() => {
     const initDailyStatus = async () => {
+      // If the parent already pre-fetched questions, use them immediately — skip the
+      // cold Gemini call entirely and only verify today's activity count.
+      if (prefetchedQuestions?.length > 0 && questions.length === 0) {
+        setQuestions(prefetchedQuestions);
+        setUserCode(prefetchedQuestions[0].startingCode || '');
+        setCurrentIdx(0);
+        // Still check daily completion status, but no AI call needed
+        if (profile?.id) {
+          const activities = await fetchQuizActivity(profile.id);
+          const todayStr = new Date().toISOString().split('T')[0];
+          const todayActivity = activities.find(a => a.date === todayStr);
+          if (todayActivity) {
+            setDailySolved(todayActivity.questions_solved || 0);
+            setDailyScore(todayActivity.total_score || 0);
+            if (todayActivity.questions_solved >= 5) {
+              setDailyCompleted(true);
+            }
+          }
+        }
+        setLoading(false);
+        return;
+      }
+
       if (profile?.id) {
         const activities = await fetchQuizActivity(profile.id);
         const todayStr = new Date().toISOString().split('T')[0];
@@ -131,6 +165,7 @@ export default function CodeArena({ profile, targetRole, matchedSkills, missingS
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'evaluate',
+          preferredModel: profile?.geminiModel || 'gemini-3.1-flash-lite',
           submittedCode: userCode,
           question: currentQuestion
         })
@@ -583,22 +618,31 @@ export default function CodeArena({ profile, targetRole, matchedSkills, missingS
           /* Monaco Code Editor View */
           <>
             <div className="flex-1 relative min-h-[400px]">
-              <Editor
-                height="100%"
-                defaultLanguage="javascript"
-                language={currentQuestion?.language?.toLowerCase() || 'javascript'}
-                theme="vs-dark"
-                value={userCode}
-                onChange={handleEditorChange}
-                options={{
-                  minimap: { enabled: false },
-                  fontSize: 15,
-                  padding: { top: 20 },
-                  scrollBeyondLastLine: false,
-                  roundedSelection: false,
-                  fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
-                }}
-              />
+              <Suspense fallback={
+                <div className="flex items-center justify-center h-full bg-zinc-900 min-h-[400px] rounded-xl">
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-7 h-7 text-indigo-400 animate-spin" />
+                    <span className="text-zinc-400 text-sm font-medium">Loading editor…</span>
+                  </div>
+                </div>
+              }>
+                <Editor
+                  height="100%"
+                  defaultLanguage="javascript"
+                  language={currentQuestion?.language?.toLowerCase() || 'javascript'}
+                  theme="vs-dark"
+                  value={userCode}
+                  onChange={handleEditorChange}
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 15,
+                    padding: { top: 20 },
+                    scrollBeyondLastLine: false,
+                    roundedSelection: false,
+                    fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+                  }}
+                />
+              </Suspense>
             </div>
 
             <div className="p-4 bg-zinc-900 border-t border-zinc-800 flex items-center justify-between gap-3 flex-wrap">
