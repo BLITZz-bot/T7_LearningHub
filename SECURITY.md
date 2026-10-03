@@ -2,7 +2,7 @@
 
 ## 👤 Author & Ownership Notice
 
-**T7 Learning Hub (USEReady Edition)** is designed, architected, and built by **M M Bharath**.
+**T7 Learning Hub** is designed, architected, and built by **M M Bharath**.
 
 All rights reserved. The architecture, source code, user interfaces, branding, custom prompts, algorithms, and integration pipelines are the proprietary intellectual property of **M M Bharath**.
 
