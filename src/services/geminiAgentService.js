@@ -271,7 +271,7 @@ export const generateSkillCertificationExam = async ({
   difficulty = 'Intermediate',
   role = '',
   userId = null,
-  preferredModel = 'gemini-3.5-flash',
+  preferredModel = 'gemini-3.1-flash-lite',
   customApiKey = null,
 }) => {
   const data = await callAgentProxy('skillExam', {
@@ -279,7 +279,7 @@ export const generateSkillCertificationExam = async ({
     difficulty,
     role,
     userId,
-    preferredModel,
+    preferredModel: preferredModel || 'gemini-3.1-flash-lite',
     customApiKey,
   });
   return data.result;

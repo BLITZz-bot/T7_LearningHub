@@ -52,6 +52,7 @@ export default function CodeArena({ profile, targetRole, matchedSkills, missingS
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'generate',
+          preferredModel: profile?.geminiModel || 'gemini-3.1-flash-lite',
           studentContext: {
             ...(profile || {}),
             targetRole: targetRole || profile?.targetRole || '',
@@ -131,6 +132,7 @@ export default function CodeArena({ profile, targetRole, matchedSkills, missingS
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'evaluate',
+          preferredModel: profile?.geminiModel || 'gemini-3.1-flash-lite',
           submittedCode: userCode,
           question: currentQuestion
         })

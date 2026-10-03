@@ -682,6 +682,7 @@ const Results = () => {
         difficulty: tier,
         role: role?.role_name || analysis?.career_role || 'Software Engineer',
         userId: currentUser?.uid,
+        preferredModel: userProfile?.geminiModel || 'gemini-3.1-flash-lite',
       });
 
       if (!examData?.questions || examData.questions.length === 0) {

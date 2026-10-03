@@ -12,23 +12,23 @@
 
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 
-// ─── Model Registry (Aligned strictly to screenshot models) ────────────────────
+// ─── Model Registry (Ordered strictly from fastest response to highest reasoning) ───
 export const MODEL_REGISTRY = {
-  'gemini-3.6-flash':       { name: 'Gemini 3.6 Flash',       tag: '⚖️ Default (Balanced)' },
-  'gemini-3.5-flash':       { name: 'Gemini 3.5 Flash',       tag: '⚡ Stable Fallback' },
-  'gemini-3.1-flash-lite':  { name: 'Gemini 3.1 Flash Lite',  tag: '🪶 Default / Fastest' },
-  'gemini-3.7-flash':       { name: 'Gemini 3.7 Flash',       tag: '⚡ Ultra Fast Reasoning' },
-  'gemini-3.8-flash':       { name: 'Gemini 3.8 Flash',       tag: '🚀 Next-Gen Flagship' },
+  'gemini-3.1-flash-lite':  { name: 'Gemini 3.1 Flash Lite',  tag: '🪶 Fastest (Ultra Low Latency)' },
+  'gemini-3.5-flash':       { name: 'Gemini 3.5 Flash',       tag: '⚡ Fast & Reliable Fallback' },
+  'gemini-3.6-flash':       { name: 'Gemini 3.6 Flash',       tag: '⚖️ Balanced Speed & Reasoning' },
+  'gemini-3.7-flash':       { name: 'Gemini 3.7 Flash',       tag: '⚡ Advanced Fast Reasoning' },
+  'gemini-3.8-flash':       { name: 'Gemini 3.8 Flash',       tag: '🚀 Next-Gen Flagship Intelligence' },
   'gemini-3.1-pro-preview': { name: 'Gemini 3.1 Pro Preview', tag: '🧠 Deep Intelligence (Paid Tier)' },
 };
 
-// Fallback order: starts with default Gemini 3.5 Flash, followed by the rest
+// Fallback order: strictly ordered from fastest response to highest intelligence
 const ORDERED_MODELS = [
-  'gemini-3.5-flash',
-  'gemini-3.6-flash',
-  'gemini-3.1-flash-lite',
-  'gemini-3.7-flash',
-  'gemini-3.8-flash',
+  'gemini-3.1-flash-lite', // #1 Fastest (~200ms TTFT, highest tokens/sec)
+  'gemini-3.5-flash',      // #2 Fast & stable fallback
+  'gemini-3.6-flash',      // #3 Balanced fallback
+  'gemini-3.7-flash',      // #4 Complex reasoning fallback
+  'gemini-3.8-flash',      // #5 Flagship reasoning fallback
 ];
 
 // ─── Factory: Single model ────────────────────────────────────────────────────
@@ -46,7 +46,7 @@ export function createModel(modelId, apiKey, opts = {}) {
 
 // ─── Factory: Chat model with automatic fallback ──────────────────────────────
 export function createChatModel(primaryModelId, apiKey, opts = {}) {
-  const selected = primaryModelId || 'gemini-3.5-flash';
+  const selected = primaryModelId || 'gemini-3.1-flash-lite';
   const primary = createModel(selected, apiKey, opts);
   const fallbacks = ORDERED_MODELS
     .filter(id => id !== selected)

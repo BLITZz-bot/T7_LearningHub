@@ -20,7 +20,7 @@ export const analyzeResumeGemini = async ({
   studentContext = {},
   userId = null,
   customApiKey = null,
-  preferredModel = null,
+  preferredModel = 'gemini-3.1-flash-lite',
 }) => {
   if (!resumeFile) throw new Error('Resume file is required');
 
