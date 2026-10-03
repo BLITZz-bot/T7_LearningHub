@@ -270,12 +270,7 @@ Create a `.env` file in the project root based on `.env.example`:
 # --- DeepTutor / Academic Mode ---
 VITE_DEEPTUTOR_URL=http://localhost:3782
 
-# --- LYZR AI AGENTS (Server-Only — https://agent.lyzr.ai) ---
-LYZR_API_KEY=your_lyzr_api_key_here
-LYZR_AGENT_PROFILE=your_profile_analyzer_agent_id
-LYZR_AGENT_RESUME=your_resume_optimizer_agent_id
-LYZR_AGENT_TUTOR=your_tutor_agent_id
-LYZR_AGENT_VALIDATOR=your_skill_validator_agent_id
+
 
 # --- LIVE JOB MARKET AGGREGATORS (Server-Only) ---
 RAPIDAPI_KEY=your_rapidapi_key_here
@@ -313,9 +308,9 @@ npm run build
 
 ## 👥 Engineering & Research Team
 
-* **Abhishek** — *Lead Architect & Extension Developer*
-* **Nithelan** — *Frontend & UX Specialist*
-* **Bharath** — *AI & Systems Engineer*
+* **Abhishek** — *Extension Developer*
+* **Nithelan** — *Frontend & UX Designer*
+* **Bharath** — *AI & Archietect Engineer*
 * **Abdul** — *Data Scientist & Research*
 
 ---
