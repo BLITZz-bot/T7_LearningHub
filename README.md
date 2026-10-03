@@ -355,19 +355,3 @@ npm run build
 2. Enable **Developer mode** via the top-right toggle.
 3. Click **Load unpacked** and select the `T7-extension/` folder from this repository.
 4. Copy your **T7 Account ID** from your Student Profile on the dashboard and paste it into the extension popup to link session tracking.
-
----
-
-## 👥 Engineering & Research Team
-
-* **Abhishek** — *Lead Architect & Extension Developer*
-* **Nithelan** — *Frontend & UX Specialist*
-* **Bharath** — *AI & Systems Engineer*
-* **Abdul** — *Data Scientist & Research*
-
----
-
-<p align="center">
-  <strong>🏆 Built at Nagarjuna College of Engineering and Technology Hackathon</strong><br/>
-  <em>Empowering engineering students with industry-validated career readiness.</em>
-</p>
