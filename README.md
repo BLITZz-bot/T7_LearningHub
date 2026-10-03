@@ -231,6 +231,15 @@ The platform runs on a compiled **LangGraph `StateGraph`** (`@langchain/langgrap
   4. *Concurrency & Async* (Threading, async/await, race conditions)
   5. *Architecture & Best Practices* (Design patterns, clean code, error handling)
 
+### ⚡ Dynamic Model Fallback Chain & Speed Hierarchy
+To provide ultra-fast responses and guarantee zero quota downtime:
+1. **Gemini 3.1 Flash Lite** (`gemini-3.1-flash-lite`): **Default Engine** across ATS scoring, Skill Certification Exams, Code Arena, and T7 AI Mentor (~200ms TTFT, highest tokens/sec).
+2. **Gemini 3.5 Flash** (`gemini-3.5-flash`): Reliable sub-second fallback.
+3. **Gemini 3.6 Flash** (`gemini-3.6-flash`): Balanced speed and reasoning fallback.
+4. **Gemini 3.7 Flash** (`gemini-3.7-flash`): Adaptive hybrid reasoning fallback.
+5. **Gemini 3.8 Flash** (`gemini-3.8-flash`): Flagship deep intelligence fallback.
+6. **Gemini 3.1 Pro Preview** (`gemini-3.1-pro-preview`): Enterprise architectural audits.
+
 ---
 
 ## 💼 Live Job Market Aggregation & "Compare & Plan"
@@ -273,7 +282,7 @@ A companion Chrome Extension designed to eliminate distraction and turn video co
 | **Frontend UI** | React 18.2, Vite 5.0, Tailwind CSS 3.4, Lucide React, Monaco Editor (`@monaco-editor/react`) |
 | **Routing** | React Router v6 (v7 Future Flags enabled) |
 | **AI Multi-Agent System**| LangChain (`@langchain/core`, `@langchain/google-genai`), LangGraph (`@langchain/langgraph`), Zod Schema Validation |
-| **AI Models (Gemini)** | Gemini 3.6 Flash, Gemini 3.5 Flash, Gemini 3.1 Flash Lite, Gemini 3.7 Flash, Gemini 3.8 Flash, Gemini 3.1 Pro Preview |
+| **AI Models (Gemini)** | Gemini 3.1 Flash Lite (Default / Ultra-Low Latency), Gemini 3.5 Flash, Gemini 3.6 Flash, Gemini 3.7 Flash, Gemini 3.8 Flash, Gemini 3.1 Pro Preview |
 | **Observability** | LangSmith Tracing (`LANGCHAIN_TRACING_V2=true`) |
 | **Document Processing** | `pdf-parse` (PDF Extraction), `mammoth` (DOCX/DOC Extraction) |
 | **Database & Auth** | Supabase Enterprise PostgreSQL, Row Level Security, Secure Service Gateway |
