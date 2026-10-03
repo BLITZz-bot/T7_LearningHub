@@ -355,3 +355,21 @@ npm run build
 2. Enable **Developer mode** via the top-right toggle.
 3. Click **Load unpacked** and select the `T7-extension/` folder from this repository.
 4. Copy your **T7 Account ID** from your Student Profile on the dashboard and paste it into the extension popup to link session tracking.
+
+---
+
+## 👨‍💻 Author & Intellectual Property
+
+**T7 Learning Hub (USEReady Edition)** is built and maintained by **M M Bharath**.
+
+> ⚠️ **Strict Copyright & Anti-Plagiarism Warning:**  
+> This project and all associated materials are the intellectual property of **M M Bharath**. Unauthorized copying, cloning, plagiarism, or distribution of this codebase without explicit prior written consent is strictly prohibited and subject to immediate DMCA takedowns, GitHub account bans, and legal copyright enforcement.
+
+For complete vulnerability reporting guidelines and intellectual property enforcement terms, please refer to [SECURITY.md](SECURITY.md).
+
+---
+
+## 📄 License & Copyright
+
+© 2024–2026 **M M Bharath**. All rights reserved.
+
