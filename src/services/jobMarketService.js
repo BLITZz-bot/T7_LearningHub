@@ -184,8 +184,8 @@ export const fetchArbeitnowJobs = async (roleName, location = 'India', page = 1)
     const skills = extractSkillsFromJob(job.title, job.description, roleRequiredSkills);
     return {
       id: job.slug ? `arbeitnow-${job.slug}` : `arbeitnow-${page}-${idx}-${Date.now()}`,
-      title: job.title,
-      company: job.company_name || 'Tech Company',
+      title: job.title || job.job_title || job.name || job.position || job.role || 'Tech Role',
+      company: job.company_name || job.company || 'Tech Company',
       companyLogo: null,
       platform: 'Arbeitnow',
       platformStyle: PLATFORM_STYLES.Arbeitnow.bg,

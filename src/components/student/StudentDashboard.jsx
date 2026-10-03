@@ -1250,7 +1250,12 @@ const StudentDashboard = () => {
                                 </div>
                               </div>
 
-                              <h3 className="font-bold text-zinc-900 text-base mb-1 leading-snug">{job.title}</h3>
+                              <h3
+                                className="font-bold !text-zinc-900 text-base mb-1 leading-snug break-words"
+                                style={{ color: '#18181b' }}
+                              >
+                                {job.title || job.job_title || job.name || job.position || job.role || 'Open Opportunity'}
+                              </h3>
                               <div className="flex items-center text-xs text-zinc-500 gap-3 mb-3.5 flex-wrap">
                                 <span className="flex items-center gap-1 font-medium text-zinc-700"><Building2 className="w-3.5 h-3.5 text-zinc-400" /> {job.company}</span>
                                 <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-zinc-400" /> {job.location}</span>

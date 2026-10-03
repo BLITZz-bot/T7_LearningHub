@@ -72,6 +72,9 @@ const Results = () => {
     }
   }, [activeTab]);
 
+  // Feature toggle: Set to false whenever you want to re-enable YouTube Tracker
+  const HIDE_YOUTUBE_TRACKER = true;
+
   // YouTube Tracker & Extension Sync state
   const [videoLearning, setVideoLearning] = useState([]);
   const [ytSkills, setYtSkills] = useState([]);
@@ -2047,70 +2050,72 @@ const Results = () => {
         )}
 
         {/* Compact YouTube Learning Tracker & T7 Sync Banner */}
-        <div className="mb-6 p-4 sm:p-5 bg-gradient-to-r from-zinc-900 via-zinc-850 to-zinc-900 rounded-2xl shadow-xl border border-zinc-800 text-white transition-all hover:border-zinc-700">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-red-600/30 flex-shrink-0 border border-red-500/30">
-                <Youtube className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-bold text-white text-base">YouTube Learning Tracker</h3>
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    {videoLearning.length > 0 ? 'Extension Synced' : 'Ready to Sync'}
-                  </span>
+        {!HIDE_YOUTUBE_TRACKER && (
+          <div className="mb-6 p-4 sm:p-5 bg-gradient-to-r from-zinc-900 via-zinc-850 to-zinc-900 rounded-2xl shadow-xl border border-zinc-800 text-white transition-all hover:border-zinc-700">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-red-600/30 flex-shrink-0 border border-red-500/30">
+                  <Youtube className="w-6 h-6 text-white" />
                 </div>
-                <div className="text-xs text-zinc-400 mt-1 flex items-center gap-2 flex-wrap">
-                  <span>
-                    <strong className="text-white font-bold">{videoLearning.length}</strong> videos analyzed
-                  </span>
-                  <span>•</span>
-                  <span>
-                    <strong className="text-white font-bold">{ytSkills.length}</strong> skills detected
-                  </span>
-                  {userProfile?.t7Id && (
-                    <>
-                      <span>•</span>
-                      <span>
-                        T7 ID: <strong className="text-amber-300 font-mono font-bold">{userProfile.t7Id}</strong>
-                      </span>
-                    </>
-                  )}
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-white text-base">YouTube Learning Tracker</h3>
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      {videoLearning.length > 0 ? 'Extension Synced' : 'Ready to Sync'}
+                    </span>
+                  </div>
+                  <div className="text-xs text-zinc-400 mt-1 flex items-center gap-2 flex-wrap">
+                    <span>
+                      <strong className="text-white font-bold">{videoLearning.length}</strong> videos analyzed
+                    </span>
+                    <span>•</span>
+                    <span>
+                      <strong className="text-white font-bold">{ytSkills.length}</strong> skills detected
+                    </span>
+                    {userProfile?.t7Id && (
+                      <>
+                        <span>•</span>
+                        <span>
+                          T7 ID: <strong className="text-amber-300 font-mono font-bold">{userProfile.t7Id}</strong>
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2.5 flex-wrap">
-              {userProfile?.t7Id && (
+              <div className="flex items-center gap-2.5 flex-wrap">
+                {userProfile?.t7Id && (
+                  <button
+                    type="button"
+                    onClick={copyT7Id}
+                    className={`px-3 py-2 font-bold rounded-xl transition-all flex items-center gap-1.5 text-xs cursor-pointer ${copiedT7
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white border border-white/10'
+                      }`}
+                    title="Copy T7 Account ID"
+                  >
+                    {copiedT7 ? (
+                      <><CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> Copied ID</>
+                    ) : (
+                      <><Copy className="w-3.5 h-3.5" /> Copy ID</>
+                    )}
+                  </button>
+                )}
+
                 <button
                   type="button"
-                  onClick={copyT7Id}
-                  className={`px-3 py-2 font-bold rounded-xl transition-all flex items-center gap-1.5 text-xs cursor-pointer ${copiedT7
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white border border-white/10'
-                    }`}
-                  title="Copy T7 Account ID"
+                  onClick={() => setIsYouTubeModalOpen(true)}
+                  className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-lg shadow-red-600/30 flex items-center gap-2 hover:-translate-y-0.5 cursor-pointer"
                 >
-                  {copiedT7 ? (
-                    <><CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> Copied ID</>
-                  ) : (
-                    <><Copy className="w-3.5 h-3.5" /> Copy ID</>
-                  )}
+                  <span>View Full Tracker & Skills</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setIsYouTubeModalOpen(true)}
-                className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-lg shadow-red-600/30 flex items-center gap-2 hover:-translate-y-0.5 cursor-pointer"
-              >
-                <span>View Full Tracker & Skills</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Navigation Tabs */}
         <div className="bg-white rounded-2xl p-2 mb-6 shadow-lg border border-zinc-100">
@@ -2120,7 +2125,7 @@ const Results = () => {
               { id: 'roadmap', icon: Rocket, label: 'Roadmap' },
               { id: 'skills', icon: Target, label: 'Skills' },
               { id: 'ats', icon: FileText, label: 'ATS Resume' },
-              { id: 'youtube', icon: Youtube, label: 'YouTube Tracker' },
+              ...(HIDE_YOUTUBE_TRACKER ? [] : [{ id: 'youtube', icon: Youtube, label: 'YouTube Tracker' }]),
               { id: 'code-arena', icon: Code2, label: 'Code Arena' },
               { id: 'tips', icon: Briefcase, label: 'Career Tips' },
               { id: 'skill-exams', icon: Award, label: 'Skill Exams' },
@@ -3490,34 +3495,36 @@ const Results = () => {
                 )}
 
                 {/* Bridge ATS Gaps with YouTube Learning */}
-                <div className="bg-gradient-to-r from-zinc-900 via-zinc-850 to-zinc-900 rounded-2xl p-5 text-white border border-zinc-700 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-11 h-11 bg-red-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-red-600/30">
-                      <Youtube className="w-6 h-6 text-white" />
+                {!HIDE_YOUTUBE_TRACKER && (
+                  <div className="bg-gradient-to-r from-zinc-900 via-zinc-850 to-zinc-900 rounded-2xl p-5 text-white border border-zinc-700 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-11 h-11 bg-red-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-red-600/30">
+                        <Youtube className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-base text-white">Bridge ATS Keyword Gaps with YouTube Learning</h4>
+                        <p className="text-xs text-zinc-400 mt-0.5">
+                          Watch video tutorials for your missing skills using your T7 ID (<span className="font-mono text-amber-300 font-bold">{userProfile?.t7Id || 'T7-XXXXXX'}</span>) to automatically credit verified skills to your profile!
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-bold text-base text-white">Bridge ATS Keyword Gaps with YouTube Learning</h4>
-                      <p className="text-xs text-zinc-400 mt-0.5">
-                        Watch video tutorials for your missing skills using your T7 ID (<span className="font-mono text-amber-300 font-bold">{userProfile?.t7Id || 'T7-XXXXXX'}</span>) to automatically credit verified skills to your profile!
-                      </p>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsYouTubeModalOpen(true)}
+                      className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold rounded-xl transition flex items-center gap-1.5 self-start sm:self-auto cursor-pointer flex-shrink-0"
+                    >
+                      <span>Track Video Skills</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsYouTubeModalOpen(true)}
-                    className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs font-bold rounded-xl transition flex items-center gap-1.5 self-start sm:self-auto cursor-pointer flex-shrink-0"
-                  >
-                    <span>Track Video Skills</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                )}
               </>
             )}
           </div>
         )}
 
         {/* TAB: YouTube Learning Tracker */}
-        {activeTab === 'youtube' && (
+        {!HIDE_YOUTUBE_TRACKER && activeTab === 'youtube' && (
           <div className="space-y-6">
             <div className="bg-gradient-to-r from-zinc-900 via-zinc-850 to-zinc-900 rounded-3xl p-8 shadow-2xl border border-zinc-800 text-white">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
