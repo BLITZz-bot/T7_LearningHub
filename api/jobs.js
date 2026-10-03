@@ -50,7 +50,7 @@ export default async function handler(req, res) {
           const rawJobs = Array.isArray(data.data) ? data.data : (data.data?.jobs || []);
           results.jsearch = rawJobs.map((j, idx) => ({
             id: j.job_id || `jsearch-${pageNum}-${idx}`,
-            title: j.job_title,
+            title: j.job_title || j.title || 'Tech Role',
             company: j.employer_name || 'Hiring Company',
             companyLogo: j.employer_logo || null,
             platform: j.job_publisher || 'Google for Jobs',

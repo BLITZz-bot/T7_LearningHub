@@ -702,26 +702,33 @@ async function skillExtractorNode(state) {
     } catch (_) {}
   }
 
-  // Scrape JD
-  let jobText = fallbackDescription || '';
-  try {
-    const pythonBackendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    const scrapeRes = await fetch(`${pythonBackendUrl}/scraping/scrape`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: jobUrl }),
-    });
-    if (scrapeRes.ok) {
-      const scrapeData = await scrapeRes.json();
-      const blocked = scrapeData.text && (scrapeData.text.includes('suspicious behaviour') || scrapeData.text.includes('Cloudflare') || scrapeData.text.includes('Just a moment...'));
-      if (scrapeData.text?.length > 200 && !blocked) jobText = scrapeData.text;
+  // Fast JD text resolution: if description already provided by API, use directly (saves 5-15s scraper hang)
+  let jobText = (fallbackDescription || '').trim();
+  if (!jobText || jobText.length < 150) {
+    try {
+      const pythonBackendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const scrapeRes = await fetch(`${pythonBackendUrl}/scraping/scrape`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: jobUrl }),
+        signal: AbortSignal.timeout(1500), // Strict 1.5s timeout prevents hanging
+      });
+      if (scrapeRes.ok) {
+        const scrapeData = await scrapeRes.json();
+        const blocked = scrapeData.text && (scrapeData.text.includes('suspicious behaviour') || scrapeData.text.includes('Cloudflare') || scrapeData.text.includes('Just a moment...'));
+        if (scrapeData.text?.length > 200 && !blocked) jobText = scrapeData.text;
+      }
+    } catch (e) {
+      console.warn('[gemini-agent] Scraper skipped or timed out:', e.message);
     }
-  } catch (e) {
-    console.warn('[gemini-agent] Scraper error:', e.message);
   }
 
-  const extractModel = createStructuredModel(apiKey, SkillsSchema);
-  const extractPrompt = `Extract all technical skills, frameworks, tools, and programming languages required in this job posting. Return them as an array of strings.\n\nJob Text:\n${jobText.substring(0, 15000)}`;
+  // Use Gemini 3.1 Flash Lite with tight output tokens for sub-second extraction
+  const extractModel = createStructuredModel(apiKey, SkillsSchema, 'gemini-3.1-flash-lite', {
+    maxOutputTokens: 600,
+    temperature: 0.1,
+  });
+  const extractPrompt = `Extract all technical skills, frameworks, tools, and programming languages required in this job posting. Return them as a concise JSON array of distinct skill strings.\n\nJob Text:\n${jobText.substring(0, 8000)}`;
   const extracted = await extractModel.invoke(extractPrompt);
   const extractedSkills = extracted.skills || [];
 

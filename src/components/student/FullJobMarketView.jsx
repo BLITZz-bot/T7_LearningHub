@@ -47,6 +47,19 @@ const FullJobMarketView = ({
       return;
     }
 
+    // 1. Instant Local Cache Check (0ms latency, zero API calls)
+    let localCache = {};
+    try {
+      localCache = JSON.parse(localStorage.getItem('t7_job_skills_cache') || '{}');
+    } catch (_) {}
+
+    if (localCache[job.id] && Array.isArray(localCache[job.id]) && localCache[job.id].length > 0) {
+      const cachedSkills = localCache[job.id];
+      setJobs(prevJobs => prevJobs.map(j => (j.id === job.id ? { ...j, requiredSkills: cachedSkills, fullSkillsExtracted: true } : j)));
+      setSelectedJob({ ...job, requiredSkills: cachedSkills, fullSkillsExtracted: true });
+      return;
+    }
+
     setScrapingJobs(prev => ({ ...prev, [job.id]: true }));
     try {
       const res = await fetch('/api/gemini', {
@@ -61,6 +74,12 @@ const FullJobMarketView = ({
       });
       const data = await res.json();
       if (res.ok && data.skills && Array.isArray(data.skills) && data.skills.length > 0) {
+        // Save to localStorage for instant reuse across sessions
+        try {
+          localCache[job.id] = data.skills;
+          localStorage.setItem('t7_job_skills_cache', JSON.stringify(localCache));
+        } catch (_) {}
+
         setJobs(prevJobs => prevJobs.map(j => {
           if (j.id === job.id) {
             return { ...j, requiredSkills: data.skills, fullSkillsExtracted: true };
@@ -92,12 +111,27 @@ const FullJobMarketView = ({
         page: 1,
         forceRefresh
       });
-      setJobs(data.jobs || []);
+      
+      // Pre-hydrate jobs with previously extracted skills from localStorage
+      let localCache = {};
+      try {
+        localCache = JSON.parse(localStorage.getItem('t7_job_skills_cache') || '{}');
+      } catch (_) {}
+
+      const rawJobs = data.jobs || [];
+      const hydratedJobs = rawJobs.map(j => {
+        if (localCache[j.id] && Array.isArray(localCache[j.id]) && localCache[j.id].length > 0) {
+          return { ...j, requiredSkills: localCache[j.id], fullSkillsExtracted: true };
+        }
+        return j;
+      });
+
+      setJobs(hydratedJobs);
       setActiveSources(data.activeSources || []);
       if (data.error && (!data.jobs || data.jobs.length === 0)) {
         setError(data.error);
       }
-      setHasMore((data.jobs || []).length >= 8);
+      setHasMore(rawJobs.length >= 8);
     } catch (err) {
       console.error('Error loading full job board:', err);
       setError(err.message);
@@ -412,8 +446,11 @@ const FullJobMarketView = ({
                       </div>
 
                       {/* Title & Company */}
-                      <h3 className="font-bold text-zinc-900 text-base mb-1.5 leading-snug line-clamp-2">
-                        {job.title}
+                      <h3
+                        className="font-extrabold !text-zinc-900 text-base mb-1.5 leading-snug break-words"
+                        style={{ color: '#18181b' }}
+                      >
+                        {job.title || job.job_title || job.name || job.position || job.role || 'Open Opportunity'}
                       </h3>
                       <div className="flex items-center text-xs text-zinc-500 gap-3 mb-4 flex-wrap">
                         <span className="flex items-center gap-1 font-semibold text-zinc-800">
